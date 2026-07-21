@@ -1,7 +1,6 @@
-# T-Care Mobile (Expo)
+# T-Care Mobile (Work in progress)
 
-Redesigned mobile version of T-Care — square corners throughout, colors
-pulled from the official U of T brand palette (brand.utoronto.ca).
+Redesigned mobile version of T-Care 
 
 ## What's here
 
