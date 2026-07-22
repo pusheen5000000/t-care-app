@@ -10,7 +10,8 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { colors, spacing, fontSize } from '../theme';
+import { colors, spacing, fontSize, radius } from '../theme';
+import { MoodCheckIn } from '../components/MoodCheckIn';
 
 type Props = {
   onSubmit: (query: string) => void;
@@ -32,8 +33,15 @@ const SUGGESTIONS = [
   },
 ];
 
+const MOODS: { emoji: string; label: string; mood: 'good' | 'okay' | 'struggling' }[] = [
+  { emoji: '😊', label: 'Good', mood: 'good' },
+  { emoji: '😐', label: 'Okay', mood: 'okay' },
+  { emoji: '😔', label: 'Struggling', mood: 'struggling' },
+];
+
 export function AskScreen({ onSubmit }: Props) {
   const [text, setText] = useState('');
+  const [activeMood, setActiveMood] = useState<'good' | 'okay' | 'struggling' | null>(null);
 
   const handleSend = () => {
     if (!text.trim()) return;
@@ -61,9 +69,9 @@ export function AskScreen({ onSubmit }: Props) {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.greeting}>Hey, what's going on?</Text>
+          <Text style={styles.greeting}>Every resource, routed to you. </Text>
           <Text style={styles.subtitle}>
-            Tell me what you need and I'll point you to the right place.
+            The fastest path to campus support. 
           </Text>
 
           <View style={styles.chipList}>
@@ -75,6 +83,21 @@ export function AskScreen({ onSubmit }: Props) {
                 activeOpacity={0.7}
               >
                 <Text style={styles.chipText}>{s.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={styles.moodTitle}>How are you feeling right now?</Text>
+          <View style={styles.moodRow}>
+            {MOODS.map((m) => (
+              <TouchableOpacity
+                key={m.label}
+                style={styles.moodButton}
+                onPress={() => setActiveMood(m.mood)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.moodEmoji}>{m.emoji}</Text>
+                <Text style={styles.moodLabel}>{m.label}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -98,6 +121,12 @@ export function AskScreen({ onSubmit }: Props) {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      <MoodCheckIn
+        visible={activeMood !== null}
+        mood={activeMood}
+        onClose={() => setActiveMood(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -128,6 +157,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     backgroundColor: colors.accent,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -167,10 +197,40 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
+    borderRadius: radius.lg,
   },
   chipText: {
     fontSize: fontSize.base,
     color: colors.textPrimary,
+    fontWeight: '500',
+  },
+  moodTitle: {
+    fontSize: fontSize.base,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginTop: spacing.xl,
+    marginBottom: spacing.md,
+  },
+  moodRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  moodButton: {
+    flex: 1,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    gap: spacing.xs,
+    borderRadius: radius.lg,
+  },
+  moodEmoji: {
+    fontSize: 28,
+  },
+  moodLabel: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   inputBar: {
@@ -178,7 +238,8 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     gap: spacing.sm,
     paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
@@ -192,11 +253,13 @@ const styles = StyleSheet.create({
     fontSize: fontSize.base,
     color: colors.textPrimary,
     maxHeight: 100,
+    borderRadius: 999,
   },
   sendButton: {
     backgroundColor: colors.accent,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
+    borderRadius: 999,
   },
   sendButtonText: {
     color: colors.accentOn,

@@ -1,41 +1,48 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ActivityIndicator, Text } from 'react-native';
-import * as Location from 'expo-location';
 import { AskScreen } from './screens/AskScreen';
 import { ResultScreen } from './screens/ResultScreen';
 import { TabBar, TabKey } from './components/TabBar';
 import { colors, fontSize } from './theme';
 import type { QueryResult } from './types';
 
-// Update this to your laptop's local IP + port (find it with `ipconfig`).
-// Must match whatever network your phone is currently connected to.
-const API_BASE_URL = 'http://10.0.0.48:3000';
-
-async function getCurrentLocation(): Promise<{ lat: number; lng: number } | null> {
-  const { status } = await Location.requestForegroundPermissionsAsync();
-  if (status !== 'granted') return null;
-
-  const position = await Location.getCurrentPositionAsync({});
-  return {
-    lat: position.coords.latitude,
-    lng: position.coords.longitude,
-  };
-}
-
+// FRONTEND-ONLY STUB — no backend needed. Fake data for UI/theme testing.
 async function resolveQuery(query: string): Promise<QueryResult> {
-  const location = await getCurrentLocation();
+  await new Promise((r) => setTimeout(r, 700));
 
-  const response = await fetch(`${API_BASE_URL}/api/query`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, location }),
-  });
+  const lower = query.toLowerCase();
 
-  if (!response.ok) {
-    throw new Error(`Backend error (${response.status})`);
+  if (lower.includes('tcard')) {
+    return {
+      type: 'location',
+      query,
+      title: 'TCard replacement',
+      summary:
+        'Report it lost, then head to the TCard office with photo ID. A replacement costs $20 and is ready same day.',
+      placeName: 'TCard Office',
+      placeSubtitle: '765 Sunningdale Rd W, London, ON',
+      walkMinutes: 8,
+      fee: '$20',
+      hours: 'until 5pm',
+      origin: { latitude: 42.9849, longitude: -81.2453 },
+      destination: { latitude: 42.9989, longitude: -81.2853 },
+      polyline: {
+        type: 'LineString',
+        coordinates: [
+          [-81.2453, 42.9849],
+          [-81.2653, 42.9919],
+          [-81.2853, 42.9989],
+        ],
+      },
+    };
   }
 
-  return response.json();
+  return {
+    type: 'info',
+    query,
+    title: "Here's what I found",
+    summary: 'Frontend-only stub response — no backend connected right now.',
+  };
 }
 
 export default function App() {
@@ -54,7 +61,7 @@ export default function App() {
         type: 'info',
         query,
         title: 'Something went wrong',
-        summary: 'Could not reach the backend. Check the server and API URL.',
+        summary: 'Stub error — this should not happen in the fake-data version.',
       });
     } finally {
       setLoading(false);

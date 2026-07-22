@@ -25,29 +25,31 @@ export const colors = {
   black: '#000000',
 
   // Semantic mapping for the app — dark mode.
-  // Uses near-black surfaces with the U of T blue family as accents,
-  // and lightBlue as the interactive/accent color since it reads
-  // better than the dark uoftBlue against a dark background.
-  background: '#121417',
-  surface: '#1B1E23',
-  surfaceMuted: '#23262C',
-  border: '#33373E',
+  background: '#0B1F3A',      // dark navy background
+  surface: '#142B4D',         // slightly lighter navy for bars/cards
+  surfaceMuted: '#1E3765',    // UofT blue buttons/cards
+  border: '#34527A',
   textPrimary: '#F2F3F4',
-  textSecondary: '#B7BCC4',
-  textMuted: '#7E848C',
-  accent: '#6FC7EA',            // U of T light blue — pops on dark surfaces
-  accentOn: '#0B1F33',          // dark text on the light-blue accent
+  textSecondary: '#C6D0E0',
+  textMuted: '#8FA0BE',
+  accent: '#0091f2',          // light blue send button
+  accentOn: '#0B1F33',
   success: '#8DBF2E',
   danger: '#FF6B55',
-  infoBg: '#17293A',             // dark tint of sky/uoftBlue for info cards
+  infoBg: '#17293A',
   infoText: '#DCEEF6',
+
+
 };
 
-// Everything square — no rounded corners anywhere in the app.
-// Keep this constant at 0 rather than deleting radius usage,
-// so it stays a single switch if that ever changes.
+// Rounded corners
 export const radius = {
   none: 0,
+  sm: 6,
+  md: 10,
+  lg: 12,
+  xl: 16,
+  full: 16,
 };
 
 export const spacing = {

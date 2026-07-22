@@ -2,12 +2,13 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors, spacing, fontSize } from '../theme';
 
-export type TabKey = 'ask' | 'resources' | 'saved';
+export type TabKey = 'ask' | 'resources' | 'tai' | 'contact';
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'ask', label: 'Ask' },
   { key: 'resources', label: 'Resources' },
-  { key: 'saved', label: 'Saved' },
+  { key: 'tai', label: 'T-AI' },
+  { key: 'contact', label: 'Contact' },
 ];
 
 type Props = {
@@ -51,11 +52,12 @@ export function TabBar({ active, onChange }: Props) {
 const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
+    height: 70,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.lg,
+    paddingTop: 10,
+    paddingBottom: 10,
   },
   tab: {
     flex: 1,
