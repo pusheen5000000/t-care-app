@@ -1,13 +1,27 @@
 // services/mapsService.js
 //
-// Uses the Google Maps Directions API.
-// Docs: https://developers.google.com/maps/documentation/directions
-//
-// Note: Directions API requires a Google Cloud project with billing
-// enabled (a card on file), even though usage is covered by the
-// monthly $200 free credit for typical campus-app volume.
+// Uses the Geoapify Routing API.
+// Docs: https://apidocs.geoapify.com/docs/routing/
 
-const DIRECTIONS_URL = 'https://maps.googleapis.com/maps/api/directions/json';
+const ROUTING_URL = 'https://api.geoapify.com/v1/routing';
+const GEOCODE_URL = 'https://api.geoapify.com/v1/geocode/search';
+
+async function geocodeAddress(address) {
+  const params = new URLSearchParams({
+    text: address,
+    apiKey: process.env.GEOAPIFY_API_KEY,
+  });
+
+  const response = await fetch(`${GEOCODE_URL}?${params.toString()}`);
+  if (!response.ok) throw new Error(`Geoapify geocode error (${response.status})`);
+
+  const data = await response.json();
+  const feature = data.features?.[0];
+  if (!feature) throw new Error(`Geoapify geocode found no results for: ${address}`);
+
+  const [lng, lat] = feature.geometry.coordinates;
+  return { lat, lng };
+}
 
 /**
  * Get a walking route from the student's current location to a
@@ -18,36 +32,33 @@ const DIRECTIONS_URL = 'https://maps.googleapis.com/maps/api/directions/json';
  * @returns {Promise<{ walkMinutes: number, distanceText: string, steps: Array }>}
  */
 async function getWalkingRoute(origin, destinationAddress) {
+  const dest = await geocodeAddress(destinationAddress);
+
   const params = new URLSearchParams({
-    origin: `${origin.lat},${origin.lng}`,
-    destination: destinationAddress,
-    mode: 'walking',
-    key: process.env.GOOGLE_MAPS_API_KEY,
+    waypoints: `${origin.lat},${origin.lng}|${dest.lat},${dest.lng}`,
+    mode: 'walk',
+    apiKey: process.env.GEOAPIFY_API_KEY,
   });
 
-  const response = await fetch(`${DIRECTIONS_URL}?${params.toString()}`);
-
-  if (!response.ok) {
-    throw new Error(`Google Maps API error (${response.status})`);
-  }
+  const response = await fetch(`${ROUTING_URL}?${params.toString()}`);
+  if (!response.ok) throw new Error(`Geoapify Routing API error (${response.status})`);
 
   const data = await response.json();
+  const feature = data.features?.[0];
+  if (!feature) throw new Error('Geoapify Routing returned no route');
 
-  if (data.status !== 'OK' || !data.routes?.length) {
-    throw new Error(`Google Maps Directions returned status: ${data.status}`);
-  }
-
-  const leg = data.routes[0].legs[0];
+  const props = feature.properties;
+  const leg = props.legs[0];
 
   return {
-    walkMinutes: Math.round(leg.duration.value / 60),
-    distanceText: leg.distance.text,
+    walkMinutes: Math.round(props.time / 60),
+    distanceText: `${(props.distance / 1000).toFixed(1)} km`,
     steps: leg.steps.map((s) => ({
-      instruction: s.html_instructions,
-      distance: s.distance.text,
+      instruction: s.instruction?.text ?? '',
+      distance: `${Math.round(s.distance)} m`,
     })),
-    // Raw polyline so the mobile app can draw the route on the map
-    polyline: data.routes[0].overview_polyline?.points ?? null,
+    // Geometry so the mobile app can draw the route on the map
+    polyline: feature.geometry ?? null,
   };
 }
 
