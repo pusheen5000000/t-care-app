@@ -7,6 +7,8 @@ import {
   ScrollView,
   StyleSheet,
   SafeAreaView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { colors, spacing, fontSize } from '../theme';
 
@@ -41,52 +43,61 @@ export function AskScreen({ onSubmit }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.logoBox}>
-            <Text style={styles.logoText}>T</Text>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <View style={styles.logoBox}>
+              <Text style={styles.logoText}>T</Text>
+            </View>
+            <Text style={styles.headerTitle}>T-Care</Text>
           </View>
-          <Text style={styles.headerTitle}>T-Care</Text>
         </View>
-      </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.greeting}>Hey, what's going on?</Text>
-        <Text style={styles.subtitle}>
-          Tell me what you need and I'll point you to the right place.
-        </Text>
-
-        <View style={styles.chipList}>
-          {SUGGESTIONS.map((s) => (
-            <TouchableOpacity
-              key={s.label}
-              style={styles.chip}
-              onPress={() => onSubmit(s.query)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.chipText}>{s.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </ScrollView>
-
-      <View style={styles.inputBar}>
-        <TextInput
-          style={styles.input}
-          value={text}
-          onChangeText={setText}
-          placeholder="Describe your situation..."
-          placeholderTextColor={colors.textMuted}
-          multiline
-        />
-        <TouchableOpacity
-          style={styles.sendButton}
-          onPress={handleSend}
-          activeOpacity={0.8}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.sendButtonText}>Send</Text>
-        </TouchableOpacity>
-      </View>
+          <Text style={styles.greeting}>Hey, what's going on?</Text>
+          <Text style={styles.subtitle}>
+            Tell me what you need and I'll point you to the right place.
+          </Text>
+
+          <View style={styles.chipList}>
+            {SUGGESTIONS.map((s) => (
+              <TouchableOpacity
+                key={s.label}
+                style={styles.chip}
+                onPress={() => onSubmit(s.query)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.chipText}>{s.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+
+        <View style={styles.inputBar}>
+          <TextInput
+            style={styles.input}
+            value={text}
+            onChangeText={setText}
+            placeholder="Describe your situation..."
+            placeholderTextColor={colors.textMuted}
+            multiline
+          />
+          <TouchableOpacity
+            style={styles.sendButton}
+            onPress={handleSend}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.sendButtonText}>Send</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -95,6 +106,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  flex: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
@@ -114,7 +128,6 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     backgroundColor: colors.accent,
-    // square — no borderRadius
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -152,7 +165,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
     borderColor: colors.border,
-    // square — no borderRadius
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
   },
@@ -175,7 +187,6 @@ const styles = StyleSheet.create({
     flex: 1,
     borderWidth: 1,
     borderColor: colors.border,
-    // square — no borderRadius
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     fontSize: fontSize.base,
@@ -184,7 +195,6 @@ const styles = StyleSheet.create({
   },
   sendButton: {
     backgroundColor: colors.accent,
-    // square — no borderRadius
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
