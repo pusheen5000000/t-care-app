@@ -48,7 +48,10 @@ export function MoodCheckIn({ visible, mood, onClose }: Props) {
       return <GroundingContent onDone={handleClose} />;
     }
 
-    // mood === 'struggling'
+    if (mood !== 'struggling') {
+      return null;
+    }
+
     if (safetyAnswer === null) {
       return (
         <>
@@ -103,7 +106,6 @@ export function MoodCheckIn({ visible, mood, onClose }: Props) {
       );
     }
 
-    // safetyAnswer === 'no'
     return <GroundingContent onDone={handleClose} />;
   };
 

@@ -2,41 +2,14 @@ import React, { useState } from 'react';
 import { View, StyleSheet, ActivityIndicator, Text } from 'react-native';
 import { AskScreen } from './screens/AskScreen';
 import { ResultScreen } from './screens/ResultScreen';
+import { TAIScreen } from './screens/TAIScreen';
+import { ContactScreen } from './screens/ContactScreen';
 import { TabBar, TabKey } from './components/TabBar';
 import { colors, fontSize } from './theme';
 import type { QueryResult } from './types';
 
-// FRONTEND-ONLY STUB — no backend needed. Fake data for UI/theme testing.
 async function resolveQuery(query: string): Promise<QueryResult> {
   await new Promise((r) => setTimeout(r, 700));
-
-  const lower = query.toLowerCase();
-
-  if (lower.includes('tcard')) {
-    return {
-      type: 'location',
-      query,
-      title: 'TCard replacement',
-      summary:
-        'Report it lost, then head to the TCard office with photo ID. A replacement costs $20 and is ready same day.',
-      placeName: 'TCard Office',
-      placeSubtitle: '765 Sunningdale Rd W, London, ON',
-      walkMinutes: 8,
-      fee: '$20',
-      hours: 'until 5pm',
-      origin: { latitude: 42.9849, longitude: -81.2453 },
-      destination: { latitude: 42.9989, longitude: -81.2853 },
-      polyline: {
-        type: 'LineString',
-        coordinates: [
-          [-81.2453, 42.9849],
-          [-81.2653, 42.9919],
-          [-81.2853, 42.9989],
-        ],
-      },
-    };
-  }
-
   return {
     type: 'info',
     query,
@@ -61,18 +34,24 @@ export default function App() {
         type: 'info',
         query,
         title: 'Something went wrong',
-        summary: 'Stub error — this should not happen in the fake-data version.',
+        summary: 'Stub error.',
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAskAnother = () => {
-    setResult(null);
-  };
+  const handleAskAnother = () => setResult(null);
 
   const renderBody = () => {
+    if (tab === 'tai') {
+      return <TAIScreen />;
+    }
+
+    if (tab === 'contact') {
+      return <ContactScreen />;
+    }
+
     if (tab !== 'ask') {
       return (
         <View style={styles.placeholderScreen}>
@@ -114,30 +93,10 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  body: {
-    flex: 1,
-  },
-  loadingScreen: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  loadingText: {
-    color: colors.textSecondary,
-    fontSize: fontSize.base,
-  },
-  placeholderScreen: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  placeholderText: {
-    color: colors.textMuted,
-    fontSize: fontSize.base,
-  },
+  root: { flex: 1, backgroundColor: colors.background },
+  body: { flex: 1 },
+  loadingScreen: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  loadingText: { color: colors.textSecondary, fontSize: fontSize.base },
+  placeholderScreen: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  placeholderText: { color: colors.textMuted, fontSize: fontSize.base },
 });
