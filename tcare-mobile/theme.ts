@@ -1,6 +1,8 @@
 // theme.ts
 // Colors pulled from the official U of T brand "Colour Quick Guide"
 // (brand.utoronto.ca/guidelines/#colour)
+// Semantic mapping below is flipped to a dark theme, using the same
+// brand palette as accents on dark surfaces.
 
 export const colors = {
   // Primary
@@ -22,22 +24,23 @@ export const colors = {
   white: '#FFFFFF',
   black: '#000000',
 
-  // Semantic mapping for the app (built from the palette above —
-  // brand guide says avoid black as a background, so we lean on
-  // white/coolGray for surfaces and uoftBlue/sky for structure)
-  background: '#FFFFFF',
-  surface: '#FFFFFF',
-  surfaceMuted: '#F4F5F3',      // tint of coolGray
-  border: '#D0D1C9',
-  textPrimary: '#000000',
-  textSecondary: '#4A4A4A',
-  textMuted: '#7A7A7A',
-  accent: '#1E3765',            // U of T Blue — primary actions
-  accentOn: '#FFFFFF',
+  // Semantic mapping for the app — dark mode.
+  // Uses near-black surfaces with the U of T blue family as accents,
+  // and lightBlue as the interactive/accent color since it reads
+  // better than the dark uoftBlue against a dark background.
+  background: '#121417',
+  surface: '#1B1E23',
+  surfaceMuted: '#23262C',
+  border: '#33373E',
+  textPrimary: '#F2F3F4',
+  textSecondary: '#B7BCC4',
+  textMuted: '#7E848C',
+  accent: '#6FC7EA',            // U of T light blue — pops on dark surfaces
+  accentOn: '#0B1F33',          // dark text on the light-blue accent
   success: '#8DBF2E',
-  danger: '#DC4633',
-  infoBg: '#E8F1F5',             // light tint for info/answer cards (from sky)
-  infoText: '#1E3765',
+  danger: '#FF6B55',
+  infoBg: '#17293A',             // dark tint of sky/uoftBlue for info cards
+  infoText: '#DCEEF6',
 };
 
 // Everything square — no rounded corners anywhere in the app.
