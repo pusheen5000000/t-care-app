@@ -1,56 +1,41 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ActivityIndicator, Text } from 'react-native';
+import * as Location from 'expo-location';
 import { AskScreen } from './screens/AskScreen';
 import { ResultScreen } from './screens/ResultScreen';
 import { TabBar, TabKey } from './components/TabBar';
 import { colors, fontSize } from './theme';
 import type { QueryResult } from './types';
 
-// Stub — replace with a real call to your Express backend
-// (the same endpoint your web app already hits for
-// query understanding + Geoapify routing).
-async function resolveQuery(query: string): Promise<QueryResult> {
-  await new Promise((r) => setTimeout(r, 900)); // simulate network
+// Update this to your laptop's local IP + port (find it with `ipconfig`).
+// Must match whatever network your phone is currently connected to.
+const API_BASE_URL = 'http://10.0.0.48:3000';
 
-  const lower = query.toLowerCase();
+async function getCurrentLocation(): Promise<{ lat: number; lng: number } | null> {
+  const { status } = await Location.requestForegroundPermissionsAsync();
+  if (status !== 'granted') return null;
 
-  if (lower.includes('tcard')) {
-    return {
-      type: 'location',
-      query,
-      title: 'TCard replacement',
-      summary:
-        "Report it lost, then head to the TCard office with photo ID. A replacement costs $20 and is ready same day.",
-      placeName: 'TCard Office',
-      placeSubtitle: 'Robarts Library, 1st floor',
-      walkMinutes: 8,
-      fee: '$20',
-      hours: 'until 5pm',
-    };
-  }
-
-  if (lower.includes('overwhelmed') || lower.includes('talk to')) {
-    return {
-      type: 'location',
-      query,
-      title: 'Health & Wellness Centre',
-      summary:
-        'You can book a same-day counselling drop-in or a scheduled appointment, both free for students.',
-      placeName: 'Health & Wellness Centre',
-      placeSubtitle: '214 College Street, 2nd floor',
-      walkMinutes: 12,
-      fee: 'Free',
-      hours: 'until 4:30pm',
-    };
-  }
-
+  const position = await Location.getCurrentPositionAsync({});
   return {
-    type: 'info',
-    query,
-    title: "Here's what I found",
-    summary:
-      'Placeholder response — wire this up to your backend endpoint that calls Groq for query understanding.',
+    lat: position.coords.latitude,
+    lng: position.coords.longitude,
   };
+}
+
+async function resolveQuery(query: string): Promise<QueryResult> {
+  const location = await getCurrentLocation();
+
+  const response = await fetch(`${API_BASE_URL}/api/query`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, location }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Backend error (${response.status})`);
+  }
+
+  return response.json();
 }
 
 export default function App() {
@@ -60,9 +45,20 @@ export default function App() {
 
   const handleSubmit = async (query: string) => {
     setLoading(true);
-    const r = await resolveQuery(query);
-    setResult(r);
-    setLoading(false);
+    try {
+      const r = await resolveQuery(query);
+      setResult(r);
+    } catch (err) {
+      console.error(err);
+      setResult({
+        type: 'info',
+        query,
+        title: 'Something went wrong',
+        summary: 'Could not reach the backend. Check the server and API URL.',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAskAnother = () => {
@@ -71,7 +67,6 @@ export default function App() {
 
   const renderBody = () => {
     if (tab !== 'ask') {
-      // Resources / Saved screens — build these out next
       return (
         <View style={styles.placeholderScreen}>
           <Text style={styles.placeholderText}>

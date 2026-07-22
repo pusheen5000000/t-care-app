@@ -33,6 +33,8 @@ async function geocodeAddress(address) {
  */
 async function getWalkingRoute(origin, destinationAddress) {
   const dest = await geocodeAddress(destinationAddress);
+  console.log('Routing from', origin, 'to', dest, `(address: "${destinationAddress}")`);
+
 
   const params = new URLSearchParams({
     waypoints: `${origin.lat},${origin.lng}|${dest.lat},${dest.lng}`,
@@ -41,7 +43,10 @@ async function getWalkingRoute(origin, destinationAddress) {
   });
 
   const response = await fetch(`${ROUTING_URL}?${params.toString()}`);
-  if (!response.ok) throw new Error(`Geoapify Routing API error (${response.status})`);
+  if (!response.ok) {
+    const errBody = await response.text();
+    throw new Error(`Geoapify Routing API error (${response.status}): ${errBody}`);
+  }
 
   const data = await response.json();
   const feature = data.features?.[0];
@@ -59,6 +64,7 @@ async function getWalkingRoute(origin, destinationAddress) {
     })),
     // Geometry so the mobile app can draw the route on the map
     polyline: feature.geometry ?? null,
+    destination: dest,
   };
 }
 

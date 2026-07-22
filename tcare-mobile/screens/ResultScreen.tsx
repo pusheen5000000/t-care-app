@@ -6,8 +6,8 @@ import {
   ScrollView,
   StyleSheet,
   SafeAreaView,
-  Linking,
 } from 'react-native';
+import MapView, { Marker, Polyline } from 'react-native-maps';
 import { colors, spacing, fontSize } from '../theme';
 import type { QueryResult, LocationResult } from '../types';
 
@@ -18,14 +18,6 @@ type Props = {
 
 export function ResultScreen({ result, onAskAnother }: Props) {
   const isLocation = result.type === 'location';
-
-  const openDirections = (r: LocationResult) => {
-    // Swap this URL for your Geoapify routing deep link / native maps intent
-    const url = `https://www.openstreetmap.org/search?query=${encodeURIComponent(
-      r.placeName
-    )}`;
-    Linking.openURL(url);
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -44,40 +36,71 @@ export function ResultScreen({ result, onAskAnother }: Props) {
           <Text style={styles.answerBody}>{result.summary}</Text>
         </View>
 
-        {isLocation && (
-          <LocationBlock
-            result={result as LocationResult}
-            onDirections={openDirections}
-          />
-        )}
-
-        <TouchableOpacity
-          style={styles.secondaryButton}
-          onPress={onAskAnother}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.secondaryButtonText}>Ask something else</Text>
-        </TouchableOpacity>
+        {isLocation && <LocationBlock result={result as LocationResult} />}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function LocationBlock({
-  result,
-  onDirections,
-}: {
-  result: LocationResult;
-  onDirections: (r: LocationResult) => void;
-}) {
+// Flattens Geoapify's GeoJSON geometry (LineString or MultiLineString)
+// into a flat array of {latitude, longitude} points for react-native-maps.
+function geometryToCoordinates(
+  geometry: LocationResult['polyline']
+): { latitude: number; longitude: number }[] {
+  if (!geometry) return [];
+
+  const toLatLng = (pair: number[]) => ({
+    latitude: pair[1],
+    longitude: pair[0],
+  });
+
+  if (geometry.type === 'LineString') {
+    return (geometry.coordinates as number[][]).map(toLatLng);
+  }
+
+  if (geometry.type === 'MultiLineString') {
+    return (geometry.coordinates as number[][][]).flat().map(toLatLng);
+  }
+
+  return [];
+}
+
+function LocationBlock({ result }: { result: LocationResult }) {
+  const routeCoords = geometryToCoordinates(result.polyline);
+  const origin = result.origin;
+  const destination = result.destination;
+
+  const initialRegion = destination
+    ? {
+        latitude: destination.latitude,
+        longitude: destination.longitude,
+        latitudeDelta: 0.02,
+        longitudeDelta: 0.02,
+      }
+    : undefined;
+
   return (
     <>
       <View style={styles.mapCard}>
-        {/* Swap this placeholder for a real map component,
-            e.g. react-native-maps fed by Geoapify tiles/markers */}
-        <View style={styles.mapPlaceholder}>
-          <Text style={styles.mapPlaceholderText}>Map preview</Text>
-        </View>
+        <MapView style={styles.map} initialRegion={initialRegion}>
+          {origin && (
+            <Marker
+              coordinate={origin}
+              title="You"
+              pinColor={colors.accent}
+            />
+          )}
+          {destination && (
+            <Marker coordinate={destination} title={result.placeName} />
+          )}
+          {routeCoords.length > 0 && (
+            <Polyline
+              coordinates={routeCoords}
+              strokeColor={colors.accent}
+              strokeWidth={4}
+            />
+          )}
+        </MapView>
         <View style={styles.mapCardFooter}>
           <Text style={styles.placeName}>{result.placeName}</Text>
           <Text style={styles.placeSubtitle}>{result.placeSubtitle}</Text>
@@ -89,14 +112,6 @@ function LocationBlock({
         <StatBox label="fee" value={result.fee} />
         <StatBox label="hours" value={result.hours} />
       </View>
-
-      <TouchableOpacity
-        style={styles.primaryButton}
-        onPress={() => onDirections(result)}
-        activeOpacity={0.85}
-      >
-        <Text style={styles.primaryButtonText}>Get directions</Text>
-      </TouchableOpacity>
     </>
   );
 }
@@ -143,7 +158,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.infoBg,
     borderWidth: 1,
     borderColor: colors.accent,
-    // square — no borderRadius
     padding: spacing.lg,
     marginBottom: spacing.lg,
   },
@@ -161,19 +175,12 @@ const styles = StyleSheet.create({
   mapCard: {
     borderWidth: 1,
     borderColor: colors.border,
-    // square — no borderRadius
     marginBottom: spacing.lg,
     overflow: 'hidden',
   },
-  mapPlaceholder: {
-    height: 120,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mapPlaceholderText: {
-    color: colors.textMuted,
-    fontSize: fontSize.sm,
+  map: {
+    height: 220,
+    width: '100%',
   },
   mapCardFooter: {
     padding: spacing.md,
@@ -199,7 +206,6 @@ const styles = StyleSheet.create({
     flex: 1,
     borderWidth: 1,
     borderColor: colors.border,
-    // square — no borderRadius
     paddingVertical: spacing.md,
     alignItems: 'center',
   },
@@ -212,28 +218,5 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.textMuted,
     marginTop: 2,
-  },
-  primaryButton: {
-    backgroundColor: colors.accent,
-    // square — no borderRadius
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  primaryButtonText: {
-    color: colors.accentOn,
-    fontWeight: '600',
-    fontSize: fontSize.base,
-  },
-  secondaryButton: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    // square — no borderRadius
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-  },
-  secondaryButtonText: {
-    color: colors.textPrimary,
-    fontSize: fontSize.base,
   },
 });

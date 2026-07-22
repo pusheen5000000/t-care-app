@@ -1,7 +1,7 @@
 // server.js
 //
 // Fresh backend for T-Care.
-// Stack: Express + Groq (query understanding) + Google Maps (routing)
+// Stack: Express + Groq (query understanding) + Geoapify (routing)
 
 require('dotenv').config();
 const express = require('express');
@@ -23,7 +23,7 @@ app.use(express.json());
  *   { type: 'info', query, title, summary }
  * or
  *   { type: 'location', query, title, summary, placeName,
- *     placeSubtitle, walkMinutes, fee, hours }
+ *     placeSubtitle, walkMinutes, fee, hours, polyline, origin, destination }
  */
 app.post('/api/query', async (req, res) => {
   const { query, location } = req.body;
@@ -70,6 +70,11 @@ app.post('/api/query', async (req, res) => {
       fee: matched.fee,
       hours: matched.hours,
       polyline: route.polyline,
+      origin: { latitude: location.lat, longitude: location.lng },
+      destination: {
+        latitude: route.destination.lat,
+        longitude: route.destination.lng,
+      },
     });
   } catch (err) {
     console.error(err);

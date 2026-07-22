@@ -12,7 +12,7 @@ module.exports = [
     keywords: ['tcard', 'lost id', 'student card', 'replacement card'],
     summary:
       'Report a lost TCard, then visit the TCard office with photo ID. A replacement costs $20 and is usually ready same day.',
-    address: '130 St George St, Toronto, ON M5S 1A5', // Robarts Library
+    address: '765 Sunningdale Rd W, London, ON N6H 5L6', // Oakridge Secondary School (test address)
     fee: '$20',
     hours: '9:00 AM – 5:00 PM',
   },
