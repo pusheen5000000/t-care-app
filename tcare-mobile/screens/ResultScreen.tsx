@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import {
+  Modal,
+  Pressable,
   View,
   Text,
   TouchableOpacity,
@@ -18,7 +20,26 @@ type Props = {
   onAskAnother: () => void;
   onTravelModeChange: (mode: TravelMode) => Promise<boolean>;
   onCampusLocationPress: (serviceId: string, campusLocationName: string) => void;
+  onCollegeSelect: (collegeId: string, serviceId: CollegeServiceId) => void;
 };
+
+type CollegeServiceId = 'academic-success' | 'financial-aid' | 'registrar-enrolment';
+
+const COLLEGE_SERVICE_IDS = new Set<CollegeServiceId>([
+  'academic-success',
+  'financial-aid',
+  'registrar-enrolment',
+]);
+
+const COLLEGES = [
+  { id: 'innis', label: 'Innis College' },
+  { id: 'new-college', label: 'New College' },
+  { id: 'st-michaels', label: "St. Michael's College" },
+  { id: 'trinity', label: 'Trinity College' },
+  { id: 'university-college', label: 'University College' },
+  { id: 'victoria', label: 'Victoria College' },
+  { id: 'woodsworth', label: 'Woodsworth College' },
+];
 
 const TRAVEL_MODES: { key: TravelMode; label: string }[] = [
   { key: 'bike', label: 'Bike' },
@@ -27,7 +48,7 @@ const TRAVEL_MODES: { key: TravelMode; label: string }[] = [
   { key: 'transit', label: 'Transit' },
 ];
 
-export function ResultScreen({ result, onAskAnother, onTravelModeChange, onCampusLocationPress }: Props) {
+export function ResultScreen({ result, onAskAnother, onTravelModeChange, onCampusLocationPress, onCollegeSelect }: Props) {
   const isLocation = result.type === 'location';
   const { width, height } = useWindowDimensions();
   const isPortrait = height >= width;
@@ -68,6 +89,7 @@ export function ResultScreen({ result, onAskAnother, onTravelModeChange, onCampu
             resultTitle={result.title}
             serviceId={result.serviceId}
             onCampusLocationPress={onCampusLocationPress}
+            onCollegeSelect={onCollegeSelect}
           />
         )}
         <ResultNextStep result={result} />
@@ -265,14 +287,26 @@ function SupportResourcesSection({
   resultTitle,
   serviceId,
   onCampusLocationPress,
+  onCollegeSelect,
 }: {
   resources: SupportResources;
   resultTitle: string;
   serviceId?: string;
   onCampusLocationPress: (serviceId: string, campusLocationName: string) => void;
+  onCollegeSelect: (collegeId: string, serviceId: CollegeServiceId) => void;
 }) {
+  const [collegePickerService, setCollegePickerService] = useState<CollegeServiceId | null>(null);
   const governmentLinks = resources.links.filter((link) => link.group === 'Government support');
   const universityLinks = resources.links.filter((link) => link.group === 'U of T resources');
+
+  const isCollegeService = (candidate?: string): candidate is CollegeServiceId =>
+    Boolean(candidate) && COLLEGE_SERVICE_IDS.has(candidate as CollegeServiceId);
+  const isUtsgLocation = (locationName: string) => /\b(?:st\.?\s*george|utsg)\b/i.test(locationName);
+  const pickerBody = collegePickerService === 'financial-aid'
+    ? "Choose your UTSG college to find its financial-aid and awards office."
+    : collegePickerService === 'academic-success'
+      ? 'Choose your UTSG college to find its academic advising office.'
+      : 'Choose your UTSG college to find its registrar office.';
 
   const openLink = async (url: string) => {
     const supported = await Linking.canOpenURL(url);
@@ -280,33 +314,74 @@ function SupportResourcesSection({
   };
 
   return (
-    <View style={styles.resourcesSection}>
+    <>
+      <View style={styles.resourcesSection}>
       <Text style={styles.resourcesTitle}>{resources.title ?? 'Mental health support'}</Text>
       <Text style={styles.resourcesIntro}>{resources.intro ?? 'Choose the support that feels right for you. The map above routes to St. George Health & Wellness.'}</Text>
 
       {resources.campusLocations.length > 0 && (
         <Text style={styles.resourceHeading}>{resources.campusHeading ?? 'On-campus support'}</Text>
       )}
-      {resources.campusLocations.map((location) => (
+      {resources.campusLocations.map((location) => {
+        const opensCollegePicker = isCollegeService(serviceId) && isUtsgLocation(location.name);
+        return (
         <TouchableOpacity
           key={location.name}
           style={styles.locationRow}
           disabled={!serviceId}
-          onPress={() => serviceId && onCampusLocationPress(serviceId, location.name)}
+          onPress={() => {
+            if (!serviceId) return;
+            if (opensCollegePicker) {
+              setCollegePickerService(serviceId as CollegeServiceId);
+              return;
+            }
+            onCampusLocationPress(serviceId, location.name);
+          }}
           accessibilityRole="button"
-          accessibilityLabel={`Show ${location.name} on the map`}
-          accessibilityHint="Opens this office as the map destination"
+          accessibilityLabel={opensCollegePicker ? `Choose a college for ${location.name}` : `Show ${location.name} on the map`}
+          accessibilityHint={opensCollegePicker ? 'Opens a list of UTSG colleges' : 'Opens this office as the map destination'}
         >
           <Text style={styles.locationName}>{location.name}</Text>
           <Text style={styles.locationAddress}>{location.location}</Text>
           <Text style={styles.locationDetail}>{location.detail}</Text>
-          {serviceId && <Text style={styles.locationAction}>Show on map</Text>}
+          {serviceId && <Text style={styles.locationAction}>{opensCollegePicker ? 'Choose your college' : 'Show on map'}</Text>}
         </TouchableOpacity>
-      ))}
+        );
+      })}
 
       <ResourceLinks title="Government-approved support" links={governmentLinks} contextTitle={resultTitle} onOpen={openLink} />
       <ResourceLinks title="U of T resources" links={universityLinks} contextTitle={resultTitle} onOpen={openLink} />
-    </View>
+      </View>
+
+      <Modal visible={collegePickerService !== null} transparent animationType="fade" onRequestClose={() => setCollegePickerService(null)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setCollegePickerService(null)}>
+          <Pressable style={styles.modalCard} onPress={() => undefined} accessibilityViewIsModal>
+            <Text style={styles.modalTitle}>Choose your UTSG college</Text>
+            <Text style={styles.modalBody}>{pickerBody}</Text>
+            <ScrollView style={styles.options} showsVerticalScrollIndicator={false}>
+              {COLLEGES.map((college) => (
+                <TouchableOpacity
+                  key={college.id}
+                  style={styles.collegeOption}
+                  onPress={() => {
+                    if (!collegePickerService) return;
+                    onCollegeSelect(college.id, collegePickerService);
+                    setCollegePickerService(null);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={college.label}
+                >
+                  <Text style={styles.collegeOptionText}>{college.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity style={styles.cancelButton} onPress={() => setCollegePickerService(null)} accessibilityRole="button" accessibilityLabel="Cancel college selection">
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </>
   );
 }
 
@@ -651,6 +726,15 @@ const styles = StyleSheet.create({
   resourceLinkDescription: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 18 },
   resourceLinkAction: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '700', marginTop: spacing.xs },
   resourceLinkArrow: { color: colors.accent, fontSize: fontSize.lg, fontWeight: '700' },
+  modalBackdrop: { backgroundColor: 'rgba(0, 0, 0, 0.45)', flex: 1, justifyContent: 'center', padding: spacing.xl },
+  modalCard: { backgroundColor: colors.surface, borderRadius: radius.lg, gap: spacing.sm, maxHeight: '82%', padding: spacing.lg },
+  modalTitle: { color: colors.textPrimary, fontSize: fontSize.lg, fontWeight: '700' },
+  modalBody: { color: colors.textSecondary, fontSize: fontSize.base, lineHeight: 20, marginBottom: spacing.xs },
+  options: { flexGrow: 0 },
+  collegeOption: { borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, justifyContent: 'center', marginBottom: spacing.sm, minHeight: 44, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  collegeOptionText: { color: colors.accent, fontSize: fontSize.base, fontWeight: '600' },
+  cancelButton: { alignItems: 'center', justifyContent: 'center', minHeight: 44 },
+  cancelButtonText: { color: colors.textSecondary, fontSize: fontSize.base, fontWeight: '600' },
   nextStepSection: { borderTopColor: colors.border, borderTopWidth: 1, gap: spacing.sm, marginTop: spacing.lg, paddingTop: spacing.lg },
   nextStepPrompt: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '700' },
   nextStepButton: { alignItems: 'center', backgroundColor: colors.accent, borderRadius: radius.lg, justifyContent: 'center', minHeight: 48, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },

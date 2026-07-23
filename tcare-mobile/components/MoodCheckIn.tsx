@@ -59,7 +59,7 @@ export function MoodCheckIn({ visible, mood, onClose, onEmergencySupportPress }:
           <View style={styles.answerRow}>
             <TouchableOpacity
               style={[styles.answerButton, styles.answerYes]}
-              onPress={() => setSafetyAnswer('yes')}
+              onPress={() => { handleClose(); onEmergencySupportPress(); }}
             >
               <Text style={styles.answerYesText}>Yes, I am</Text>
             </TouchableOpacity>

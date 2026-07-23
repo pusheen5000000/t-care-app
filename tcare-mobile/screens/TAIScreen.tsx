@@ -71,7 +71,7 @@ const INITIAL: Message[] = [
   {
     id: '1',
     role: 'assistant',
-    text: "Hi! I'm T-AI, your campus support assistant. Ask about academics, money, housing, international support, safety, careers, libraries, food, wellbeing, or accessibility.",
+    text: "Hi! I'm T-AI, your campus support assistant. Ask about academics, money, housing, international support, safety, careers, libraries, food, wellbeing, or accessibility. I can also find campus buildings by name or timetable code, like “Where is Bahen?” or “How do I get to SS 1083?”",
   },
 ];
 

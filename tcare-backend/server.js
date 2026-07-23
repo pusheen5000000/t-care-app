@@ -9,6 +9,7 @@ const cors = require('cors');
 
 const services = require('./data/services');
 const collegeRegistrarOffices = require('./data/collegeRegistrarOffices');
+const { findBuilding, formatBuildingSummary } = require('./services/buildingDirectoryService');
 const { classifyQuery } = require('./services/groqService');
 const { geocodeAddress, getRoute, getWalkingRoute } = require('./services/mapsService');
 const {
@@ -107,6 +108,34 @@ app.post('/api/query', async (req, res) => {
   }
 
   try {
+    // Building questions are resolved from the curated directory before calling
+    // the AI. This keeps common names and timetable codes fast and dependable.
+    const requestedBuilding = findBuilding(query);
+    if (requestedBuilding) {
+      const summary = formatBuildingSummary(requestedBuilding);
+      try {
+        return res.json(
+          await createMapResult({
+            office: { ...requestedBuilding, fee: 'Free', hours: 'Building hours vary' },
+            query,
+            summary,
+            location,
+          }),
+        );
+      } catch (mapError) {
+        // The directory answer is still useful when an external map provider
+        // is unavailable; never discard the verified stored address.
+        console.warn('Could not create building map result:', mapError.message);
+        return res.json({
+          type: 'info',
+          query,
+          title: requestedBuilding.name,
+          summary,
+          supportResources: { campusLocations: [], links: [] },
+        });
+      }
+    }
+
     const classification = await classifyQuery(query, services);
     const matched = services.find((s) => s.id === classification.serviceId);
 

@@ -303,6 +303,7 @@ export default function App() {
     fallback: QueryResult,
     source: TabKey = 'ask',
     query?: string,
+    serviceId?: string,
   ) => {
     const currentRequestId = ++requestId.current;
     setResultSource(source);
@@ -316,7 +317,7 @@ export default function App() {
       const response = await fetch(`${apiUrl}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ location, query }),
+        body: JSON.stringify({ location, query, serviceId }),
       });
 
       if (!response.ok) throw new Error(`Map request failed (${response.status})`);
@@ -339,13 +340,29 @@ export default function App() {
   const handleTalkSupport = (source: TabKey = 'ask') =>
     loadMapDestination('/api/health-wellness', HEALTH_WELLNESS_FALLBACK, source);
 
-  const handleCollegeSelect = (collegeId: string, source: TabKey = 'ask') =>
-    loadMapDestination(`/api/college-registrar/${collegeId}`, {
+  const handleCollegeSelect = (
+    collegeId: string,
+    serviceId: 'academic-success' | 'financial-aid' | 'registrar-enrolment' = 'registrar-enrolment',
+    source: TabKey = 'ask',
+  ) =>
+    loadMapDestination(`/api/college-service/${collegeId}`, {
       type: 'info',
-      query: 'I need help with my studies',
-      title: 'College registrar unavailable',
-      summary: 'We could not load your college registrar’s office. Please try again shortly.',
-    }, source);
+      query: serviceId === 'financial-aid'
+        ? 'Financial aid and awards'
+        : serviceId === 'academic-success'
+          ? 'Academic advising'
+          : 'Registrar and enrolment',
+      title: serviceId === 'financial-aid'
+        ? 'Financial aid office unavailable'
+        : serviceId === 'academic-success'
+          ? 'Academic advising office unavailable'
+          : 'College registrar unavailable',
+      summary: serviceId === 'financial-aid'
+        ? 'We could not load your college financial-aid office. Please try again shortly.'
+        : serviceId === 'academic-success'
+          ? 'We could not load your college academic advising office. Please try again shortly.'
+          : 'We could not load your college registrar’s office. Please try again shortly.',
+    }, source, undefined, serviceId);
 
   const handleStudentLifeResource = async (resourceId: string) => {
     const resource = STUDENT_LIFE_RESOURCES[resourceId];
@@ -444,6 +461,7 @@ export default function App() {
           onAskAnother={handleAskAnother}
           onTravelModeChange={updateTravelRoute}
           onCampusLocationPress={handleCampusLocationPress}
+          onCollegeSelect={(collegeId, serviceId) => handleCollegeSelect(collegeId, serviceId, resultSource)}
         />
       );
     }
@@ -453,7 +471,6 @@ export default function App() {
         <ResourcesScreen
           onMentalHealthPress={() => handleTalkSupport('resources')}
           onAccessibilityPress={() => handleAccessibilityServices('resources')}
-          onCollegeSelect={(collegeId) => handleCollegeSelect(collegeId, 'resources')}
           onStudentLifePress={handleStudentLifeResource}
         />
       );
@@ -487,6 +504,7 @@ export default function App() {
           onAskAnother={handleAskAnother}
           onTravelModeChange={updateTravelRoute}
           onCampusLocationPress={handleCampusLocationPress}
+          onCollegeSelect={(collegeId, serviceId) => handleCollegeSelect(collegeId, serviceId, resultSource)}
         />
       );
     }

@@ -107,7 +107,7 @@ module.exports = [
     hours: '9:00 AM – 5:00 PM',
     facilityPicker: 'college',
     supportResources: { title: 'Academic advising', intro: 'Choose your college or campus to find the right academic adviser or registrar office.', campusHeading: 'Academic advising offices', campusLocations: [
-      { name: 'St. George college academic advising', location: 'Choose your UTSG college to see its academic advising office address.', detail: 'Faculty of Arts & Science students are served by their college academic adviser.', coordinates: CAMPUS_COORDINATES.utsg },
+      { name: 'St. George College Academic Advising', location: 'Choose your UTSG college to see its academic advising office address.', detail: 'Faculty of Arts & Science students are served by their college academic adviser.', coordinates: CAMPUS_COORDINATES.utsg },
       { name: 'UTSC Academic Advising & Career Centre', location: 'Academic Resource Centre, Room AC213, 1265 Military Trail, Scarborough, ON M1C 1A4', detail: 'Academic advising, program planning, and learning support at UTSC.', coordinates: CAMPUS_COORDINATES.utsc },
       { name: 'UTM Office of the Registrar', location: 'Innovation Complex, Room 1235, 3359 Mississauga Road, Mississauga, ON L5L 1C6', detail: 'Academic advising and course support at UTM.', coordinates: CAMPUS_COORDINATES.utm },
     ], links: [
@@ -163,7 +163,7 @@ module.exports = [
     keywords: ['registrar office', 'registrar', 'course enrolment', 'course enrollment', 'course registration', 'register for courses', 'add a course', 'drop a course', 'enrolment', 'enrollment', 'enrol', 'acorn', 'timetable', 'academic record', 'transcript', 'academic calendar'],
     summary: 'Manage course enrolment, your timetable, fees, academic records, and university deadlines. Choose your college or campus to find the right registrar office.', address: '', fee: 'Free', hours: 'Varies by college and campus', facilityPicker: 'college',
     supportResources: { title: 'Registrar & enrolment', intro: 'Choose your college or campus to find the appropriate registrar office, or use these links for enrolment and fee tasks.', campusHeading: 'Registrar offices', campusLocations: [
-      { name: 'St. George college registrar', location: 'Choose your UTSG college to see its registrar office address.', detail: 'Faculty of Arts & Science students are served by their college registrar.', coordinates: CAMPUS_COORDINATES.utsg },
+      { name: 'St. George College Registrar', location: 'Choose your UTSG college to see its registrar office address.', detail: 'Faculty of Arts & Science students are served by their college registrar.', coordinates: CAMPUS_COORDINATES.utsg },
       { name: 'UTSC Office of the Registrar', location: 'Highland Hall, 1265 Military Trail, Scarborough, ON M1C 1A4', detail: 'Enrolment, records, fees, and academic advising at UTSC.', coordinates: CAMPUS_COORDINATES.utsc },
       { name: 'UTM Office of the Registrar', location: 'Innovation Complex, Room 1235, 3359 Mississauga Road, Mississauga, ON L5L 1C6', detail: 'Enrolment, records, fees, and academic advising at UTM.', coordinates: CAMPUS_COORDINATES.utm },
     ], links: [

@@ -1,7 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  Modal,
-  Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -14,7 +12,6 @@ import { colors, fontSize, radius, spacing } from '../theme';
 type Props = {
   onMentalHealthPress: () => void;
   onAccessibilityPress: () => void;
-  onCollegeSelect: (collegeId: string) => void;
   onStudentLifePress: (resourceId: string) => void;
 };
 
@@ -30,23 +27,28 @@ const STUDENT_LIFE_RESOURCES = [
   { id: 'sexual-violence', label: 'Sexual violence support', description: 'Access confidential, non-judgmental support and options.', icon: 'SV', tone: 'sexualViolenceIcon' },
 ] as const;
 
-const COLLEGES = [
-  { id: 'innis', label: 'Innis College' },
-  { id: 'new-college', label: 'New College' },
-  { id: 'st-michaels', label: "St. Michael's College" },
-  { id: 'trinity', label: 'Trinity College' },
-  { id: 'university-college', label: 'University College' },
-  { id: 'victoria', label: 'Victoria College' },
-  { id: 'woodsworth', label: 'Woodsworth College' },
-  { id: 'utsc', label: 'UTSC (Scarborough Campus)' },
-  { id: 'utm', label: 'UTM (Mississauga Campus)' },
-];
+export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onStudentLifePress }: Props) {
+  const [isLayoutReady, setIsLayoutReady] = useState(false);
 
-export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onCollegeSelect, onStudentLifePress }: Props) {
-  const [collegePickerVisible, setCollegePickerVisible] = useState(false);
+  useEffect(() => {
+    // On web, the viewport can settle one frame after this screen mounts. Keep
+    // the screen hidden until then so it never flashes at a transient offset.
+    let secondFrame: number | undefined;
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => setIsLayoutReady(true));
+    });
+
+    return () => {
+      cancelAnimationFrame(firstFrame);
+      if (secondFrame !== undefined) cancelAnimationFrame(secondFrame);
+    };
+  }, []);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView
+      style={[styles.container, !isLayoutReady && styles.pendingLayout]}
+      pointerEvents={isLayoutReady ? 'auto' : 'none'}
+    >
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Resources</Text>
         <Text style={styles.subtitle}>Find trusted U of T support for your wellbeing, studies, and student life.</Text>
@@ -87,7 +89,7 @@ export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onC
 
           <TouchableOpacity
             style={styles.card}
-            onPress={() => setCollegePickerVisible(true)}
+            onPress={() => onStudentLifePress('registrar')}
             activeOpacity={0.75}
             accessibilityRole="button"
             accessibilityLabel="Courses and academic support"
@@ -125,30 +127,13 @@ export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onC
         </View>
       </ScrollView>
 
-      <Modal visible={collegePickerVisible} transparent animationType="fade" onRequestClose={() => setCollegePickerVisible(false)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setCollegePickerVisible(false)}>
-          <Pressable style={styles.modalCard} onPress={() => undefined} accessibilityViewIsModal>
-            <Text style={styles.modalTitle}>Choose your college or campus</Text>
-            <Text style={styles.modalBody}>We'll route you to the right registrar for course and academic support.</Text>
-            <ScrollView style={styles.options} showsVerticalScrollIndicator={false}>
-              {COLLEGES.map((college) => (
-                <TouchableOpacity key={college.id} style={styles.collegeOption} onPress={() => {
-                  setCollegePickerVisible(false);
-                  onCollegeSelect(college.id);
-                }} accessibilityRole="button" accessibilityLabel={college.label}>
-                  <Text style={styles.collegeOptionText}>{college.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
+  pendingLayout: { opacity: 0 },
   content: { padding: spacing.xl, gap: spacing.xl },
   title: { color: colors.textPrimary, fontSize: fontSize.xl, fontWeight: '700' },
   subtitle: { color: colors.textSecondary, fontSize: fontSize.base, lineHeight: 21, marginTop: -spacing.md },
@@ -174,11 +159,4 @@ const styles = StyleSheet.create({
   cardTitle: { color: colors.textPrimary, fontSize: fontSize.md, fontWeight: '700' },
   cardDescription: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 18 },
   chevron: { color: colors.accent, fontSize: 28, fontWeight: '300' },
-  modalBackdrop: { backgroundColor: 'rgba(0, 0, 0, 0.45)', flex: 1, justifyContent: 'center', padding: spacing.xl },
-  modalCard: { backgroundColor: colors.surface, borderRadius: radius.lg, gap: spacing.sm, maxHeight: '82%', padding: spacing.lg },
-  modalTitle: { color: colors.textPrimary, fontSize: fontSize.lg, fontWeight: '700' },
-  modalBody: { color: colors.textSecondary, fontSize: fontSize.base, lineHeight: 20, marginBottom: spacing.xs },
-  options: { flexGrow: 0 },
-  collegeOption: { borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, marginBottom: spacing.sm, minHeight: 44, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, justifyContent: 'center' },
-  collegeOptionText: { color: colors.accent, fontSize: fontSize.base, fontWeight: '600' },
 });
