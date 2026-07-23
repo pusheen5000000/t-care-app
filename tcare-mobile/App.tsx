@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { View, StyleSheet, ActivityIndicator, Text } from 'react-native';
 import * as Location from 'expo-location';
 import { AskScreen } from './screens/AskScreen';
 import { ResultScreen } from './screens/ResultScreen';
 import { TAIScreen } from './screens/TAIScreen';
 import { ContactScreen } from './screens/ContactScreen';
+import { ResourcesScreen } from './screens/ResourcesScreen';
 import { TabBar, TabKey } from './components/TabBar';
 import { colors, fontSize } from './theme';
-import type { QueryResult } from './types';
+import type { LocationResult, QueryResult, TravelMode } from './types';
 
 const TCARD_QUERY = 'I lost my TCard, what do I do?';
 const TCARD_OFFICE_FALLBACK: QueryResult = {
@@ -66,29 +67,40 @@ async function resolveQuery(query: string): Promise<QueryResult> {
 export default function App() {
   const [tab, setTab] = useState<TabKey>('ask');
   const [result, setResult] = useState<QueryResult | null>(null);
+  const [resultSource, setResultSource] = useState<TabKey>('ask');
   const [loading, setLoading] = useState(false);
+  const requestId = useRef(0);
 
   const handleSubmit = async (query: string) => {
+    const currentRequestId = ++requestId.current;
+    setResultSource('ask');
     setLoading(true);
     try {
       const r = await resolveQuery(query);
-      setResult(r);
+      if (currentRequestId === requestId.current) setResult(r);
     } catch (err) {
       console.error(err);
-      setResult({
-        type: 'info',
-        query,
-        title: 'Something went wrong',
-        summary: 'Stub error.',
-      });
+      if (currentRequestId === requestId.current) {
+        setResult({
+          type: 'info',
+          query,
+          title: 'Something went wrong',
+          summary: 'Stub error.',
+        });
+      }
     } finally {
-      setLoading(false);
+      if (currentRequestId === requestId.current) setLoading(false);
     }
   };
 
-  const handleAskAnother = () => setResult(null);
+  const handleAskAnother = () => {
+    setResult(null);
+    setTab(resultSource);
+  };
 
-  const loadMapDestination = async (endpoint: string, fallback: QueryResult) => {
+  const loadMapDestination = async (endpoint: string, fallback: QueryResult, source: TabKey = 'ask') => {
+    const currentRequestId = ++requestId.current;
+    setResultSource(source);
     setLoading(true);
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
@@ -111,40 +123,106 @@ export default function App() {
       });
 
       if (!response.ok) throw new Error(`Map request failed (${response.status})`);
-      setResult((await response.json()) as QueryResult);
+      if (currentRequestId === requestId.current) {
+        setResult((await response.json()) as QueryResult);
+      }
     } catch (error) {
       console.warn('Could not load map destination:', error);
-      setResult(fallback);
+      if (currentRequestId === requestId.current) setResult(fallback);
     } finally {
-      setLoading(false);
+      if (currentRequestId === requestId.current) setLoading(false);
     }
   };
 
   const handleLostTCard = () => loadMapDestination('/api/tcard-office', TCARD_OFFICE_FALLBACK);
 
-  const handleAccessibilityServices = () =>
-    loadMapDestination('/api/accessibility-services', ACCESSIBILITY_SERVICES_FALLBACK);
+  const handleAccessibilityServices = (source: TabKey = 'ask') =>
+    loadMapDestination('/api/accessibility-services', ACCESSIBILITY_SERVICES_FALLBACK, source);
 
-  const handleTalkSupport = () =>
-    loadMapDestination('/api/health-wellness', HEALTH_WELLNESS_FALLBACK);
+  const handleTalkSupport = (source: TabKey = 'ask') =>
+    loadMapDestination('/api/health-wellness', HEALTH_WELLNESS_FALLBACK, source);
 
-  const handleCollegeSelect = (collegeId: string) =>
+  const handleCollegeSelect = (collegeId: string, source: TabKey = 'ask') =>
     loadMapDestination(`/api/college-registrar/${collegeId}`, {
       type: 'info',
       query: 'I need help with my studies',
       title: 'College registrar unavailable',
       summary: 'We could not load your college registrar’s office. Please try again shortly.',
-    });
+    }, source);
+
+  const updateTravelRoute = async (mode: TravelMode): Promise<boolean> => {
+    if (result?.type !== 'location' || !result.origin || !result.destination) return false;
+
+    const currentRequestId = ++requestId.current;
+
+    const apiUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
+    if (!apiUrl) return false;
+
+    try {
+      const response = await fetch(`${apiUrl}/api/route`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode,
+          origin: { lat: result.origin.latitude, lng: result.origin.longitude },
+          destination: { lat: result.destination.latitude, lng: result.destination.longitude },
+        }),
+      });
+      if (!response.ok) throw new Error(`Route request failed (${response.status})`);
+
+      const route = await response.json() as Pick<LocationResult, 'travelMinutes' | 'polyline'>;
+      if (currentRequestId === requestId.current) {
+        setResult((current) => current?.type === 'location'
+          ? { ...current, travelMinutes: route.travelMinutes, polyline: route.polyline }
+          : current);
+      }
+      return true;
+    } catch (error) {
+      console.warn('Could not update route:', error);
+      return false;
+    }
+  };
 
   const renderNonTaiBody = () => {
     if (tab === 'contact') {
       return <ContactScreen />;
     }
 
+    if (loading) {
+      return (
+        <View style={styles.loadingScreen}>
+          <ActivityIndicator color={colors.accent} size="large" />
+          <Text style={styles.loadingText}>Finding the right resource...</Text>
+        </View>
+      );
+    }
+
+    if (result) {
+      return (
+        <ResultScreen
+          result={result}
+          onAskAnother={handleAskAnother}
+          onTravelModeChange={updateTravelRoute}
+        />
+      );
+    }
+
+    if (tab === 'resources') {
+      return (
+        <ResourcesScreen
+          onMentalHealthPress={() => handleTalkSupport('resources')}
+          onAccessibilityPress={() => handleAccessibilityServices('resources')}
+          onCollegeSelect={(collegeId) => handleCollegeSelect(collegeId, 'resources')}
+        />
+      );
+    }
+
     if (tab !== 'ask') {
       return (
         <View style={styles.placeholderScreen}>
           <Text style={styles.placeholderText}>
+            {/* This fallback only renders for the non-Ask tab. */}
+            {/* @ts-expect-error The branch is intentionally unreachable for Resources. */}
             {tab === 'resources' ? 'Resources' : 'Saved'} screen — coming soon
           </Text>
         </View>
@@ -161,7 +239,13 @@ export default function App() {
     }
 
     if (result) {
-      return <ResultScreen result={result} onAskAnother={handleAskAnother} />;
+      return (
+        <ResultScreen
+          result={result}
+          onAskAnother={handleAskAnother}
+          onTravelModeChange={updateTravelRoute}
+        />
+      );
     }
 
     return (
@@ -186,8 +270,10 @@ export default function App() {
       <TabBar
         active={tab}
         onChange={(key) => {
+          requestId.current += 1;
           setTab(key);
-          if (key === 'ask') setResult(null);
+          setResult(null);
+          setLoading(false);
         }}
       />
     </View>

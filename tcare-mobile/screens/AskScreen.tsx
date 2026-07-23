@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -31,6 +31,8 @@ const COLLEGES = [
   { id: 'university-college', label: 'University College' },
   { id: 'victoria', label: 'Victoria College' },
   { id: 'woodsworth', label: 'Woodsworth College' },
+  { id: 'utsc', label: 'UTSC (Scarborough Campus)' },
+  { id: 'utm', label: 'UTM (Mississauga Campus)' },
 ];
 
 const SUGGESTIONS = [
@@ -59,6 +61,22 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
   const [text, setText] = useState('');
   const [activeMood, setActiveMood] = useState<'good' | 'okay' | 'struggling' | null>(null);
   const [collegePromptVisible, setCollegePromptVisible] = useState(false);
+  const [isLayoutReady, setIsLayoutReady] = useState(false);
+
+  useEffect(() => {
+    // On web, the viewport can settle one frame after this screen mounts. Keep
+    // the screen hidden until then so controls never paint at their transient
+    // position before moving into place.
+    let secondFrame: number | undefined;
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => setIsLayoutReady(true));
+    });
+
+    return () => {
+      cancelAnimationFrame(firstFrame);
+      if (secondFrame !== undefined) cancelAnimationFrame(secondFrame);
+    };
+  }, []);
 
   const handleSend = () => {
     if (!text.trim()) return;
@@ -69,7 +87,7 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
-        style={styles.flex}
+        style={[styles.flex, !isLayoutReady && styles.pendingLayout]}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
@@ -159,7 +177,7 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
       >
         <Pressable style={styles.modalBackdrop} onPress={() => setCollegePromptVisible(false)}>
           <Pressable style={styles.modalCard} onPress={() => undefined}>
-            <Text style={styles.modalTitle}>Which U of T college are you in?</Text>
+            <Text style={styles.modalTitle}>Which U of T college or campus are you in?</Text>
             <Text style={styles.modalBody}>
               We’ll point you to your college registrar’s academic assistance office.
             </Text>
@@ -189,6 +207,9 @@ const styles = StyleSheet.create({
   },
   flex: {
     flex: 1,
+  },
+  pendingLayout: {
+    opacity: 0,
   },
   header: {
     flexDirection: 'row',

@@ -3,6 +3,8 @@ export type RouteCoordinate = {
   longitude: number;
 };
 
+export type TravelMode = 'bike' | 'car' | 'walk' | 'transit';
+
 export type LocationResult = {
   type: 'location';
   query: string;
@@ -11,6 +13,9 @@ export type LocationResult = {
   placeName: string;
   placeSubtitle: string;
   walkMinutes: number;
+  // Time returned for the currently selected travel mode. walkMinutes remains
+  // available for initial walking routes and older API responses.
+  travelMinutes?: number;
   fee: string;
   hours: string;
   // GeoJSON geometry returned by the backend (from Geoapify)

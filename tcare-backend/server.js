@@ -10,7 +10,7 @@ const cors = require('cors');
 const services = require('./data/services');
 const collegeRegistrarOffices = require('./data/collegeRegistrarOffices');
 const { classifyQuery } = require('./services/groqService');
-const { geocodeAddress, getWalkingRoute } = require('./services/mapsService');
+const { geocodeAddress, getRoute, getWalkingRoute } = require('./services/mapsService');
 
 const app = express();
 app.use(cors());
@@ -130,6 +130,40 @@ app.post('/api/query', async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Something went wrong', detail: err.message });
+  }
+});
+
+const TRAVEL_MODES = {
+  walk: 'walk',
+  bike: 'bicycle',
+  car: 'drive',
+  transit: 'approximated_transit',
+};
+
+// Re-route an already displayed destination when the student changes travel mode.
+app.post('/api/route', async (req, res) => {
+  const { origin, destination, mode } = req.body ?? {};
+  const geoapifyMode = TRAVEL_MODES[mode];
+
+  if (!geoapifyMode) {
+    return res.status(400).json({ error: 'Unsupported travel mode' });
+  }
+
+  if (![origin?.lat, origin?.lng, destination?.lat, destination?.lng].every(Number.isFinite)) {
+    return res.status(400).json({ error: 'A valid origin and destination are required' });
+  }
+
+  try {
+    const route = await getRoute(origin, destination, geoapifyMode);
+    return res.json({
+      mode,
+      travelMinutes: route.minutes,
+      distanceText: route.distanceText,
+      polyline: route.polyline,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(502).json({ error: 'Could not calculate route', detail: err.message });
   }
 });
 

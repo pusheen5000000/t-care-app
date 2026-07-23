@@ -28,21 +28,17 @@ async function geocodeAddress(address) {
 }
 
 /**
- * Get a walking route from the student's current location to a
- * service's address.
+ * Get a route between two coordinates for the selected travel mode.
  *
  * @param {{ lat: number, lng: number }} origin - student's live location
- * @param {string} destinationAddress
- * @returns {Promise<{ walkMinutes: number, distanceText: string, steps: Array }>}
+ * @param {{ lat: number, lng: number }} destination
+ * @param {'walk' | 'bicycle' | 'drive' | 'approximated_transit'} mode
+ * @returns {Promise<{ minutes: number, distanceText: string, steps: Array }>}
  */
-async function getWalkingRoute(origin, destinationAddress) {
-  const dest = await geocodeAddress(destinationAddress);
-  console.log('Routing from', origin, 'to', dest, `(address: "${destinationAddress}")`);
-
-
+async function getRoute(origin, destination, mode = 'walk') {
   const params = new URLSearchParams({
-    waypoints: `${origin.lat},${origin.lng}|${dest.lat},${dest.lng}`,
-    mode: 'walk',
+    waypoints: `${origin.lat},${origin.lng}|${destination.lat},${destination.lng}`,
+    mode,
     apiKey: process.env.GEOAPIFY_API_KEY,
   });
 
@@ -57,19 +53,30 @@ async function getWalkingRoute(origin, destinationAddress) {
   if (!feature) throw new Error('Geoapify Routing returned no route');
 
   const props = feature.properties;
-  const leg = props.legs[0];
+  const leg = props.legs?.[0];
 
   return {
-    walkMinutes: Math.round(props.time / 60),
+    minutes: Math.round(props.time / 60),
     distanceText: `${(props.distance / 1000).toFixed(1)} km`,
-    steps: leg.steps.map((s) => ({
+    steps: (leg?.steps ?? []).map((s) => ({
       instruction: s.instruction?.text ?? '',
       distance: `${Math.round(s.distance)} m`,
     })),
     // Geometry so the mobile app can draw the route on the map
     polyline: feature.geometry ?? null,
-    destination: dest,
   };
 }
 
-module.exports = { geocodeAddress, getWalkingRoute };
+async function getWalkingRoute(origin, destinationAddress) {
+  const destination = await geocodeAddress(destinationAddress);
+  console.log('Routing from', origin, 'to', destination, `(address: "${destinationAddress}")`);
+  const route = await getRoute(origin, destination, 'walk');
+
+  return {
+    ...route,
+    walkMinutes: route.minutes,
+    destination,
+  };
+}
+
+module.exports = { geocodeAddress, getRoute, getWalkingRoute };
