@@ -11,8 +11,10 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Linking,
 } from 'react-native';
 import { colors, fontSize, radius, spacing } from '../theme';
+import type { SupportResources } from '../types';
 
 type Coordinate = { latitude: number; longitude: number };
 type RouteStep = { instruction: string; distance: string };
@@ -28,7 +30,14 @@ type Route = {
   polyline?: { type: string; coordinates: number[][] | number[][][] } | null;
 };
 
-type Message = { id: string; role: 'user' | 'assistant'; text: string; route?: Route };
+type Message = {
+  id: string;
+  role: 'user' | 'assistant';
+  text: string;
+  route?: Route;
+  serviceId?: string;
+  supportResources?: SupportResources;
+};
 
 type QueryResponse = {
   type?: 'info' | 'location';
@@ -42,6 +51,8 @@ type QueryResponse = {
   origin?: Coordinate;
   destination?: Coordinate;
   polyline?: Route['polyline'];
+  serviceId?: string;
+  supportResources?: SupportResources;
   error?: string;
 };
 
@@ -183,6 +194,84 @@ function RouteCard({ route }: { route: Route }) {
   );
 }
 
+function SupportResourceLinks({
+  resources,
+  serviceId,
+  onCampusLocationPress,
+}: {
+  resources: SupportResources;
+  serviceId?: string;
+  onCampusLocationPress: (campusLocationName: string) => Promise<boolean>;
+}) {
+  const [loadingCampusLocation, setLoadingCampusLocation] = useState<string | null>(null);
+  const [mapError, setMapError] = useState(false);
+  const open = async (url: string) => {
+    if (await Linking.canOpenURL(url)) await Linking.openURL(url);
+  };
+
+  return (
+    <View style={styles.mentalHealthCard}>
+      <Text style={styles.mentalHealthTitle}>{resources.title ?? 'Mental health support'}</Text>
+      {resources.intro && <Text style={styles.mentalHealthIntro}>{resources.intro}</Text>}
+      <Text style={styles.mentalHealthSubhead}>{resources.campusHeading ?? 'On campus'}</Text>
+      {resources.campusLocations.map((location) => (
+        <TouchableOpacity
+          key={location.name}
+          style={styles.mentalHealthLocation}
+          disabled={!serviceId || Boolean(loadingCampusLocation)}
+          onPress={async () => {
+            if (!serviceId) return;
+            setLoadingCampusLocation(location.name);
+            setMapError(false);
+            try {
+              setMapError(!(await onCampusLocationPress(location.name)));
+            } finally {
+              setLoadingCampusLocation(null);
+            }
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={`Show ${location.name} on the map`}
+          accessibilityHint="Uses your current location to create directions to this office"
+        >
+          <Text style={styles.mentalHealthLocationName}>{location.name}</Text>
+          <Text style={styles.mentalHealthLocationAddress}>{location.location}</Text>
+          {serviceId && (
+            <Text style={styles.mentalHealthMapAction}>
+              {loadingCampusLocation === location.name ? 'Loading map...' : 'Show on map'}
+            </Text>
+          )}
+        </TouchableOpacity>
+      ))}
+      {mapError && (
+        <Text style={styles.mentalHealthMapError}>
+          We couldn&apos;t load that map. Please try again.
+        </Text>
+      )}
+      {['Government support', 'U of T resources'].map((group) => {
+        const links = resources.links.filter((link) => link.group === group);
+        return links.length ? (
+          <View key={group} style={styles.mentalHealthLinkGroup}>
+            <Text style={styles.mentalHealthSubhead}>{group}</Text>
+            {links.map((link) => (
+              <TouchableOpacity
+                key={link.url}
+                style={styles.mentalHealthLink}
+                onPress={() => void open(link.url)}
+                accessibilityRole="link"
+                accessibilityLabel={link.title}
+                accessibilityHint="Opens an external support website"
+              >
+                <Text style={styles.mentalHealthLinkText}>{link.title}</Text>
+                <Text style={styles.mentalHealthLinkArrow} accessibilityElementsHidden>↗</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : null;
+      })}
+    </View>
+  );
+}
+
 export function TAIScreen() {
   const [messages, setMessages] = useState<Message[]>(INITIAL);
   const [input, setInput] = useState('');
@@ -204,8 +293,9 @@ export function TAIScreen() {
       // Only request location for a direction-style question. If permission is
       // declined, T-AI still answers and can show the destination on the map.
       const asksForDirections = /\b(directions?|guide(?: me)?|route|map|navigation|navigate|wayfind(?:ing)?|find (?:my|the) way|how (do|can) i get|how to get|get to|get me|take me|bring me|lead me|walk me|show me (?:the )?(?:way|route)|go to|head to|travel to|walk to|reach|arriv(?:e|al|ing)|destination|where is)\b/i.test(query);
+      const asksForOnCampusSupport = /\b(mental health|counselling|counseling|anxious|anxiety|overwhelmed|stressed|talk to someone|accessibility|accommodation|disability|adaptive technology|assistive technology|note taker|exam accommodation)\b/i.test(query);
       let location: { lat: number; lng: number } | undefined;
-      if (asksForDirections) {
+      if (asksForDirections || asksForOnCampusSupport) {
         const permission = await Location.requestForegroundPermissionsAsync();
         if (permission.status === 'granted') {
           try {
@@ -250,13 +340,20 @@ export function TAIScreen() {
               steps: payload.steps ?? [],
               origin: payload.origin,
               destination: payload.destination,
-              polyline: payload.polyline,
+          polyline: payload.polyline,
             }
           : undefined;
 
       setMessages((prev) => [
         ...prev,
-        { id: `${Date.now()}-assistant`, role: 'assistant', text, route },
+        {
+          id: `${Date.now()}-assistant`,
+          role: 'assistant',
+          text,
+          route,
+          serviceId: payload.serviceId,
+          supportResources: payload.supportResources,
+        },
       ]);
     } catch (error) {
       setMessages((prev) => [
@@ -269,6 +366,47 @@ export function TAIScreen() {
       ]);
     } finally {
       setIsSending(false);
+    }
+  };
+
+  const loadCampusLocation = async (messageId: string, serviceId: string, campusLocationName: string): Promise<boolean> => {
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      const position =
+        permission.status === 'granted'
+          ? await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+          : undefined;
+      const location = position
+        ? { lat: position.coords.latitude, lng: position.coords.longitude }
+        : undefined;
+
+      const response = await fetch(`${API_BASE_URL}/api/campus-location`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serviceId, campusLocationName, location }),
+      });
+      const payload: QueryResponse = await response.json();
+      if (!response.ok || !payload.placeName || !payload.placeSubtitle) {
+        throw new Error(payload.error || 'Could not load this campus location.');
+      }
+
+      const route: Route = {
+        placeName: payload.placeName,
+        placeSubtitle: payload.placeSubtitle,
+        walkMinutes: payload.walkMinutes ?? 0,
+        distanceText: payload.distanceText,
+        steps: payload.steps ?? [],
+        origin: payload.origin,
+        destination: payload.destination,
+        polyline: payload.polyline,
+      };
+      setMessages((messages) => messages.map((message) => (
+        message.id === messageId ? { ...message, route } : message
+      )));
+      return true;
+    } catch (error) {
+      console.warn('Could not load selected campus map:', error);
+      return false;
     }
   };
 
@@ -322,6 +460,17 @@ export function TAIScreen() {
               >
                 {message.text}
               </Text>
+              {message.supportResources && (
+                <SupportResourceLinks
+                  resources={message.supportResources}
+                  serviceId={message.serviceId}
+                  onCampusLocationPress={(campusLocationName) =>
+                    message.serviceId
+                      ? loadCampusLocation(message.id, message.serviceId, campusLocationName)
+                      : Promise.resolve(false)
+                  }
+                />
+              )}
               {message.route && <RouteCard route={message.route} />}
             </View>
           </View>
@@ -438,6 +587,35 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   stepText: { flex: 1, color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 18 },
+  mentalHealthCard: {
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+    padding: spacing.sm,
+  },
+  mentalHealthTitle: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '700' },
+  mentalHealthIntro: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 18 },
+  mentalHealthSubhead: { color: colors.textMuted, fontSize: fontSize.sm, fontWeight: '700', marginTop: 2 },
+  mentalHealthLocation: { gap: 2 },
+  mentalHealthLocationName: { color: colors.textPrimary, fontSize: fontSize.sm, fontWeight: '700' },
+  mentalHealthLocationAddress: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 17 },
+  mentalHealthMapAction: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '700', marginTop: 2 },
+  mentalHealthMapError: { color: colors.danger, fontSize: fontSize.sm, lineHeight: 17 },
+  mentalHealthLinkGroup: { gap: spacing.xs, marginTop: spacing.xs },
+  mentalHealthLink: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.sm,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 40,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  mentalHealthLinkText: { color: colors.textPrimary, flex: 1, fontSize: fontSize.sm, fontWeight: '600' },
+  mentalHealthLinkArrow: { color: colors.accent, fontSize: fontSize.base, fontWeight: '700' },
   thinkingBubble: {
     flexDirection: 'row',
     alignItems: 'center',

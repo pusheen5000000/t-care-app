@@ -6,16 +6,18 @@ import {
   ScrollView,
   StyleSheet,
   SafeAreaView,
+  Linking,
   useWindowDimensions,
 } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import { colors, spacing, fontSize, radius } from '../theme';
-import type { QueryResult, LocationResult, TravelMode } from '../types';
+import type { QueryResult, LocationResult, SupportResources, TravelMode } from '../types';
 
 type Props = {
   result: QueryResult;
   onAskAnother: () => void;
   onTravelModeChange: (mode: TravelMode) => Promise<boolean>;
+  onCampusLocationPress: (serviceId: string, campusLocationName: string) => void;
 };
 
 const TRAVEL_MODES: { key: TravelMode; label: string }[] = [
@@ -25,7 +27,7 @@ const TRAVEL_MODES: { key: TravelMode; label: string }[] = [
   { key: 'transit', label: 'Transit' },
 ];
 
-export function ResultScreen({ result, onAskAnother, onTravelModeChange }: Props) {
+export function ResultScreen({ result, onAskAnother, onTravelModeChange, onCampusLocationPress }: Props) {
   const isLocation = result.type === 'location';
   const { width, height } = useWindowDimensions();
   const isPortrait = height >= width;
@@ -58,6 +60,13 @@ export function ResultScreen({ result, onAskAnother, onTravelModeChange }: Props
             result={result as LocationResult}
             isPortrait={isPortrait}
             onTravelModeChange={onTravelModeChange}
+          />
+        )}
+        {result.supportResources && (
+          <SupportResourcesSection
+            resources={result.supportResources}
+            serviceId={result.serviceId}
+            onCampusLocationPress={onCampusLocationPress}
           />
         )}
       </ScrollView>
@@ -99,6 +108,7 @@ function LocationBlock({
 }) {
   const [travelMode, setTravelMode] = useState<TravelMode>('walk');
   const [isChangingMode, setIsChangingMode] = useState(false);
+  const [isWalkingPathExpanded, setIsWalkingPathExpanded] = useState(false);
   const selectTravelMode = async (mode: TravelMode) => {
     if (mode === travelMode || isChangingMode) return;
 
@@ -187,7 +197,114 @@ function LocationBlock({
         <StatBox label="fee" value={result.fee} />
         <StatBox label="hours" value={result.hours} />
       </View>
+
+      {result.steps && result.steps.length > 0 && (
+        <View style={styles.pathCard}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityState={{ expanded: isWalkingPathExpanded }}
+            accessibilityLabel={`Walking path, ${result.steps.length} steps`}
+            accessibilityHint={isWalkingPathExpanded ? 'Hides turn-by-turn directions' : 'Shows turn-by-turn directions'}
+            activeOpacity={0.8}
+            onPress={() => setIsWalkingPathExpanded((expanded) => !expanded)}
+            style={styles.pathToggle}
+          >
+            <Text style={styles.pathTitle}>Walking path</Text>
+            <Text style={styles.pathToggleLabel}>
+              {isWalkingPathExpanded ? 'Hide directions ▲' : 'Show directions ▼'}
+            </Text>
+          </TouchableOpacity>
+          {isWalkingPathExpanded && result.steps.map((step, index) => (
+            <View key={`${step.instruction}-${index}`} style={styles.pathStep}>
+              <Text style={styles.pathNumber}>{index + 1}</Text>
+              <Text style={styles.pathText}>
+                {step.instruction}{step.distance ? ` · ${step.distance}` : ''}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
     </>
+  );
+}
+
+function SupportResourcesSection({
+  resources,
+  serviceId,
+  onCampusLocationPress,
+}: {
+  resources: SupportResources;
+  serviceId?: string;
+  onCampusLocationPress: (serviceId: string, campusLocationName: string) => void;
+}) {
+  const governmentLinks = resources.links.filter((link) => link.group === 'Government support');
+  const universityLinks = resources.links.filter((link) => link.group === 'U of T resources');
+
+  const openLink = async (url: string) => {
+    const supported = await Linking.canOpenURL(url);
+    if (supported) await Linking.openURL(url);
+  };
+
+  return (
+    <View style={styles.resourcesSection}>
+      <Text style={styles.resourcesTitle}>{resources.title ?? 'Mental health support'}</Text>
+      <Text style={styles.resourcesIntro}>{resources.intro ?? 'Choose the support that feels right for you. The map above routes to St. George Health & Wellness.'}</Text>
+
+      <Text style={styles.resourceHeading}>{resources.campusHeading ?? 'On-campus support'}</Text>
+      {resources.campusLocations.map((location) => (
+        <TouchableOpacity
+          key={location.name}
+          style={styles.locationRow}
+          disabled={!serviceId}
+          onPress={() => serviceId && onCampusLocationPress(serviceId, location.name)}
+          accessibilityRole="button"
+          accessibilityLabel={`Show ${location.name} on the map`}
+          accessibilityHint="Opens this office as the map destination"
+        >
+          <Text style={styles.locationName}>{location.name}</Text>
+          <Text style={styles.locationAddress}>{location.location}</Text>
+          <Text style={styles.locationDetail}>{location.detail}</Text>
+          {serviceId && <Text style={styles.locationAction}>Show on map</Text>}
+        </TouchableOpacity>
+      ))}
+
+      <ResourceLinks title="Government-approved support" links={governmentLinks} onOpen={openLink} />
+      <ResourceLinks title="U of T resources" links={universityLinks} onOpen={openLink} />
+    </View>
+  );
+}
+
+function ResourceLinks({
+  title,
+  links,
+  onOpen,
+}: {
+  title: string;
+  links: SupportResources['links'];
+  onOpen: (url: string) => Promise<void>;
+}) {
+  if (!links.length) return null;
+
+  return (
+    <View style={styles.linkGroup}>
+      <Text style={styles.resourceHeading}>{title}</Text>
+      {links.map((link) => (
+        <TouchableOpacity
+          key={link.url}
+          style={styles.resourceLink}
+          onPress={() => void onOpen(link.url)}
+          accessibilityRole="link"
+          accessibilityLabel={link.title}
+          accessibilityHint="Opens an external support website"
+        >
+          <View style={styles.resourceLinkCopy}>
+            <Text style={styles.resourceLinkTitle}>{link.title}</Text>
+            <Text style={styles.resourceLinkDescription}>{link.description}</Text>
+          </View>
+          <Text style={styles.resourceLinkArrow} accessibilityElementsHidden>↗</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
   );
 }
 
@@ -373,4 +490,103 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     textAlign: 'center',
   },
+  pathCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+    padding: spacing.md,
+  },
+  pathTitle: {
+    color: colors.textPrimary,
+    fontSize: fontSize.base,
+    fontWeight: '700',
+  },
+  pathToggle: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 44,
+  },
+  pathToggleLabel: {
+    color: colors.accent,
+    fontSize: fontSize.sm,
+    fontWeight: '700',
+  },
+  pathStep: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  pathNumber: {
+    backgroundColor: colors.accent,
+    borderRadius: radius.full,
+    color: colors.accentOn,
+    fontSize: fontSize.sm,
+    fontWeight: '700',
+    height: 20,
+    minWidth: 20,
+    overflow: 'hidden',
+    textAlign: 'center',
+  },
+  pathText: {
+    color: colors.textSecondary,
+    flex: 1,
+    fontSize: fontSize.sm,
+    lineHeight: 18,
+  },
+  resourcesSection: {
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+    paddingTop: spacing.lg,
+  },
+  resourcesTitle: {
+    color: colors.textPrimary,
+    fontSize: fontSize.lg,
+    fontWeight: '700',
+  },
+  resourcesIntro: {
+    color: colors.textSecondary,
+    fontSize: fontSize.base,
+    lineHeight: 20,
+    marginBottom: spacing.sm,
+  },
+  resourceHeading: {
+    color: colors.textPrimary,
+    fontSize: fontSize.base,
+    fontWeight: '700',
+    marginTop: spacing.sm,
+  },
+  locationRow: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: 2,
+    padding: spacing.md,
+  },
+  locationName: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '700' },
+  locationAddress: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '600', lineHeight: 18 },
+  locationDetail: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 18 },
+  locationAction: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '700', marginTop: spacing.xs },
+  linkGroup: { gap: spacing.sm, marginTop: spacing.sm },
+  resourceLink: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    minHeight: 64,
+    padding: spacing.md,
+  },
+  resourceLinkCopy: { flex: 1, gap: 2 },
+  resourceLinkTitle: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '700' },
+  resourceLinkDescription: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 18 },
+  resourceLinkArrow: { color: colors.accent, fontSize: fontSize.lg, fontWeight: '700' },
 });

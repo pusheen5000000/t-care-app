@@ -11,6 +11,12 @@ const services = require('./data/services');
 const collegeRegistrarOffices = require('./data/collegeRegistrarOffices');
 const { classifyQuery } = require('./services/groqService');
 const { geocodeAddress, getRoute, getWalkingRoute } = require('./services/mapsService');
+const {
+  campusLocationToOffice,
+  findNearbyCampusLocation,
+  findRequestedCampusLocation,
+  withRelevantCampusLocations,
+} = require('./services/campusLocationService');
 
 const app = express();
 app.use(cors());
@@ -35,6 +41,39 @@ async function createMapResult({ office, query, summary, location }) {
     polyline: route?.polyline ?? null,
     origin: location ? { latitude: location.lat, longitude: location.lng } : undefined,
     destination: { latitude: destination.lat, longitude: destination.lng },
+    supportResources: office.supportResources,
+  };
+}
+
+function createInfoResult({ service, query, title, summary, location }) {
+  return {
+    type: 'info',
+    serviceId: service.id,
+    query,
+    title: title || service.name,
+    summary: summary || service.summary,
+    supportResources: withRelevantCampusLocations(service.supportResources, location, query),
+  };
+}
+
+async function createCampusAwareServiceResult({ service, query, title, summary, location }) {
+  const campusLocations = service.supportResources?.campusLocations ?? [];
+  const requestedCampusLocation = findRequestedCampusLocation(query, campusLocations);
+  const nearbyCampusLocation = findNearbyCampusLocation(location, campusLocations);
+  const selectedCampusLocation = requestedCampusLocation ?? nearbyCampusLocation;
+  if (!selectedCampusLocation) return createInfoResult({ service, query, title, summary, location });
+
+  const result = await createMapResult({
+    office: campusLocationToOffice(selectedCampusLocation, service),
+    query,
+    summary: summary || service.summary,
+    location,
+  });
+  return {
+    ...result,
+    serviceId: service.id,
+    title: title || selectedCampusLocation.name,
+    supportResources: withRelevantCampusLocations(service.supportResources, location, query),
   };
 }
 
@@ -58,6 +97,20 @@ app.post('/api/query', async (req, res) => {
   try {
     const classification = await classifyQuery(query, services);
     const matched = services.find((s) => s.id === classification.serviceId);
+
+    // A multi-campus service is never routed to an arbitrary default office.
+    // When a campus is nearby, route there; otherwise list every in-person option.
+    if (matched?.supportResources?.campusLocations) {
+      return res.json(
+        await createCampusAwareServiceResult({
+          service: matched,
+          query,
+          title: classification.title,
+          summary: classification.summary,
+          location,
+        }),
+      );
+    }
 
     const requestedDestination =
       typeof classification.destination === 'string' ? classification.destination.trim() : '';
@@ -94,6 +147,7 @@ app.post('/api/query', async (req, res) => {
         query,
         title: classification.title || "Here's what I found",
         summary: classification.summary,
+        supportResources: matched?.supportResources,
       });
     }
 
@@ -104,6 +158,7 @@ app.post('/api/query', async (req, res) => {
         query,
         title: classification.title || matched.name,
         summary: classification.summary || matched.summary,
+        supportResources: matched.supportResources,
       });
     }
 
@@ -126,6 +181,7 @@ app.post('/api/query', async (req, res) => {
         latitude: route.destination.lat,
         longitude: route.destination.lng,
       },
+      supportResources: matched.supportResources,
     });
   } catch (err) {
     console.error(err);
@@ -201,24 +257,53 @@ app.post('/api/tcard-office', async (req, res) => {
 
 app.post('/api/accessibility-services', async (req, res) => {
   const accessibilityServices = services.find((service) => service.id === 'accessibility-services');
-  const { location } = req.body ?? {};
+  const { location, query } = req.body ?? {};
 
   if (!accessibilityServices) {
     return res.status(500).json({ error: 'Accessibility Services is not configured' });
   }
 
   try {
-    return res.json(
-      await createMapResult({
-        office: accessibilityServices,
-        query: 'Where can I access accessibility services?',
-        summary: accessibilityServices.summary,
-        location,
-      })
-    );
+    return res.json(await createCampusAwareServiceResult({
+      service: accessibilityServices,
+      query: typeof query === 'string' && query.trim()
+        ? query
+        : 'Where can I access accessibility services?',
+      summary: accessibilityServices.summary,
+      location,
+    }));
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Could not load the Accessibility Services map', detail: err.message });
+  }
+});
+
+// Lets a student choose a specific office from the full tri-campus list.
+app.post('/api/campus-location', async (req, res) => {
+  const { serviceId, campusLocationName, location } = req.body ?? {};
+  const service = services.find((candidate) => candidate.id === serviceId);
+  const campusLocation = service?.supportResources?.campusLocations
+    .find((candidate) => candidate.name === campusLocationName);
+
+  if (!campusLocation) {
+    return res.status(404).json({ error: 'Campus location not found' });
+  }
+
+  try {
+    const result = await createMapResult({
+      office: campusLocationToOffice(campusLocation, service),
+      query: `Show ${campusLocation.name} on the map`,
+      summary: service.summary,
+      location,
+    });
+    return res.json({
+      ...result,
+      serviceId: service.id,
+      supportResources: withRelevantCampusLocations(service.supportResources, location),
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Could not load the campus location map', detail: err.message });
   }
 });
 
@@ -231,14 +316,12 @@ app.post('/api/health-wellness', async (req, res) => {
   }
 
   try {
-    return res.json(
-      await createMapResult({
-        office: healthWellness,
-        query: 'I need someone to talk to',
-        summary: healthWellness.summary,
-        location,
-      })
-    );
+    return res.json(await createCampusAwareServiceResult({
+      service: healthWellness,
+      query: 'I need someone to talk to',
+      summary: healthWellness.summary,
+      location,
+    }));
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Could not load the Health & Wellness map', detail: err.message });

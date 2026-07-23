@@ -1,0 +1,77 @@
+const CAMPUS_PROXIMITY_KM = 5;
+
+function distanceInKm(from, to) {
+  const earthRadiusKm = 6371;
+  const toRadians = (degrees) => (degrees * Math.PI) / 180;
+  const latitudeDelta = toRadians(to.latitude - from.lat);
+  const longitudeDelta = toRadians(to.longitude - from.lng);
+  const latitude1 = toRadians(from.lat);
+  const latitude2 = toRadians(to.latitude);
+  const haversine =
+    Math.sin(latitudeDelta / 2) ** 2 +
+    Math.cos(latitude1) * Math.cos(latitude2) * Math.sin(longitudeDelta / 2) ** 2;
+
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+}
+
+function findNearbyCampusLocation(location, campusLocations) {
+  if (!location || !Number.isFinite(location.lat) || !Number.isFinite(location.lng)) return null;
+
+  const nearest = campusLocations
+    .filter((campusLocation) => campusLocation.coordinates)
+    .map((campusLocation) => ({
+      campusLocation,
+      distance: distanceInKm(location, campusLocation.coordinates),
+    }))
+    .sort((a, b) => a.distance - b.distance)[0];
+
+  return nearest?.distance <= CAMPUS_PROXIMITY_KM ? nearest.campusLocation : null;
+}
+
+function findRequestedCampusLocation(query, campusLocations) {
+  if (typeof query !== 'string') return null;
+
+  const campusPatterns = [
+    { pattern: /\b(?:utsg|st\.?\s*george|u\s*of\s*t\.?\s*st\.?\s*george|uoft\s*st\.?\s*george)\b/i, name: /st\.?\s*george/i },
+    { pattern: /\b(?:utsc|scarborough|u\s*of\s*t\.?\s*scarborough|uoft\s*scarborough)\b/i, name: /utsc|scarborough/i },
+    { pattern: /\b(?:utm|mississauga|u\s*of\s*t\.?\s*mississauga|uoft\s*mississauga)\b/i, name: /utm|mississauga/i },
+  ];
+
+  const requestedCampus = campusPatterns.find(({ pattern }) => pattern.test(query));
+  return requestedCampus
+    ? campusLocations.find((campusLocation) => requestedCampus.name.test(campusLocation.name)) ?? null
+    : null;
+}
+
+function withRelevantCampusLocations(supportResources, location, query) {
+  if (!supportResources?.campusLocations) return supportResources;
+
+  const requestedLocation = findRequestedCampusLocation(query, supportResources.campusLocations);
+  const nearbyLocation = findNearbyCampusLocation(location, supportResources.campusLocations);
+  const relevantLocation = requestedLocation ?? nearbyLocation;
+  return {
+    ...supportResources,
+    intro: relevantLocation
+      ? requestedLocation
+        ? `Showing the in-person support at ${relevantLocation.name}.`
+        : `Showing the in-person support available near you at ${relevantLocation.name}.`
+      : 'We could not confidently match you to a U of T campus, so here are all in-person options.',
+    campusLocations: relevantLocation ? [relevantLocation] : supportResources.campusLocations,
+  };
+}
+
+function campusLocationToOffice(campusLocation, service) {
+  return {
+    name: campusLocation.name,
+    address: campusLocation.location,
+    fee: service.fee,
+    hours: service.hours,
+  };
+}
+
+module.exports = {
+  findNearbyCampusLocation,
+  findRequestedCampusLocation,
+  withRelevantCampusLocations,
+  campusLocationToOffice,
+};
