@@ -20,7 +20,11 @@ async function geocodeAddress(address) {
   if (!feature) throw new Error(`Geoapify geocode found no results for: ${address}`);
 
   const [lng, lat] = feature.geometry.coordinates;
-  return { lat, lng };
+  return {
+    lat,
+    lng,
+    formattedAddress: feature.properties?.formatted ?? address,
+  };
 }
 
 /**
@@ -68,4 +72,4 @@ async function getWalkingRoute(origin, destinationAddress) {
   };
 }
 
-module.exports = { getWalkingRoute };
+module.exports = { geocodeAddress, getWalkingRoute };

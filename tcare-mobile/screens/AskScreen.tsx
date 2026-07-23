@@ -8,14 +8,30 @@ import {
   StyleSheet,
   SafeAreaView,
   KeyboardAvoidingView,
+  Modal,
   Platform,
+  Pressable,
 } from 'react-native';
 import { colors, spacing, fontSize, radius } from '../theme';
 import { MoodCheckIn } from '../components/MoodCheckIn';
 
 type Props = {
   onSubmit: (query: string) => void;
+  onTCardPress: () => void;
+  onTalkSupportPress: () => void;
+  onAccessibilityPress: () => void;
+  onCollegeSelect: (collegeId: string) => void;
 };
+
+const COLLEGES = [
+  { id: 'innis', label: 'Innis College' },
+  { id: 'new-college', label: 'New College' },
+  { id: 'st-michaels', label: 'St. Michael’s College' },
+  { id: 'trinity', label: 'Trinity College' },
+  { id: 'university-college', label: 'University College' },
+  { id: 'victoria', label: 'Victoria College' },
+  { id: 'woodsworth', label: 'Woodsworth College' },
+];
 
 const SUGGESTIONS = [
   { label: 'I lost my TCard', query: 'I lost my TCard, what do I do?' },
@@ -39,9 +55,10 @@ const MOODS: { emoji: string; label: string; mood: 'good' | 'okay' | 'struggling
   { emoji: '😔', label: 'Struggling', mood: 'struggling' },
 ];
 
-export function AskScreen({ onSubmit }: Props) {
+export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccessibilityPress, onCollegeSelect }: Props) {
   const [text, setText] = useState('');
   const [activeMood, setActiveMood] = useState<'good' | 'okay' | 'struggling' | null>(null);
+  const [collegePromptVisible, setCollegePromptVisible] = useState(false);
 
   const handleSend = () => {
     if (!text.trim()) return;
@@ -79,7 +96,13 @@ export function AskScreen({ onSubmit }: Props) {
               <TouchableOpacity
                 key={s.label}
                 style={styles.chip}
-                onPress={() => onSubmit(s.query)}
+                onPress={() => {
+                  if (s.label === 'I lost my TCard') return onTCardPress();
+                  if (s.label === 'I need someone to talk to') return onTalkSupportPress();
+                  if (s.label === 'Accessibility services') return onAccessibilityPress();
+                  if (s.label === 'I need help with my studies') return setCollegePromptVisible(true);
+                  onSubmit(s.query);
+                }}
                 activeOpacity={0.7}
               >
                 <Text style={styles.chipText}>{s.label}</Text>
@@ -127,6 +150,34 @@ export function AskScreen({ onSubmit }: Props) {
         mood={activeMood}
         onClose={() => setActiveMood(null)}
       />
+
+      <Modal
+        visible={collegePromptVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCollegePromptVisible(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setCollegePromptVisible(false)}>
+          <Pressable style={styles.modalCard} onPress={() => undefined}>
+            <Text style={styles.modalTitle}>Which U of T college are you in?</Text>
+            <Text style={styles.modalBody}>
+              We’ll point you to your college registrar’s academic assistance office.
+            </Text>
+            {COLLEGES.map((college) => (
+              <TouchableOpacity
+                key={college.id}
+                style={styles.collegeOption}
+                onPress={() => {
+                  setCollegePromptVisible(false);
+                  onCollegeSelect(college.id);
+                }}
+              >
+                <Text style={styles.collegeOptionText}>{college.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -265,5 +316,40 @@ const styles = StyleSheet.create({
     color: colors.accentOn,
     fontWeight: '600',
     fontSize: fontSize.base,
+  },
+  modalBackdrop: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: spacing.xl,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+  },
+  modalCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    gap: spacing.sm,
+  },
+  modalTitle: {
+    color: colors.textPrimary,
+    fontSize: fontSize.lg,
+    fontWeight: '700',
+  },
+  modalBody: {
+    color: colors.textSecondary,
+    fontSize: fontSize.base,
+    lineHeight: 20,
+    marginBottom: spacing.xs,
+  },
+  collegeOption: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  collegeOptionText: {
+    color: colors.accent,
+    fontSize: fontSize.base,
+    fontWeight: '600',
   },
 });

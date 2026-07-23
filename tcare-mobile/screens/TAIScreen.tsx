@@ -1,8 +1,55 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
-import { colors, spacing, fontSize, radius } from '../theme';
+import React, { useEffect, useRef, useState } from 'react';
+import * as Location from 'expo-location';
+import MapView, { Marker, Polyline } from 'react-native-maps';
+import {
+  Animated,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { colors, fontSize, radius, spacing } from '../theme';
 
-type Message = { id: string; role: 'user' | 'assistant'; text: string };
+type Coordinate = { latitude: number; longitude: number };
+type RouteStep = { instruction: string; distance: string };
+
+type Route = {
+  placeName: string;
+  placeSubtitle: string;
+  walkMinutes: number;
+  distanceText?: string | null;
+  steps: RouteStep[];
+  origin?: Coordinate;
+  destination?: Coordinate;
+  polyline?: { type: string; coordinates: number[][] | number[][][] } | null;
+};
+
+type Message = { id: string; role: 'user' | 'assistant'; text: string; route?: Route };
+
+type QueryResponse = {
+  type?: 'info' | 'location';
+  title?: string;
+  summary?: string;
+  placeName?: string;
+  placeSubtitle?: string;
+  walkMinutes?: number;
+  distanceText?: string | null;
+  steps?: RouteStep[];
+  origin?: Coordinate;
+  destination?: Coordinate;
+  polyline?: Route['polyline'];
+  error?: string;
+};
+
+// Set EXPO_PUBLIC_API_URL to your computer's LAN address when testing on a
+// physical device, for example: http://192.168.1.20:3000.
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL ??
+  (Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000');
 
 const INITIAL: Message[] = [
   {
@@ -12,22 +59,217 @@ const INITIAL: Message[] = [
   },
 ];
 
+function TAIThinkingIndicator() {
+  const dotAnimations = useRef([
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+  ]).current;
+
+  useEffect(() => {
+    const animations = dotAnimations.map((value, index) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(index * 120),
+          Animated.timing(value, {
+            toValue: -6,
+            duration: 260,
+            useNativeDriver: true,
+          }),
+          Animated.timing(value, {
+            toValue: 0,
+            duration: 260,
+            useNativeDriver: true,
+          }),
+          Animated.delay((2 - index) * 120),
+        ]),
+      ),
+    );
+
+    animations.forEach((animation) => animation.start());
+    return () => animations.forEach((animation) => animation.stop());
+  }, [dotAnimations]);
+
+  return (
+    <View style={styles.thinkingBubble} accessibilityLabel="T-AI is thinking">
+      {dotAnimations.map((animation, index) => (
+        <Animated.View
+          key={index}
+          style={[styles.thinkingDot, { transform: [{ translateY: animation }] }]}
+        />
+      ))}
+    </View>
+  );
+}
+
+function geometryToCoordinates(polyline: Route['polyline']): Coordinate[] {
+  if (!polyline) return [];
+  const toCoordinate = ([longitude, latitude]: number[]) => ({ latitude, longitude });
+  if (polyline.type === 'LineString') return (polyline.coordinates as number[][]).map(toCoordinate);
+  if (polyline.type === 'MultiLineString') {
+    return (polyline.coordinates as number[][][]).flat().map(toCoordinate);
+  }
+  return [];
+}
+
+function RouteCard({ route }: { route: Route }) {
+  const coordinates = geometryToCoordinates(route.polyline);
+  const [directionsVisible, setDirectionsVisible] = useState(false);
+  const mapRef = useRef<MapView>(null);
+  const region = route.destination && {
+    latitude: route.destination.latitude,
+    longitude: route.destination.longitude,
+    latitudeDelta: 0.02,
+    longitudeDelta: 0.02,
+  };
+
+  if (!region) return null;
+
+  const fitRoute = () => {
+    const points = coordinates.length > 0
+      ? coordinates
+      : [route.origin, route.destination].filter(Boolean) as Coordinate[];
+
+    if (points.length > 1) {
+      mapRef.current?.fitToCoordinates(points, {
+        animated: false,
+        edgePadding: { top: 36, right: 36, bottom: 36, left: 36 },
+      });
+    }
+  };
+
+  return (
+    <View style={styles.routeCard}>
+      <MapView ref={mapRef} style={styles.routeMap} initialRegion={region} onMapReady={fitRoute}>
+        {route.origin && <Marker coordinate={route.origin} title="You" pinColor={colors.accent} />}
+        <Marker coordinate={route.destination} title={route.placeName} />
+        {coordinates.length > 0 && <Polyline coordinates={coordinates} strokeColor={colors.accent} strokeWidth={4} />}
+      </MapView>
+      <View style={styles.routeDetails}>
+        <Text style={styles.routeName}>{route.placeName}</Text>
+        <Text style={styles.routeAddress}>{route.placeSubtitle}</Text>
+        {route.origin && (
+          <Text style={styles.routeTime}>
+            {route.walkMinutes} min walk{route.distanceText ? ` · ${route.distanceText}` : ''}
+          </Text>
+        )}
+        {route.steps.length > 0 && (
+          <View style={styles.steps}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityState={{ expanded: directionsVisible }}
+              accessibilityLabel={directionsVisible ? 'Hide walking directions' : 'Show walking directions'}
+              style={styles.directionsToggle}
+              onPress={() => setDirectionsVisible((visible) => !visible)}
+            >
+              <Text style={styles.stepsTitle}>
+                {directionsVisible ? 'Hide directions' : 'Show directions'}
+              </Text>
+              <Text style={styles.directionsChevron}>{directionsVisible ? '⌃' : '⌄'}</Text>
+            </TouchableOpacity>
+            {directionsVisible && route.steps.map((step, index) => (
+              <View key={`${step.instruction}-${index}`} style={styles.stepRow}>
+                <Text style={styles.stepNumber}>{index + 1}</Text>
+                <Text style={styles.stepText}>
+                  {step.instruction}{step.distance ? ` (${step.distance})` : ''}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
 export function TAIScreen() {
   const [messages, setMessages] = useState<Message[]>(INITIAL);
   const [input, setInput] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
 
-  const send = () => {
-    if (!input.trim()) return;
-    const userMsg: Message = { id: Date.now().toString(), role: 'user', text: input };
-    setMessages((prev) => [...prev, userMsg]);
+  const send = async () => {
+    const query = input.trim();
+    if (!query || isSending) return;
+
+    setMessages((prev) => [
+      ...prev,
+      { id: `${Date.now()}-user`, role: 'user', text: query },
+    ]);
     setInput('');
-    // stub reply — call groq api here later
-    setTimeout(() => {
+    setIsSending(true);
+
+    try {
+      // Only request location for a direction-style question. If permission is
+      // declined, T-AI still answers and can show the destination on the map.
+      const asksForDirections = /\b(directions?|guide(?: me)?|route|map|navigation|navigate|wayfind(?:ing)?|find (?:my|the) way|how (do|can) i get|how to get|get to|get me|take me|bring me|lead me|walk me|show me (?:the )?(?:way|route)|go to|head to|travel to|walk to|reach|arriv(?:e|al|ing)|destination|where is)\b/i.test(query);
+      let location: { lat: number; lng: number } | undefined;
+      if (asksForDirections) {
+        const permission = await Location.requestForegroundPermissionsAsync();
+        if (permission.status === 'granted') {
+          try {
+            const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+            location = { lat: position.coords.latitude, lng: position.coords.longitude };
+          } catch (locationError) {
+            // A recently known position still lets us give a route when GPS is
+            // temporarily unavailable indoors or taking too long to acquire.
+            console.warn('Could not get current location:', locationError);
+            const lastKnown = await Location.getLastKnownPositionAsync({
+              maxAge: 60_000,
+              requiredAccuracy: 500,
+            });
+            if (lastKnown) {
+              location = { lat: lastKnown.coords.latitude, lng: lastKnown.coords.longitude };
+            }
+          }
+        }
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/query`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, location }),
+      });
+      const payload: QueryResponse = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'The assistant could not answer right now.');
+      }
+
+      const text = [payload.title, payload.summary].filter(Boolean).join('\n\n');
+      if (!text) throw new Error('The assistant returned an empty response.');
+
+      const route =
+        payload.type === 'location' && payload.placeName && payload.placeSubtitle
+          ? {
+              placeName: payload.placeName,
+              placeSubtitle: payload.placeSubtitle,
+              walkMinutes: payload.walkMinutes ?? 0,
+              distanceText: payload.distanceText,
+              steps: payload.steps ?? [],
+              origin: payload.origin,
+              destination: payload.destination,
+              polyline: payload.polyline,
+            }
+          : undefined;
+
       setMessages((prev) => [
         ...prev,
-        { id: Date.now().toString() + 'a', role: 'assistant', text: '...' },
+        { id: `${Date.now()}-assistant`, role: 'assistant', text, route },
       ]);
-    }, 500);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : 'Unknown network error';
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `${Date.now()}-error`,
+          role: 'assistant',
+          text: `I couldn't reach T-AI right now. ${detail}`,
+        },
+      ]);
+    } finally {
+      setIsSending(false);
+    }
   };
 
   return (
@@ -48,16 +290,21 @@ export function TAIScreen() {
         </View>
       </View>
 
-      <ScrollView style={styles.chatArea} contentContainerStyle={styles.chatContent}>
-        {messages.map((m) => (
+      <ScrollView
+        ref={scrollViewRef}
+        style={styles.chatArea}
+        contentContainerStyle={styles.chatContent}
+        onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+      >
+        {messages.map((message) => (
           <View
-            key={m.id}
+            key={message.id}
             style={[
               styles.bubbleRow,
-              m.role === 'user' ? styles.bubbleRowUser : styles.bubbleRowAssistant,
+              message.role === 'user' ? styles.bubbleRowUser : styles.bubbleRowAssistant,
             ]}
           >
-            {m.role === 'assistant' && (
+            {message.role === 'assistant' && (
               <View style={styles.avatarSmall}>
                 <Text style={styles.avatarEmojiSmall}>🤖</Text>
               </View>
@@ -65,19 +312,28 @@ export function TAIScreen() {
             <View
               style={[
                 styles.bubble,
-                m.role === 'user' ? styles.bubbleUser : styles.bubbleAssistant,
+                message.role === 'user' ? styles.bubbleUser : styles.bubbleAssistant,
               ]}
             >
               <Text
                 style={
-                  m.role === 'user' ? styles.bubbleTextUser : styles.bubbleTextAssistant
+                  message.role === 'user' ? styles.bubbleTextUser : styles.bubbleTextAssistant
                 }
               >
-                {m.text}
+                {message.text}
               </Text>
+              {message.route && <RouteCard route={message.route} />}
             </View>
           </View>
         ))}
+        {isSending && (
+          <View style={[styles.bubbleRow, styles.bubbleRowAssistant]}>
+            <View style={styles.avatarSmall}>
+              <Text style={styles.avatarEmojiSmall}>🤖</Text>
+            </View>
+            <TAIThinkingIndicator />
+          </View>
+        )}
       </ScrollView>
 
       <View style={styles.inputRow}>
@@ -88,8 +344,14 @@ export function TAIScreen() {
           placeholder="Type a message..."
           placeholderTextColor={colors.textMuted}
           onSubmitEditing={send}
+          editable={!isSending}
         />
-        <TouchableOpacity style={styles.sendBtn} onPress={send} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={[styles.sendBtn, isSending && styles.sendBtnDisabled]}
+          onPress={send}
+          activeOpacity={0.8}
+          disabled={isSending}
+        >
           <Text style={styles.sendBtnText}>➤</Text>
         </TouchableOpacity>
       </View>
@@ -142,6 +404,52 @@ const styles = StyleSheet.create({
   bubbleUser: { backgroundColor: colors.accent, borderTopRightRadius: radius.sm },
   bubbleTextAssistant: { color: colors.textSecondary, fontSize: fontSize.base, lineHeight: 20 },
   bubbleTextUser: { color: colors.white, fontSize: fontSize.base, lineHeight: 20 },
+  routeCard: {
+    marginTop: spacing.sm,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+  },
+  routeMap: { height: 160, width: '100%' },
+  routeDetails: { padding: spacing.sm, gap: 2 },
+  routeName: { color: colors.textPrimary, fontWeight: '700', fontSize: fontSize.sm },
+  routeAddress: { color: colors.textSecondary, fontSize: fontSize.sm },
+  routeTime: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '600' },
+  steps: { marginTop: spacing.sm, gap: spacing.sm },
+  directionsToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  stepsTitle: { color: colors.textPrimary, fontSize: fontSize.sm, fontWeight: '700' },
+  directionsChevron: { color: colors.accent, fontSize: fontSize.md, fontWeight: '700' },
+  stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs },
+  stepNumber: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: radius.full,
+    overflow: 'hidden',
+    textAlign: 'center',
+    color: colors.white,
+    backgroundColor: colors.accent,
+    fontSize: fontSize.sm,
+    fontWeight: '700',
+  },
+  stepText: { flex: 1, color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 18 },
+  thinkingBubble: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.lg,
+    borderTopLeftRadius: radius.sm,
+    backgroundColor: colors.surface,
+  },
+  thinkingDot: {
+    width: 7,
+    height: 7,
+    borderRadius: radius.full,
+    backgroundColor: colors.textMuted,
+  },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -167,5 +475,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  sendBtnDisabled: { opacity: 0.55 },
   sendBtnText: { color: colors.white, fontSize: fontSize.md },
 });

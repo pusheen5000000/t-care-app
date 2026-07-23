@@ -9,7 +9,6 @@ copied over.
 ```bash
 cd tcare-backend
 npm install
-cp .env.example .env
 ```
 
 Fill in `.env`:

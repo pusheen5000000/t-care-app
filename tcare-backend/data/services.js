@@ -9,12 +9,12 @@ module.exports = [
   {
     id: 'tcard-office',
     name: 'TCard Office',
-    keywords: ['tcard', 'lost id', 'student card', 'replacement card'],
+    keywords: ['tcard', 'lost id', 'student card', 'replacement card', 'directions'],
     summary:
-      'Report a lost TCard, then visit the TCard office with photo ID. A replacement costs $20 and is usually ready same day.',
-    address: '765 Sunningdale Rd W, London, ON N6H 5L6', // Oakridge Secondary School (test address)
+      'The St. George TCard Office is on the 5th floor of 800 Bay Street. For a lost or damaged card, report it lost in eAccounts, then visit in person; a standard replacement is $20, payable by debit, credit, or TBucks.',
+    address: '800 Bay Street, 5th Floor, Toronto, ON M5S 3A9',
     fee: '$20',
-    hours: '9:00 AM – 5:00 PM',
+    hours: 'Monday to Friday, 9:00 AM to 4:15 PM',
   },
   {
     id: 'health-wellness',
@@ -29,8 +29,8 @@ module.exports = [
       'stressed',
     ],
     summary:
-      'Same-day counselling drop-ins and scheduled appointments are available, free for students.',
-    address: '214 College St, Toronto, ON M5T 2Z9',
+      'U of T Health & Wellness provides mental health and medical support. Mental Health Services are on the 12th floor and Medical Services are on the 14th floor.',
+    address: '700 Bay Street, 12th and 14th Floors, Toronto, ON M5G 1Z6',
     fee: 'Free',
     hours: '9:00 AM – 4:30 PM',
   },
@@ -46,7 +46,7 @@ module.exports = [
     ],
     summary:
       'Register for academic accommodations, assistive technology, and exam accommodations.',
-    address: '455 Spadina Ave, Toronto, ON M5S 2G8',
+    address: '455 Spadina Ave, Suite 400, Toronto, ON M5S 1A1',
     fee: 'Free',
     hours: '9:00 AM – 4:00 PM',
   },

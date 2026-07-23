@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, Linking, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView } from 'react-native';
 import { colors, spacing, fontSize, radius } from '../theme';
 
 type Mood = 'good' | 'okay' | 'struggling';
@@ -12,7 +12,7 @@ type Props = {
 
 const GROUNDING_STEPS = [
   { title: '5-4-3-2-1', detail: 'Look around and name five things you can see, 4 things you can touch, 3 things you hear, 2 things you smell, and 1 thing you taste.' },
-  { title: 'Box Breahting', detail: 'Breathe in through your nose for 4 counts, hold for 4 counts, and exhale for 4 counts. Repeat as needed.' },
+  { title: 'Box Breathing', detail: 'Breathe in through your nose for 4 counts, hold for 4 counts, and exhale for 4 counts. Repeat as needed.' },
   { title: 'Temperature', detail: 'A temperature change can regulate your nervous system. Wash your hands or splash your face with cold water.' },
   { title: 'Reset your body', detail: 'Go through from head to toe, tense up your body and release it.' },
   { title: 'Imagination', detail: 'Imagine you are in a comforting place. Notice your senses as if you were there.' },
@@ -25,8 +25,6 @@ export function MoodCheckIn({ visible, mood, onClose }: Props) {
     setSafetyAnswer(null);
     onClose();
   };
-
-  const call = (number: string) => Linking.openURL(`tel:${number}`);
 
   const renderContent = () => {
     if (mood === 'good') {
@@ -80,23 +78,28 @@ export function MoodCheckIn({ visible, mood, onClose }: Props) {
         <>
           <Text style={styles.warningTitle}>⚠️ You're not alone</Text>
           <Text style={styles.body}>
-            Please reach out right now. These services are free, confidential,
-            and available 24/7.
+            You deserve support. This app will not call or text anyone for you.
+            If you choose to reach out, open your phone app and dial or text one of these numbers yourself.
           </Text>
 
-          <TouchableOpacity style={styles.resourceCard} onPress={() => call('988')}>
-            <Text style={styles.resourceTitle}>988 Suicide & Crisis Lifeline</Text>
-            <Text style={styles.resourceSubtitle}>Call or text 988 · Free · 24/7</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.resourceCard} onPress={() => call('911')}>
-            <Text style={styles.resourceTitle}>Emergency Services</Text>
-            <Text style={styles.resourceSubtitle}>Call 911 · Immediate response</Text>
-          </TouchableOpacity>
+          <View style={styles.resourceCard}>
+            <Text style={styles.resourceTitle}>9-8-8 Suicide Crisis Helpline</Text>
+            <Text style={styles.resourceSubtitle}>Call or text 9-8-8 yourself · Free · 24/7</Text>
+          </View>
 
           <View style={styles.resourceCard}>
-            <Text style={styles.resourceTitle}>Campus Security</Text>
-            <Text style={styles.resourceSubtitle}>Check your student portal for the direct line</Text>
+            <Text style={styles.resourceTitle}>U of T Telus Health Student Support</Text>
+            <Text style={styles.resourceSubtitle}>Call or text 1-844-451-9700 yourself · 24/7</Text>
+          </View>
+
+          <View style={styles.resourceCard}>
+            <Text style={styles.resourceTitle}>Good2Talk student helpline</Text>
+            <Text style={styles.resourceSubtitle}>Call 1-866-925-5454 yourself · Free · 24/7</Text>
+          </View>
+
+          <View style={styles.resourceCard}>
+            <Text style={styles.resourceTitle}>Emergency help</Text>
+            <Text style={styles.resourceSubtitle}>If there is immediate danger, use your phone to call 9-1-1 or go to the nearest emergency department.</Text>
           </View>
 
           <TouchableOpacity style={styles.primaryButton} onPress={handleClose}>

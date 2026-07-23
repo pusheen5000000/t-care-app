@@ -15,20 +15,40 @@ const GROQ_MODEL = 'llama-3.3-70b-versatile';
  *
  * @param {string} query - the student's raw text
  * @param {Array} services - the services list from data/services.js
- * @returns {Promise<{ serviceId: string|null, title: string, summary: string }>}
+ * @returns {Promise<{ serviceId: string|null, title: string, summary: string, destination?: string|null }>}
  */
 async function classifyQuery(query, services) {
+  if (/^(hi|hello|hey|good (morning|afternoon|evening))[!,.?\s]*$/i.test(query.trim())) {
+    return {
+      serviceId: null,
+      title: 'Hi, how can I help?',
+      summary:
+        'I can help you find TCard, accessibility, wellness, and study-support services. What would you like to know?',
+    };
+  }
+
   const serviceList = services
-    .map((s) => `- id: "${s.id}", name: "${s.name}"`)
+    .map(
+      (s) =>
+        `- id: "${s.id}"\n  name: "${s.name}"\n  details: "${s.summary}"\n  address: "${s.address}"\n  hours: "${s.hours}"\n  fee: "${s.fee}"`,
+    )
     .join('\n');
 
-  const systemPrompt = `You are T-Care, a calm and supportive assistant that helps university students find the right campus support service. 
+  const systemPrompt = `You are T-AI, a warm, practical assistant for University of Toronto students. Answer the student's message helpfully, then identify the single best service from the supplied list when one applies.
 
-Given a student's message, choose the single best-matching service from this list, or "none" if nothing fits:
+Available services (these are the only source of facts about their locations, hours, fees, and processes):
 ${serviceList}
 
-Respond with ONLY valid JSON, no markdown, no preamble, in this exact shape:
-{"serviceId": "<id or null>", "title": "<short 3-6 word title>", "summary": "<1-2 calm, plain-language sentences, max 40 words>"}`;
+Response rules:
+- Treat greetings such as "hello" as valid. Reply warmly and invite the student to ask about TCards, accessibility, wellness, or study support. Use serviceId null.
+- For a matching service, give a direct answer with a useful next step. If the student asks where or how to get there, include the exact address and relevant hours from that service's details.
+- Use only the facts supplied above for service-specific claims. Do not invent a location, hours, fee, policy, or route.
+- When the student explicitly asks for directions, a route, a map, or how to get to a place, set "destination" to the location they want. Prefer the matching service's exact address when there is one. For another clearly named place, use that place name exactly as the student described it, adding "Toronto, ON" only when needed for clarity. Otherwise use null. Do not put a destination in a response that is not asking for directions.
+- If no service fits, do not call the question invalid. Give a brief, supportive response and offer the areas T-AI can help with.
+- Keep the summary concise but useful: 2-4 short sentences, at most 90 words.
+
+Respond with ONLY valid JSON, no markdown or preamble, in this exact shape:
+{"serviceId": "<id or null>", "title": "<short, helpful title>", "summary": "<helpful answer>", "destination": "<address/place or null>"}`;
 
   const response = await fetch(GROQ_API_URL, {
     method: 'POST',
