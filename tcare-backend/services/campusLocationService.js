@@ -1,4 +1,17 @@
 const CAMPUS_PROXIMITY_KM = 5;
+// A college is only needed when it determines the actual UTSG academic office.
+// All other services have one campus-level destination.
+const COLLEGE_SPECIFIC_SERVICE_IDS = new Set([
+  'academic-success',
+  'financial-aid',
+  'registrar-enrolment',
+]);
+
+function requiresCollegePicker(service) {
+  return Boolean(service)
+    && service.facilityPicker === 'college'
+    && COLLEGE_SPECIFIC_SERVICE_IDS.has(service.id);
+}
 
 function distanceInKm(from, to) {
   const earthRadiusKm = 6371;
@@ -74,4 +87,5 @@ module.exports = {
   findRequestedCampusLocation,
   withRelevantCampusLocations,
   campusLocationToOffice,
+  requiresCollegePicker,
 };

@@ -3,6 +3,7 @@ import * as Location from 'expo-location';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import {
   Animated,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -12,6 +13,8 @@ import {
   TouchableOpacity,
   View,
   Linking,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { colors, fontSize, radius, spacing } from '../theme';
 import type { SupportResources } from '../types';
@@ -37,6 +40,7 @@ type Message = {
   route?: Route;
   serviceId?: string;
   supportResources?: SupportResources;
+  facilityPicker?: 'campus' | 'college';
 };
 
 type QueryResponse = {
@@ -53,6 +57,7 @@ type QueryResponse = {
   polyline?: Route['polyline'];
   serviceId?: string;
   supportResources?: SupportResources;
+  facilityPicker?: 'campus' | 'college';
   error?: string;
 };
 
@@ -66,8 +71,24 @@ const INITIAL: Message[] = [
   {
     id: '1',
     role: 'assistant',
-    text: "Hi! I'm T-AI, your Accessibility Assistant. Ask me anything about campus resources, accommodations, or support services and I'll do my best to help.",
+    text: "Hi! I'm T-AI, your campus support assistant. Ask about academics, money, housing, international support, safety, careers, libraries, food, wellbeing, or accessibility.",
   },
+];
+
+const COLLEGES = [
+  { id: 'innis', label: 'Innis College' },
+  { id: 'new-college', label: 'New College' },
+  { id: 'st-michaels', label: "St. Michael's College" },
+  { id: 'trinity', label: 'Trinity College' },
+  { id: 'university-college', label: 'University College' },
+  { id: 'victoria', label: 'Victoria College' },
+  { id: 'woodsworth', label: 'Woodsworth College' },
+];
+
+const CAMPUSES = [
+  { id: 'utsg', label: 'UTSG (St. George Campus)', match: /utsg|st\.?\s*george/i },
+  { id: 'utsc', label: 'UTSC (Scarborough Campus)', match: /utsc|scarborough/i },
+  { id: 'utm', label: 'UTM (Mississauga Campus)', match: /utm|mississauga/i },
 ];
 
 function TAIThinkingIndicator() {
@@ -123,7 +144,7 @@ function geometryToCoordinates(polyline: Route['polyline']): Coordinate[] {
   return [];
 }
 
-function RouteCard({ route }: { route: Route }) {
+function RouteCard({ route, onMapReady }: { route: Route; onMapReady?: () => void }) {
   const coordinates = geometryToCoordinates(route.polyline);
   const [directionsVisible, setDirectionsVisible] = useState(false);
   const mapRef = useRef<MapView>(null);
@@ -147,6 +168,7 @@ function RouteCard({ route }: { route: Route }) {
         edgePadding: { top: 36, right: 36, bottom: 36, left: 36 },
       });
     }
+    onMapReady?.();
   };
 
   return (
@@ -198,10 +220,14 @@ function SupportResourceLinks({
   resources,
   serviceId,
   onCampusLocationPress,
+  facilityPicker,
+  onChooseFacility,
 }: {
   resources: SupportResources;
   serviceId?: string;
   onCampusLocationPress: (campusLocationName: string) => Promise<boolean>;
+  facilityPicker?: 'campus' | 'college';
+  onChooseFacility: () => void;
 }) {
   const [loadingCampusLocation, setLoadingCampusLocation] = useState<string | null>(null);
   const [mapError, setMapError] = useState(false);
@@ -213,7 +239,14 @@ function SupportResourceLinks({
     <View style={styles.mentalHealthCard}>
       <Text style={styles.mentalHealthTitle}>{resources.title ?? 'Mental health support'}</Text>
       {resources.intro && <Text style={styles.mentalHealthIntro}>{resources.intro}</Text>}
-      <Text style={styles.mentalHealthSubhead}>{resources.campusHeading ?? 'On campus'}</Text>
+      {facilityPicker && (
+        <TouchableOpacity style={styles.chooseFacilityButton} onPress={onChooseFacility} accessibilityRole="button" accessibilityLabel={facilityPicker === 'college' ? 'Choose your college or campus' : 'Choose your campus'}>
+          <Text style={styles.chooseFacilityButtonText}>{facilityPicker === 'college' ? 'Choose your college or campus' : 'Choose your campus'}</Text>
+        </TouchableOpacity>
+      )}
+      {resources.campusLocations.length > 0 && (
+        <Text style={styles.mentalHealthSubhead}>{resources.campusHeading ?? 'On campus'}</Text>
+      )}
       {resources.campusLocations.map((location) => (
         <TouchableOpacity
           key={location.name}
@@ -276,6 +309,15 @@ export function TAIScreen() {
   const [messages, setMessages] = useState<Message[]>(INITIAL);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [mapLoadingLocation, setMapLoadingLocation] = useState<string | null>(null);
+  const [collegePickerVisible, setCollegePickerVisible] = useState(false);
+  const [facilitySelection, setFacilitySelection] = useState<{
+    messageId: string;
+    serviceId: string;
+    type: 'campus' | 'college';
+    requiresCollege: boolean;
+    campusLocations: SupportResources['campusLocations'];
+  } | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
   const send = async () => {
@@ -353,6 +395,7 @@ export function TAIScreen() {
           route,
           serviceId: payload.serviceId,
           supportResources: payload.supportResources,
+          facilityPicker: payload.facilityPicker,
         },
       ]);
     } catch (error) {
@@ -370,6 +413,7 @@ export function TAIScreen() {
   };
 
   const loadCampusLocation = async (messageId: string, serviceId: string, campusLocationName: string): Promise<boolean> => {
+    setMapLoadingLocation(campusLocationName);
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
       const position =
@@ -386,7 +430,7 @@ export function TAIScreen() {
         body: JSON.stringify({ serviceId, campusLocationName, location }),
       });
       const payload: QueryResponse = await response.json();
-      if (!response.ok || !payload.placeName || !payload.placeSubtitle) {
+      if (!response.ok || !payload.placeName || !payload.placeSubtitle || !payload.destination) {
         throw new Error(payload.error || 'Could not load this campus location.');
       }
 
@@ -403,11 +447,95 @@ export function TAIScreen() {
       setMessages((messages) => messages.map((message) => (
         message.id === messageId ? { ...message, route } : message
       )));
+      // The route is ready at this point. Waiting for MapView's onMapReady event
+      // can leave the blocking overlay up indefinitely when that native event is
+      // missed while the screen is transitioning.
+      setMapLoadingLocation((current) => current === campusLocationName ? null : current);
       return true;
     } catch (error) {
       console.warn('Could not load selected campus map:', error);
+      setMapLoadingLocation(null);
       return false;
     }
+  };
+
+  const finishMapLoading = () => {
+    if (!mapLoadingLocation) return;
+    setMapLoadingLocation(null);
+    requestAnimationFrame(() => scrollViewRef.current?.scrollToEnd({ animated: true }));
+  };
+
+  const selectCollegeFacility = async (collegeId: string) => {
+    setCollegePickerVisible(false);
+    const selectedFacility = facilitySelection;
+    if (!selectedFacility) return;
+    setIsSending(true);
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      const position = permission.status === 'granted'
+        ? await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+        : undefined;
+      const location = position ? { lat: position.coords.latitude, lng: position.coords.longitude } : undefined;
+      const response = await fetch(`${API_BASE_URL}/api/college-service/${collegeId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ location, serviceId: selectedFacility.serviceId }),
+      });
+      const payload: QueryResponse = await response.json();
+      if (!response.ok || !payload.placeName || !payload.placeSubtitle) throw new Error(payload.error || 'Could not load this college service.');
+      setMessages((previous) => [...previous, {
+        id: `${Date.now()}-assistant`,
+        role: 'assistant',
+        text: [payload.title, payload.summary].filter(Boolean).join('\n\n'),
+        route: {
+          placeName: payload.placeName,
+          placeSubtitle: payload.placeSubtitle,
+          walkMinutes: payload.walkMinutes ?? 0,
+          distanceText: payload.distanceText,
+          steps: payload.steps ?? [],
+          origin: payload.origin,
+          destination: payload.destination,
+          polyline: payload.polyline,
+        },
+        serviceId: payload.serviceId,
+        supportResources: payload.supportResources,
+      }]);
+    } catch (error) {
+      setMessages((previous) => [...previous, {
+        id: `${Date.now()}-error`, role: 'assistant', text: "I couldn't load that college service. Please try again.",
+      }]);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const selectCampusFacility = async (campusId: string) => {
+    const selectedFacility = facilitySelection;
+    if (!selectedFacility) return;
+
+    // College-specific services need a second decision at UTSG: the college
+    // determines the appropriate local office. Keep this modal open while its
+    // content transitions so the campus choice cannot leak through to a map.
+    if (selectedFacility.requiresCollege && campusId === 'utsg') {
+      setFacilitySelection({ ...selectedFacility, type: 'college' });
+      return;
+    }
+
+    setCollegePickerVisible(false);
+    if (selectedFacility.requiresCollege) {
+      await selectCollegeFacility(campusId);
+      return;
+    }
+
+    const campus = CAMPUSES.find((option) => option.id === campusId);
+    const campusLocation = campus && selectedFacility.campusLocations.find((location) => campus.match.test(location.name));
+    if (!campusLocation) {
+      setMessages((previous) => [...previous, {
+        id: `${Date.now()}-error`, role: 'assistant', text: "I couldn't find that campus office. Please try another campus.",
+      }]);
+      return;
+    }
+    await loadCampusLocation(selectedFacility.messageId, selectedFacility.serviceId, campusLocation.name);
   };
 
   return (
@@ -464,6 +592,18 @@ export function TAIScreen() {
                 <SupportResourceLinks
                   resources={message.supportResources}
                   serviceId={message.serviceId}
+                  facilityPicker={message.facilityPicker}
+                  onChooseFacility={() => {
+                    if (!message.serviceId || !message.facilityPicker) return;
+                    setFacilitySelection({
+                      messageId: message.id,
+                      serviceId: message.serviceId,
+                      type: 'campus',
+                      requiresCollege: message.facilityPicker === 'college',
+                      campusLocations: message.supportResources?.campusLocations ?? [],
+                    });
+                    setCollegePickerVisible(true);
+                  }}
                   onCampusLocationPress={(campusLocationName) =>
                     message.serviceId
                       ? loadCampusLocation(message.id, message.serviceId, campusLocationName)
@@ -471,7 +611,7 @@ export function TAIScreen() {
                   }
                 />
               )}
-              {message.route && <RouteCard route={message.route} />}
+              {message.route && <RouteCard route={message.route} onMapReady={finishMapLoading} />}
             </View>
           </View>
         ))}
@@ -509,6 +649,49 @@ export function TAIScreen() {
           <Text style={styles.sendBtnText}>➤</Text>
         </TouchableOpacity>
       </View>
+
+      <Modal visible={collegePickerVisible} transparent animationType="fade" onRequestClose={() => setCollegePickerVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <Pressable style={styles.modalDismissArea} onPress={() => setCollegePickerVisible(false)} accessibilityRole="button" accessibilityLabel="Close campus selector" />
+          <View style={styles.modalCard} accessibilityViewIsModal>
+            <Text style={styles.modalTitle}>{facilitySelection?.type === 'college' ? 'Choose your college' : 'Choose your campus'}</Text>
+            <Text style={styles.modalBody}>{facilitySelection?.type === 'college' ? 'Choose your UTSG college to find the right local office.' : "We'll show the right in-person office and map."}</Text>
+            {facilitySelection?.type === 'college' && (
+              <TouchableOpacity
+                style={styles.modalBackButton}
+                onPress={() => setFacilitySelection((selection) => selection ? { ...selection, type: 'campus' } : null)}
+                accessibilityRole="button"
+                accessibilityLabel="Back to campus selection"
+              >
+                <Text style={styles.modalBackButtonText}>Back to campuses</Text>
+              </TouchableOpacity>
+            )}
+            <ScrollView style={styles.modalOptions} showsVerticalScrollIndicator={false}>
+              {(facilitySelection?.type === 'campus'
+                ? CAMPUSES
+                : COLLEGES).map((college) => (
+                <TouchableOpacity key={college.id} style={styles.collegeOption} onPress={() => void (facilitySelection?.type === 'campus' ? selectCampusFacility(college.id) : selectCollegeFacility(college.id))} accessibilityRole="button" accessibilityLabel={college.label}>
+                  <Text style={styles.collegeOptionText}>{college.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+      {mapLoadingLocation && (
+        <View
+          style={styles.mapLoadingOverlay}
+          accessibilityRole="progressbar"
+          accessibilityLabel={`Loading a map for ${mapLoadingLocation}`}
+          accessibilityLiveRegion="polite"
+        >
+          <View style={styles.mapLoadingCard}>
+            <ActivityIndicator color={colors.accent} size="large" />
+            <Text style={styles.mapLoadingTitle}>Loading your map</Text>
+            <Text style={styles.mapLoadingText}>Finding directions to {mapLoadingLocation}.</Text>
+          </View>
+        </View>
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -597,6 +780,8 @@ const styles = StyleSheet.create({
   },
   mentalHealthTitle: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '700' },
   mentalHealthIntro: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 18 },
+  chooseFacilityButton: { alignSelf: 'flex-start', backgroundColor: colors.accent, borderRadius: radius.md, minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.md },
+  chooseFacilityButtonText: { color: colors.accentOn, fontSize: fontSize.sm, fontWeight: '700' },
   mentalHealthSubhead: { color: colors.textMuted, fontSize: fontSize.sm, fontWeight: '700', marginTop: 2 },
   mentalHealthLocation: { gap: 2 },
   mentalHealthLocationName: { color: colors.textPrimary, fontSize: fontSize.sm, fontWeight: '700' },
@@ -661,4 +846,34 @@ const styles = StyleSheet.create({
   },
   sendBtnDisabled: { opacity: 0.55 },
   sendBtnText: { color: colors.white, fontSize: fontSize.md },
+  modalBackdrop: { backgroundColor: 'rgba(0, 0, 0, 0.45)', flex: 1, justifyContent: 'center', padding: spacing.xl },
+  modalDismissArea: { ...StyleSheet.absoluteFillObject },
+  modalCard: { backgroundColor: colors.surface, borderRadius: radius.lg, gap: spacing.sm, maxHeight: '82%', padding: spacing.lg },
+  modalTitle: { color: colors.textPrimary, fontSize: fontSize.lg, fontWeight: '700' },
+  modalBody: { color: colors.textSecondary, fontSize: fontSize.base, lineHeight: 20, marginBottom: spacing.xs },
+  modalBackButton: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.sm },
+  modalBackButtonText: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '700' },
+  modalOptions: { flexGrow: 0 },
+  collegeOption: { borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, marginBottom: spacing.sm, minHeight: 44, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, justifyContent: 'center' },
+  collegeOptionText: { color: colors.accent, fontSize: fontSize.base, fontWeight: '600' },
+  mapLoadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    backgroundColor: 'rgba(11, 31, 58, 0.82)',
+    justifyContent: 'center',
+    padding: spacing.xl,
+  },
+  mapLoadingCard: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    gap: spacing.sm,
+    maxWidth: 320,
+    padding: spacing.xl,
+    width: '100%',
+  },
+  mapLoadingTitle: { color: colors.textPrimary, fontSize: fontSize.md, fontWeight: '700', marginTop: spacing.xs },
+  mapLoadingText: { color: colors.textSecondary, fontSize: fontSize.base, lineHeight: 20, textAlign: 'center' },
 });

@@ -16,6 +16,7 @@ const {
   findNearbyCampusLocation,
   findRequestedCampusLocation,
   withRelevantCampusLocations,
+  requiresCollegePicker,
 } = require('./services/campusLocationService');
 
 const app = express();
@@ -46,6 +47,9 @@ async function createMapResult({ office, query, summary, location }) {
 }
 
 function createInfoResult({ service, query, title, summary, location }) {
+  const campusLocations = service.supportResources?.campusLocations ?? [];
+  const confidentCampusLocation = findRequestedCampusLocation(query, campusLocations)
+    ?? findNearbyCampusLocation(location, campusLocations);
   return {
     type: 'info',
     serviceId: service.id,
@@ -53,10 +57,18 @@ function createInfoResult({ service, query, title, summary, location }) {
     title: title || service.name,
     summary: summary || service.summary,
     supportResources: withRelevantCampusLocations(service.supportResources, location, query),
+    facilityPicker: requiresCollegePicker(service)
+      ? 'college'
+      : (campusLocations.length > 1 && !confidentCampusLocation ? 'campus' : undefined),
   };
 }
 
 async function createCampusAwareServiceResult({ service, query, title, summary, location }) {
+  // A UTSG college is a required second choice for these services. Never let a
+  // UTSG mention or device location bypass that choice and open a map instead.
+  if (requiresCollegePicker(service)) {
+    return createInfoResult({ service, query, title, summary, location });
+  }
   const campusLocations = service.supportResources?.campusLocations ?? [];
   const requestedCampusLocation = findRequestedCampusLocation(query, campusLocations);
   const nearbyCampusLocation = findNearbyCampusLocation(location, campusLocations);
@@ -328,21 +340,27 @@ app.post('/api/health-wellness', async (req, res) => {
   }
 });
 
-app.post('/api/college-registrar/:collegeId', async (req, res) => {
+app.post(['/api/college-service/:collegeId', '/api/college-registrar/:collegeId'], async (req, res) => {
   const office = collegeRegistrarOffices.find((college) => college.id === req.params.collegeId);
-  const { location } = req.body ?? {};
+  const { location, serviceId } = req.body ?? {};
+  const facilityService = services.find((service) => service.id === serviceId && requiresCollegePicker(service))
+    ?? services.find((service) => service.id === 'registrar-enrolment');
 
   if (!office) return res.status(404).json({ error: 'College registrar office not found' });
 
   try {
-    return res.json(
-      await createMapResult({
-        office,
-        query: 'I need help with my studies',
-        summary: 'Your college registrar is a first stop for academic assistance, advising, and referrals.',
+    const result = await createMapResult({
+      office,
+        query: facilityService?.name ?? 'College service',
+        summary: `${office.name} is the local UTSG office selected for ${facilityService?.name ?? 'this service'}. Use the resources below for the next step.`,
         location,
-      })
-    );
+      });
+    return res.json({
+      ...result,
+      title: `${facilityService?.name ?? 'College service'} at ${office.name}`,
+      serviceId: facilityService?.id,
+      supportResources: facilityService?.supportResources,
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Could not load the college registrar map', detail: err.message });

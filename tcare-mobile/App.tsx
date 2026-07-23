@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { View, StyleSheet, ActivityIndicator, Text } from 'react-native';
+import { View, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import * as Location from 'expo-location';
 import { AskScreen } from './screens/AskScreen';
 import { ResultScreen } from './screens/ResultScreen';
@@ -7,6 +7,7 @@ import { TAIScreen } from './screens/TAIScreen';
 import { ContactScreen } from './screens/ContactScreen';
 import { ResourcesScreen } from './screens/ResourcesScreen';
 import { TabBar, TabKey } from './components/TabBar';
+import { EmergencySupportSheet } from './components/EmergencySupportSheet';
 import { colors, fontSize } from './theme';
 import type { LocationResult, QueryResult, SupportResources, TravelMode } from './types';
 
@@ -28,6 +29,101 @@ const ACCESSIBILITY_SUPPORT_RESOURCES: SupportResources = {
     { group: 'U of T resources', title: 'U of T Accessibility Services', description: 'Register for accommodations and connect with St. George Accessibility Services.', url: 'https://studentlife.utoronto.ca/department/accessibility-services/' },
     { group: 'U of T resources', title: 'Accessibility advisor support', description: 'Learn how to meet with an accessibility advisor and manage your accommodations.', url: 'https://studentlife.utoronto.ca/service/accessibility-advisor-support/' },
   ],
+};
+
+const STUDENT_LIFE_RESOURCES: Record<string, QueryResult> = {
+  'financial-aid': {
+    type: 'info', query: 'Financial aid and awards', title: 'Financial aid & awards',
+    summary: 'Explore scholarships, awards, grants, OSAP, UTAPS, and other funding options for your studies.',
+    supportResources: { campusLocations: [], links: [
+      { group: 'U of T resources', title: 'Financial Aid & Awards', description: 'U of T Registrar information for awards, scholarships, grants, UTAPS, and student aid.', url: 'https://www.registrar.utoronto.ca/financial-aid-awards/' },
+      { group: 'U of T resources', title: 'Award Explorer', description: 'Search U of T awards and scholarships available to students.', url: 'https://awardexplorer.utoronto.ca/' },
+      { group: 'U of T resources', title: 'Tuition fees & schedules', description: 'Check tuition fee categories, billing information, and fee schedules for your program.', url: 'https://www.registrar.utoronto.ca/fees-payments/tuition-fee-schedules/' },
+      { group: 'U of T resources', title: 'Payment deadlines', description: 'See registration, minimum-payment, and remaining-balance deadlines for your session.', url: 'https://www.registrar.utoronto.ca/fees-payments/payment-deadlines/' },
+    ] },
+  },
+  housing: {
+    type: 'info', query: 'Housing and residence', title: 'Housing & residence',
+    summary: 'Start with the residence portal for on-campus residence, family housing, off-campus listings, and housing help.',
+    supportResources: { campusLocations: [], links: [
+      { group: 'U of T resources', title: 'U of T Residence Portal', description: 'Apply for residence or family housing, and access off-campus housing resources.', url: 'https://studentlife.utoronto.ca/service/u-of-t-residence-portal/' },
+      { group: 'U of T resources', title: 'U of T housing options', description: 'Compare residence options and learn about on- and off-campus housing.', url: 'https://future.utoronto.ca/housing' },
+    ] },
+  },
+  international: {
+    type: 'info', query: 'International student support', title: 'International student support',
+    summary: 'Find immigration, permit, transition, and community support for international students.',
+    supportResources: { campusLocations: [], links: [
+      { group: 'U of T resources', title: 'Immigration & permit support', description: 'Connect with the Centre for International Experience for immigration resources and advising.', url: 'https://start.studentlife.utoronto.ca/topic-category/learn-about-immigration-and-permits' },
+      { group: 'U of T resources', title: 'UTSC International Student Centre', description: 'Support for immigration, UHIP, transition, and global-learning questions at UTSC.', url: 'https://www.utsc.utoronto.ca/utscinternational/' },
+      { group: 'U of T resources', title: 'International student services', description: 'Find international-student programs, events, and ways to connect with the Centre for International Experience.', url: 'https://start.studentlife.utoronto.ca/topic-category/connect-with-international-students-and-services' },
+    ] },
+  },
+  registrar: {
+    type: 'info', query: 'Registrar and enrolment', title: 'Registrar & enrolment',
+    summary: 'Manage your course enrolment, academic record, fees, deadlines, and other registrarial tasks.',
+    supportResources: { campusLocations: [], links: [
+      { group: 'U of T resources', title: 'University Registrar', description: 'Official source for registration, records, examinations, fees, and academic information.', url: 'https://www.registrar.utoronto.ca/' },
+      { group: 'U of T resources', title: 'ACORN', description: 'Sign in to manage course enrolment, your timetable, fees, and personal information.', url: 'https://acorn.utoronto.ca/' },
+      { group: 'U of T resources', title: 'Tuition fees & schedules', description: 'Review program- and course-based tuition, fee categories, and billing details.', url: 'https://www.registrar.utoronto.ca/fees-payments/tuition-fee-schedules/' },
+      { group: 'U of T resources', title: 'Payment deadlines', description: 'Find minimum-payment, deferment, and session payment deadlines to protect your registration.', url: 'https://www.registrar.utoronto.ca/fees-payments/payment-deadlines/' },
+      { group: 'U of T resources', title: 'Understanding your fees', description: 'Learn how to read your ACORN invoice, pay or defer fees, and manage your registration status.', url: 'https://www.registrar.utoronto.ca/fees-payments/understanding-your-fees/' },
+    ] },
+  },
+  safety: {
+    type: 'info', query: 'Campus safety', title: 'Campus safety',
+    summary: 'For immediate danger call 911, then Campus Safety. Find non-emergency, personal-safety, and escort options here.',
+    supportResources: { campusLocations: [], links: [
+      { group: 'U of T resources', title: 'U of T Safety & Support', description: 'Tri-campus emergency contacts, safety resources, and the Campus Safety app.', url: 'https://safety.utoronto.ca/' },
+      { group: 'U of T resources', title: 'Personal safety & TravelSafer', description: 'Find safety planning, Community Safety Office, and campus escort contacts.', url: 'https://safety.utoronto.ca/personal-safety/' },
+    ] },
+  },
+  career: {
+    type: 'info', query: 'Career support', title: 'Career support',
+    summary: 'Explore careers, job search strategies, further education, advising, workshops, and U of T job boards.',
+    supportResources: { campusLocations: [], links: [
+      { group: 'U of T resources', title: 'Career Exploration & Education', description: 'Career programs, advising, workshops, job-search support, and resources.', url: 'https://studentlife.utoronto.ca/department/career-exploration-education/' },
+      { group: 'U of T resources', title: 'Career advising appointments', description: 'Book one-on-one advising for career exploration, applications, interviews, or further education.', url: 'https://studentlife.utoronto.ca/service/career-advising-appointments/' },
+      { group: 'U of T resources', title: 'Work Study Program', description: 'Find paid, part-time on-campus roles and learn about eligibility and applying.', url: 'https://studentlife.utoronto.ca/work-study-program/' },
+    ] },
+  },
+  'libraries-it': {
+    type: 'info', query: 'Libraries and IT', title: 'Libraries & IT',
+    summary: 'Use U of T Libraries for research and study spaces, or connect with IT support for UTORid, Wi-Fi, software, and technology.',
+    supportResources: { campusLocations: [], links: [
+      { group: 'U of T resources', title: 'University of Toronto Libraries', description: 'Search collections, find study spaces and hours, and access research help.', url: 'https://library.utoronto.ca/' },
+      { group: 'U of T resources', title: 'Information Technology Services', description: 'Find student help-desk contacts and IT support across all three campuses.', url: 'https://www.its.utoronto.ca/contact/' },
+      { group: 'U of T resources', title: 'Libraries & hours', description: 'Find an open U of T library, current hours, and available study spaces.', url: 'https://library.utoronto.ca/libraries' },
+    ] },
+  },
+  food: {
+    type: 'info', query: 'Food and basic needs', title: 'Food & basic needs',
+    summary: 'Connect with food-bank support and basic-needs resources. Services and eligibility may vary by campus.',
+    supportResources: { campusLocations: [], links: [
+      { group: 'U of T resources', title: 'UTSU Food Bank', description: 'Free, year-round food-bank support for U of T students, including students with families.', url: 'https://www.utsu.ca/food-bank/' },
+      { group: 'U of T resources', title: 'UTSU food programming', description: 'Explore food-bank support and other student food programs.', url: 'https://www.utsu.ca/food-programming/' },
+    ] },
+  },
+  'sexual-violence': {
+    type: 'info', query: 'Sexual violence support', title: 'Sexual violence support',
+    summary: 'Confidential, non-judgmental support is available for U of T community members affected by sexual violence or harassment.',
+    supportResources: { campusLocations: [], links: [
+      { group: 'U of T resources', title: 'Sexual Violence Prevention & Support Centre', description: 'Confidential support, options, referrals, accommodations, and prevention resources.', url: 'https://svpscentre.utoronto.ca/' },
+      { group: 'U of T resources', title: 'Sexual violence & sexual harassment support', description: 'Find tri-campus support options and immediate-help information.', url: 'https://safety.utoronto.ca/sexual-violence-sexual-harassment/' },
+    ] },
+  },
+};
+
+const STUDENT_LIFE_RESOURCE_QUERIES: Record<string, string> = {
+  'financial-aid': 'Where is financial aid and awards?',
+  housing: 'Where is the housing office?',
+  international: 'Where is the international student office?',
+  registrar: 'Where is the registrar office?',
+  safety: 'Where is Campus Safety?',
+  career: 'Where is the career support adviser?',
+  'libraries-it': 'Where is student IT support?',
+  food: 'Where is food and basic needs support?',
+  'sexual-violence': 'Where is sexual violence support?',
 };
 const TCARD_OFFICE_FALLBACK: QueryResult = {
   type: 'location',
@@ -164,6 +260,7 @@ export default function App() {
   const [result, setResult] = useState<QueryResult | null>(null);
   const [resultSource, setResultSource] = useState<TabKey>('ask');
   const [loading, setLoading] = useState(false);
+  const [emergencyVisible, setEmergencyVisible] = useState(false);
   const requestId = useRef(0);
 
   const handleSubmit = async (query: string) => {
@@ -249,6 +346,26 @@ export default function App() {
       title: 'College registrar unavailable',
       summary: 'We could not load your college registrar’s office. Please try again shortly.',
     }, source);
+
+  const handleStudentLifeResource = async (resourceId: string) => {
+    const resource = STUDENT_LIFE_RESOURCES[resourceId];
+    const query = STUDENT_LIFE_RESOURCE_QUERIES[resourceId];
+    if (!resource || !query) return;
+    const currentRequestId = ++requestId.current;
+    setResultSource('resources');
+    setLoading(true);
+    try {
+      // Deliberately omit device location here: the resource view should present
+      // every campus office so the student can choose the destination.
+      const response = await resolveQuery(query);
+      if (currentRequestId === requestId.current) setResult(response);
+    } catch (error) {
+      console.warn('Could not load campus resource locations:', error);
+      if (currentRequestId === requestId.current) setResult(resource);
+    } finally {
+      if (currentRequestId === requestId.current) setLoading(false);
+    }
+  };
 
   const handleCampusLocationPress = async (serviceId: string, campusLocationName: string) => {
     const currentRequestId = ++requestId.current;
@@ -337,6 +454,7 @@ export default function App() {
           onMentalHealthPress={() => handleTalkSupport('resources')}
           onAccessibilityPress={() => handleAccessibilityServices('resources')}
           onCollegeSelect={(collegeId) => handleCollegeSelect(collegeId, 'resources')}
+          onStudentLifePress={handleStudentLifeResource}
         />
       );
     }
@@ -380,6 +498,7 @@ export default function App() {
         onTalkSupportPress={handleTalkSupport}
         onAccessibilityPress={handleAccessibilityServices}
         onCollegeSelect={handleCollegeSelect}
+        onEmergencySupportPress={() => setEmergencyVisible(true)}
       />
     );
   };
@@ -392,6 +511,15 @@ export default function App() {
         </View>
         {tab !== 'tai' && renderNonTaiBody()}
       </View>
+      <TouchableOpacity
+        style={styles.urgentSupportButton}
+        onPress={() => setEmergencyVisible(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Get urgent support"
+        accessibilityHint="Opens urgent support options without making a call"
+      >
+        <Text style={styles.urgentSupportText}>Need urgent support?</Text>
+      </TouchableOpacity>
       <TabBar
         active={tab}
         onChange={(key) => {
@@ -401,6 +529,7 @@ export default function App() {
           setLoading(false);
         }}
       />
+      <EmergencySupportSheet visible={emergencyVisible} onClose={() => setEmergencyVisible(false)} />
     </View>
   );
 }
@@ -410,6 +539,8 @@ const styles = StyleSheet.create({
   body: { flex: 1 },
   taiScreen: { flex: 1 },
   hiddenTaiScreen: { display: 'none' },
+  urgentSupportButton: { alignItems: 'center', backgroundColor: colors.infoBg, borderTopColor: colors.danger, borderTopWidth: 1, justifyContent: 'center', minHeight: 44 },
+  urgentSupportText: { color: colors.danger, fontSize: fontSize.base, fontWeight: '700' },
   loadingScreen: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   loadingText: { color: colors.textSecondary, fontSize: fontSize.base },
   placeholderScreen: { flex: 1, alignItems: 'center', justifyContent: 'center' },

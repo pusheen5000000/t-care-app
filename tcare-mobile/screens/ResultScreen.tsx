@@ -65,10 +65,12 @@ export function ResultScreen({ result, onAskAnother, onTravelModeChange, onCampu
         {result.supportResources && (
           <SupportResourcesSection
             resources={result.supportResources}
+            resultTitle={result.title}
             serviceId={result.serviceId}
             onCampusLocationPress={onCampusLocationPress}
           />
         )}
+        <ResultNextStep result={result} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -228,12 +230,44 @@ function LocationBlock({
   );
 }
 
+function ResultNextStep({ result }: { result: QueryResult }) {
+  const primaryLink = result.supportResources?.links[0]?.url ?? 'https://www.utoronto.ca/';
+  const isLocation = result.type === 'location';
+  const actionLabel = isLocation
+    ? 'Get directions'
+    : getActionLabel(result.title, result.supportResources?.links[0]);
+
+  const handlePress = async () => {
+    const url = isLocation
+      ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${result.placeName}, ${result.placeSubtitle}`)}`
+      : primaryLink;
+    if (await Linking.canOpenURL(url)) await Linking.openURL(url);
+  };
+
+  return (
+    <View style={styles.nextStepSection}>
+      <Text style={styles.nextStepPrompt}>Ready for the next step?</Text>
+      <TouchableOpacity
+        style={styles.nextStepButton}
+        onPress={() => void handlePress()}
+        accessibilityRole="button"
+        accessibilityLabel={actionLabel}
+        accessibilityHint={isLocation ? 'Opens directions in your maps app' : 'Opens the official resource for this next step'}
+      >
+        <Text style={styles.nextStepButtonText}>{actionLabel}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 function SupportResourcesSection({
   resources,
+  resultTitle,
   serviceId,
   onCampusLocationPress,
 }: {
   resources: SupportResources;
+  resultTitle: string;
   serviceId?: string;
   onCampusLocationPress: (serviceId: string, campusLocationName: string) => void;
 }) {
@@ -250,7 +284,9 @@ function SupportResourcesSection({
       <Text style={styles.resourcesTitle}>{resources.title ?? 'Mental health support'}</Text>
       <Text style={styles.resourcesIntro}>{resources.intro ?? 'Choose the support that feels right for you. The map above routes to St. George Health & Wellness.'}</Text>
 
-      <Text style={styles.resourceHeading}>{resources.campusHeading ?? 'On-campus support'}</Text>
+      {resources.campusLocations.length > 0 && (
+        <Text style={styles.resourceHeading}>{resources.campusHeading ?? 'On-campus support'}</Text>
+      )}
       {resources.campusLocations.map((location) => (
         <TouchableOpacity
           key={location.name}
@@ -268,8 +304,8 @@ function SupportResourcesSection({
         </TouchableOpacity>
       ))}
 
-      <ResourceLinks title="Government-approved support" links={governmentLinks} onOpen={openLink} />
-      <ResourceLinks title="U of T resources" links={universityLinks} onOpen={openLink} />
+      <ResourceLinks title="Government-approved support" links={governmentLinks} contextTitle={resultTitle} onOpen={openLink} />
+      <ResourceLinks title="U of T resources" links={universityLinks} contextTitle={resultTitle} onOpen={openLink} />
     </View>
   );
 }
@@ -277,10 +313,12 @@ function SupportResourcesSection({
 function ResourceLinks({
   title,
   links,
+  contextTitle,
   onOpen,
 }: {
   title: string;
   links: SupportResources['links'];
+  contextTitle: string;
   onOpen: (url: string) => Promise<void>;
 }) {
   if (!links.length) return null;
@@ -300,12 +338,35 @@ function ResourceLinks({
           <View style={styles.resourceLinkCopy}>
             <Text style={styles.resourceLinkTitle}>{link.title}</Text>
             <Text style={styles.resourceLinkDescription}>{link.description}</Text>
+            <Text style={styles.resourceLinkAction}>{getActionLabel(contextTitle, link)}</Text>
           </View>
           <Text style={styles.resourceLinkArrow} accessibilityElementsHidden>↗</Text>
         </TouchableOpacity>
       ))}
     </View>
   );
+}
+
+function getActionLabel(
+  contextTitle: string,
+  link?: SupportResources['links'][number],
+) {
+  const context = `${contextTitle} ${link?.title ?? ''} ${link?.description ?? ''}`.toLowerCase();
+
+  if (/appointment|advising/.test(context)) return 'Book an appointment';
+  if (/mental health|counselling|counseling|wellness/.test(context)) return 'Read more about support';
+  if (/accessibility|accommodation|assistive/.test(context)) return 'Learn about accommodations';
+  if (/financial aid|award|scholarship|osap|funding/.test(context)) return 'Explore funding options';
+  if (/housing|residence/.test(context)) return 'Explore housing options';
+  if (/immigration|international/.test(context)) return 'Explore international support';
+  if (/registrar|enrolment|acorn|tuition|fee|deadline/.test(context)) return 'Manage your enrolment';
+  if (/career|job|work study/.test(context)) return 'Explore career support';
+  if (/library|study space|research|technology|wi-fi|utorid/.test(context)) return 'Find study resources';
+  if (/food|basic needs/.test(context)) return 'Find food support';
+  if (/sexual violence|harassment/.test(context)) return 'Explore support options';
+  if (/safety|travelsafer|escort/.test(context)) return 'Review safety options';
+
+  return 'Open official page';
 }
 
 function StatBox({ label, value }: { label: string; value: string }) {
@@ -588,5 +649,10 @@ const styles = StyleSheet.create({
   resourceLinkCopy: { flex: 1, gap: 2 },
   resourceLinkTitle: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '700' },
   resourceLinkDescription: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 18 },
+  resourceLinkAction: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '700', marginTop: spacing.xs },
   resourceLinkArrow: { color: colors.accent, fontSize: fontSize.lg, fontWeight: '700' },
+  nextStepSection: { borderTopColor: colors.border, borderTopWidth: 1, gap: spacing.sm, marginTop: spacing.lg, paddingTop: spacing.lg },
+  nextStepPrompt: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '700' },
+  nextStepButton: { alignItems: 'center', backgroundColor: colors.accent, borderRadius: radius.lg, justifyContent: 'center', minHeight: 48, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
+  nextStepButtonText: { color: colors.accentOn, fontSize: fontSize.base, fontWeight: '700' },
 });

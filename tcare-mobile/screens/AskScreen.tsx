@@ -21,6 +21,7 @@ type Props = {
   onTalkSupportPress: () => void;
   onAccessibilityPress: () => void;
   onCollegeSelect: (collegeId: string) => void;
+  onEmergencySupportPress: () => void;
 };
 
 const COLLEGES = [
@@ -57,7 +58,7 @@ const MOODS: { emoji: string; label: string; mood: 'good' | 'okay' | 'struggling
   { emoji: '😔', label: 'Struggling', mood: 'struggling' },
 ];
 
-export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccessibilityPress, onCollegeSelect }: Props) {
+export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccessibilityPress, onCollegeSelect, onEmergencySupportPress }: Props) {
   const [text, setText] = useState('');
   const [activeMood, setActiveMood] = useState<'good' | 'okay' | 'struggling' | null>(null);
   const [collegePromptVisible, setCollegePromptVisible] = useState(false);
@@ -180,6 +181,7 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
         visible={activeMood !== null}
         mood={activeMood}
         onClose={() => setActiveMood(null)}
+        onEmergencySupportPress={onEmergencySupportPress}
       />
 
       <Modal

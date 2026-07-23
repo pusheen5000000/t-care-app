@@ -23,7 +23,35 @@ async function classifyQuery(query, services) {
       serviceId: null,
       title: 'Hi, how can I help?',
       summary:
-        'I can help you find TCard, accessibility, wellness, and study-support services. What would you like to know?',
+        'I can help with TCards, wellbeing, accessibility, academics, money, housing, international support, safety, careers, libraries, food, and sexual violence support. What do you need?',
+    };
+  }
+
+  const normalizedQuery = query.toLowerCase();
+  const keywordAppearsInQuery = (keyword) => {
+    const escapedKeyword = keyword
+      .trim()
+      .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      .replace(/\s+/g, '\\s+');
+    return new RegExp(`(^|\\W)${escapedKeyword}(?=$|\\W)`, 'i').test(normalizedQuery);
+  };
+  const keywordMatch = services
+    .map((service) => ({
+      service,
+      score: service.keywords.reduce(
+        (score, keyword) => score + (keywordAppearsInQuery(keyword) ? keyword.length : 0),
+        0,
+      ),
+    }))
+    .filter(({ score }) => score > 0)
+    .sort((a, b) => b.score - a.score)[0]?.service;
+
+  if (keywordMatch) {
+    return {
+      serviceId: keywordMatch.id,
+      title: keywordMatch.name,
+      summary: keywordMatch.summary,
+      destination: null,
     };
   }
 
@@ -40,7 +68,7 @@ Available services (these are the only source of facts about their locations, ho
 ${serviceList}
 
 Response rules:
-- Treat greetings such as "hello" as valid. Reply warmly and invite the student to ask about TCards, accessibility, wellness, or study support. Use serviceId null.
+- Treat greetings such as "hello" as valid. Reply warmly and invite the student to ask about TCards, wellbeing, accessibility, academics, finances, housing, international support, safety, careers, libraries, food, or sexual violence support. Use serviceId null.
 - For a matching service, give a direct answer with a useful next step. If the student asks where or how to get there, include the exact address and relevant hours from that service's details.
 - Accessibility Services and Health & Wellness have campus-specific in-person offices. Do not imply that the St. George office is the only option; the app will show either the nearby campus office or all three campus offices with addresses.
 - Use only the facts supplied above for service-specific claims. Do not invent a location, hours, fee, policy, or route.

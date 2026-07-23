@@ -15,7 +15,20 @@ type Props = {
   onMentalHealthPress: () => void;
   onAccessibilityPress: () => void;
   onCollegeSelect: (collegeId: string) => void;
+  onStudentLifePress: (resourceId: string) => void;
 };
+
+const STUDENT_LIFE_RESOURCES = [
+  { id: 'financial-aid', label: 'Financial aid & awards', description: 'Explore awards, UTAPS, OSAP, grants, and funding support.', icon: '$', tone: 'financialIcon' },
+  { id: 'housing', label: 'Housing & residence', description: 'Apply for residence or get help finding a place to live.', icon: 'H', tone: 'housingIcon' },
+  { id: 'international', label: 'International student support', description: 'Get help with immigration, permits, UHIP, and settling in.', icon: 'INT', tone: 'internationalIcon' },
+  { id: 'registrar', label: 'Registrar & enrolment', description: 'Manage courses, records, fees, and university deadlines.', icon: 'REG', tone: 'registrarIcon' },
+  { id: 'safety', label: 'Campus safety', description: 'Find emergency contacts, safety planning, and escort services.', icon: 'SAFE', tone: 'safetyIcon' },
+  { id: 'career', label: 'Career support', description: 'Book advising, explore careers, and find job-search support.', icon: 'CAR', tone: 'careerIcon' },
+  { id: 'libraries-it', label: 'Libraries & IT', description: 'Access study spaces, research tools, Wi-Fi, and tech help.', icon: 'LIB', tone: 'librariesIcon' },
+  { id: 'food', label: 'Food & basic needs', description: 'Find food-bank support and other community resources.', icon: 'FOOD', tone: 'foodIcon' },
+  { id: 'sexual-violence', label: 'Sexual violence support', description: 'Access confidential, non-judgmental support and options.', icon: 'SV', tone: 'sexualViolenceIcon' },
+] as const;
 
 const COLLEGES = [
   { id: 'innis', label: 'Innis College' },
@@ -29,16 +42,17 @@ const COLLEGES = [
   { id: 'utm', label: 'UTM (Mississauga Campus)' },
 ];
 
-export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onCollegeSelect }: Props) {
+export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onCollegeSelect, onStudentLifePress }: Props) {
   const [collegePickerVisible, setCollegePickerVisible] = useState(false);
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Resources</Text>
-        <Text style={styles.subtitle}>Find campus support for your wellbeing, access, and academics.</Text>
+        <Text style={styles.subtitle}>Find trusted U of T support for your wellbeing, studies, and student life.</Text>
 
         <View style={styles.list}>
+          <Text style={styles.sectionTitle}>Wellbeing & academics</Text>
           <TouchableOpacity
             style={styles.card}
             onPress={onMentalHealthPress}
@@ -86,6 +100,28 @@ export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onC
             </View>
             <Text style={styles.chevron}>›</Text>
           </TouchableOpacity>
+
+          <Text style={styles.sectionTitle}>Student life essentials</Text>
+          {STUDENT_LIFE_RESOURCES.map((resource) => (
+            <TouchableOpacity
+              key={resource.id}
+              style={styles.card}
+              onPress={() => onStudentLifePress(resource.id)}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel={resource.label}
+              accessibilityHint="Opens trusted support links"
+            >
+              <View style={[styles.icon, styles[resource.tone]]}>
+                <Text style={[styles.iconText, ['financial-aid', 'career', 'food'].includes(resource.id) && styles.iconTextDark]}>{resource.icon}</Text>
+              </View>
+              <View style={styles.cardCopy}>
+                <Text style={styles.cardTitle}>{resource.label}</Text>
+                <Text style={styles.cardDescription}>{resource.description}</Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </TouchableOpacity>
+          ))}
         </View>
       </ScrollView>
 
@@ -122,7 +158,18 @@ const styles = StyleSheet.create({
   mentalHealthIcon: { backgroundColor: colors.purple },
   accessibilityIcon: { backgroundColor: colors.teal },
   academicsIcon: { backgroundColor: colors.sky },
+  financialIcon: { backgroundColor: colors.green },
+  housingIcon: { backgroundColor: colors.purple },
+  internationalIcon: { backgroundColor: colors.sky },
+  registrarIcon: { backgroundColor: colors.teal },
+  safetyIcon: { backgroundColor: colors.red },
+  careerIcon: { backgroundColor: colors.yellow },
+  librariesIcon: { backgroundColor: colors.darkTeal },
+  foodIcon: { backgroundColor: colors.green },
+  sexualViolenceIcon: { backgroundColor: colors.magenta },
   iconText: { color: colors.white, fontSize: fontSize.sm, fontWeight: '700' },
+  iconTextDark: { color: colors.accentOn },
+  sectionTitle: { color: colors.textPrimary, fontSize: fontSize.md, fontWeight: '700', marginTop: spacing.xs },
   cardCopy: { flex: 1, gap: spacing.xs },
   cardTitle: { color: colors.textPrimary, fontSize: fontSize.md, fontWeight: '700' },
   cardDescription: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 18 },

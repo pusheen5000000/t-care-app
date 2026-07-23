@@ -8,6 +8,7 @@ type Props = {
   visible: boolean;
   mood: Mood | null;
   onClose: () => void;
+  onEmergencySupportPress: () => void;
 };
 
 const GROUNDING_STEPS = [
@@ -18,7 +19,7 @@ const GROUNDING_STEPS = [
   { title: 'Imagination', detail: 'Imagine you are in a comforting place. Notice your senses as if you were there.' },
 ];
 
-export function MoodCheckIn({ visible, mood, onClose }: Props) {
+export function MoodCheckIn({ visible, mood, onClose, onEmergencySupportPress }: Props) {
   const [safetyAnswer, setSafetyAnswer] = useState<'yes' | 'no' | null>(null);
 
   const handleClose = () => {
@@ -81,6 +82,15 @@ export function MoodCheckIn({ visible, mood, onClose }: Props) {
             You deserve support. This app will not call or text anyone for you.
             If you choose to reach out, open your phone app and dial or text one of these numbers yourself.
           </Text>
+
+          <TouchableOpacity
+            style={styles.urgentButton}
+            onPress={() => { handleClose(); onEmergencySupportPress(); }}
+            accessibilityRole="button"
+            accessibilityLabel="Open urgent support options"
+          >
+            <Text style={styles.urgentButtonText}>Open urgent support options</Text>
+          </TouchableOpacity>
 
           <View style={styles.resourceCard}>
             <Text style={styles.resourceTitle}>9-8-8 Suicide Crisis Helpline</Text>
@@ -249,6 +259,16 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 2,
   },
+  urgentButton: {
+    alignItems: 'center',
+    backgroundColor: colors.danger,
+    borderRadius: radius.lg,
+    marginBottom: spacing.sm,
+    minHeight: 48,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  urgentButtonText: { color: colors.white, fontSize: fontSize.base, fontWeight: '700' },
   groundingStep: {
     borderLeftWidth: 2,
     borderLeftColor: colors.accent,
