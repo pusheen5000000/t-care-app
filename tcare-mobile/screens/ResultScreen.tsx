@@ -14,6 +14,7 @@ import {
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import { colors, spacing, fontSize, radius } from '../theme';
 import type { QueryResult, LocationResult, SupportResources, TravelMode } from '../types';
+import { openGoogleMapsDirections } from '../utils/googleMaps';
 
 type Props = {
   result: QueryResult;
@@ -86,6 +87,7 @@ export function ResultScreen({ result, onAskAnother, onTravelModeChange, onCampu
         {result.supportResources && (
           <SupportResourcesSection
             resources={result.supportResources}
+            query={result.query}
             resultTitle={result.title}
             serviceId={result.serviceId}
             onCampusLocationPress={onCampusLocationPress}
@@ -253,28 +255,34 @@ function LocationBlock({
 }
 
 function ResultNextStep({ result }: { result: QueryResult }) {
-  const primaryLink = result.supportResources?.links[0]?.url ?? 'https://www.utoronto.ca/';
   const isLocation = result.type === 'location';
+  const primaryLink = getBestNextStepLink(result);
   const actionLabel = isLocation
-    ? 'Get directions'
-    : getActionLabel(result.title, result.supportResources?.links[0]);
+    ? 'Open directions in Google Maps'
+    : getActionLabel(result.query, result.title, primaryLink);
+  const prompt = isLocation
+    ? `Ready to find ${result.placeName}?`
+    : getNextStepPrompt(result.query, result.title, actionLabel);
 
   const handlePress = async () => {
-    const url = isLocation
-      ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${result.placeName}, ${result.placeSubtitle}`)}`
-      : primaryLink;
+    if (isLocation) {
+      await openGoogleMapsDirections(result.placeName, result.placeSubtitle);
+      return;
+    }
+
+    const url = primaryLink?.url ?? 'https://www.utoronto.ca/';
     if (await Linking.canOpenURL(url)) await Linking.openURL(url);
   };
 
   return (
     <View style={styles.nextStepSection}>
-      <Text style={styles.nextStepPrompt}>Ready for the next step?</Text>
+      <Text style={styles.nextStepPrompt}>{prompt}</Text>
       <TouchableOpacity
         style={styles.nextStepButton}
         onPress={() => void handlePress()}
         accessibilityRole="button"
         accessibilityLabel={actionLabel}
-        accessibilityHint={isLocation ? 'Opens directions in your maps app' : 'Opens the official resource for this next step'}
+        accessibilityHint={isLocation ? `Opens directions to ${result.placeName} in Google Maps or your default browser` : 'Opens the most relevant official resource for your question'}
       >
         <Text style={styles.nextStepButtonText}>{actionLabel}</Text>
       </TouchableOpacity>
@@ -284,12 +292,14 @@ function ResultNextStep({ result }: { result: QueryResult }) {
 
 function SupportResourcesSection({
   resources,
+  query,
   resultTitle,
   serviceId,
   onCampusLocationPress,
   onCollegeSelect,
 }: {
   resources: SupportResources;
+  query: string;
   resultTitle: string;
   serviceId?: string;
   onCampusLocationPress: (serviceId: string, campusLocationName: string) => void;
@@ -349,8 +359,8 @@ function SupportResourcesSection({
         );
       })}
 
-      <ResourceLinks title="Government-approved support" links={governmentLinks} contextTitle={resultTitle} onOpen={openLink} />
-      <ResourceLinks title="U of T resources" links={universityLinks} contextTitle={resultTitle} onOpen={openLink} />
+      <ResourceLinks title="Government-approved support" links={governmentLinks} query={query} contextTitle={resultTitle} onOpen={openLink} />
+      <ResourceLinks title="U of T resources" links={universityLinks} query={query} contextTitle={resultTitle} onOpen={openLink} />
       </View>
 
       <Modal visible={collegePickerService !== null} transparent animationType="fade" onRequestClose={() => setCollegePickerService(null)}>
@@ -388,11 +398,13 @@ function SupportResourcesSection({
 function ResourceLinks({
   title,
   links,
+  query,
   contextTitle,
   onOpen,
 }: {
   title: string;
   links: SupportResources['links'];
+  query: string;
   contextTitle: string;
   onOpen: (url: string) => Promise<void>;
 }) {
@@ -413,7 +425,7 @@ function ResourceLinks({
           <View style={styles.resourceLinkCopy}>
             <Text style={styles.resourceLinkTitle}>{link.title}</Text>
             <Text style={styles.resourceLinkDescription}>{link.description}</Text>
-            <Text style={styles.resourceLinkAction}>{getActionLabel(contextTitle, link)}</Text>
+            <Text style={styles.resourceLinkAction}>{getActionLabel(query, contextTitle, link)}</Text>
           </View>
           <Text style={styles.resourceLinkArrow} accessibilityElementsHidden>↗</Text>
         </TouchableOpacity>
@@ -422,11 +434,42 @@ function ResourceLinks({
   );
 }
 
+function getBestNextStepLink(result: QueryResult): SupportResources['links'][number] | undefined {
+  const links = result.supportResources?.links ?? [];
+  if (links.length < 2) return links[0];
+
+  const queryTerms = new Set(
+    `${result.query} ${result.title}`
+      .toLowerCase()
+      .match(/[a-z]{3,}/g)
+      ?.filter((term) => !new Set(['about', 'where', 'there', 'would', 'could', 'please', 'need', 'help', 'with', 'find', 'what', 'that', 'this']).has(term))
+      ?? [],
+  );
+
+  return links.reduce((best, link) => {
+    const score = (candidate: SupportResources['links'][number]) => {
+      const text = `${candidate.title} ${candidate.description}`.toLowerCase();
+      return [...queryTerms].reduce((total, term) => total + (text.includes(term) ? 1 : 0), 0)
+        + (candidate.group === 'U of T resources' ? 0.25 : 0);
+    };
+
+    return score(link) > score(best) ? link : best;
+  });
+}
+
+function getNextStepPrompt(query: string, title: string, actionLabel: string) {
+  const cleanTitle = title === "Here's what I found" ? query.trim() : title;
+  if (/\b(?:book|appointment|advising)\b/i.test(actionLabel)) return `Ready to book support for ${cleanTitle}?`;
+  if (/\b(?:apply|manage|explore|learn|find|read|review)\b/i.test(actionLabel)) return `Ready to continue with ${cleanTitle}?`;
+  return `Ready to open help for ${cleanTitle}?`;
+}
+
 function getActionLabel(
+  query: string,
   contextTitle: string,
   link?: SupportResources['links'][number],
 ) {
-  const context = `${contextTitle} ${link?.title ?? ''} ${link?.description ?? ''}`.toLowerCase();
+  const context = `${query} ${contextTitle} ${link?.title ?? ''} ${link?.description ?? ''}`.toLowerCase();
 
   if (/appointment|advising/.test(context)) return 'Book an appointment';
   if (/mental health|counselling|counseling|wellness/.test(context)) return 'Read more about support';
@@ -441,7 +484,7 @@ function getActionLabel(
   if (/sexual violence|harassment/.test(context)) return 'Explore support options';
   if (/safety|travelsafer|escort/.test(context)) return 'Review safety options';
 
-  return 'Open official page';
+  return `Visit ${link?.title ?? 'U of T support'}`;
 }
 
 function StatBox({ label, value }: { label: string; value: string }) {

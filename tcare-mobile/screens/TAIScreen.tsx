@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { colors, fontSize, radius, spacing } from '../theme';
 import type { SupportResources } from '../types';
+import { openGoogleMapsDirections } from '../utils/googleMaps';
 
 type Coordinate = { latitude: number; longitude: number };
 type RouteStep = { instruction: string; distance: string };
@@ -211,6 +212,15 @@ function RouteCard({ route, onMapReady }: { route: Route; onMapReady?: () => voi
             ))}
           </View>
         )}
+        <TouchableOpacity
+          style={styles.googleMapsButton}
+          onPress={() => void openGoogleMapsDirections(route.placeName, route.placeSubtitle)}
+          accessibilityRole="button"
+          accessibilityLabel={`Open directions to ${route.placeName} in Google Maps`}
+          accessibilityHint="Opens Google Maps if installed, or directions in your default browser"
+        >
+          <Text style={styles.googleMapsButtonText}>Open directions in Google Maps</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -757,6 +767,8 @@ const styles = StyleSheet.create({
   directionsToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },
   stepsTitle: { color: colors.textPrimary, fontSize: fontSize.sm, fontWeight: '700' },
   directionsChevron: { color: colors.accent, fontSize: fontSize.md, fontWeight: '700' },
+  googleMapsButton: { alignItems: 'center', backgroundColor: colors.accent, borderRadius: radius.md, justifyContent: 'center', marginTop: spacing.sm, minHeight: 44, paddingHorizontal: spacing.md },
+  googleMapsButtonText: { color: colors.accentOn, fontSize: fontSize.sm, fontWeight: '700' },
   stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs },
   stepNumber: {
     minWidth: 18,
