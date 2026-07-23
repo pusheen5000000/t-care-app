@@ -122,8 +122,12 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
                   onSubmit(s.query);
                 }}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={s.label}
+                accessibilityHint="Opens guidance for this campus support need"
               >
                 <Text style={styles.chipText}>{s.label}</Text>
+                <Text style={styles.chipChevron} aria-hidden>›</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -133,12 +137,15 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
             {MOODS.map((m) => (
               <TouchableOpacity
                 key={m.label}
-                style={styles.moodButton}
+                style={[styles.moodButton, activeMood === m.mood && styles.moodButtonActive]}
                 onPress={() => setActiveMood(m.mood)}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={`I am feeling ${m.label.toLowerCase()}`}
+                accessibilityState={{ selected: activeMood === m.mood }}
               >
                 <Text style={styles.moodEmoji}>{m.emoji}</Text>
-                <Text style={styles.moodLabel}>{m.label}</Text>
+                <Text style={[styles.moodLabel, activeMood === m.mood && styles.moodLabelActive]}>{m.label}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -152,11 +159,17 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
             placeholder="Describe your situation..."
             placeholderTextColor={colors.textMuted}
             multiline
+            accessibilityLabel="Describe your situation"
+            accessibilityHint="Type a question about a U of T service or campus need"
           />
           <TouchableOpacity
-            style={styles.sendButton}
+            style={[styles.sendButton, !text.trim() && styles.sendButtonDisabled]}
             onPress={handleSend}
             activeOpacity={0.8}
+            disabled={!text.trim()}
+            accessibilityRole="button"
+            accessibilityLabel="Send question"
+            accessibilityState={{ disabled: !text.trim() }}
           >
             <Text style={styles.sendButtonText}>Send</Text>
           </TouchableOpacity>
@@ -176,23 +189,31 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
         onRequestClose={() => setCollegePromptVisible(false)}
       >
         <Pressable style={styles.modalBackdrop} onPress={() => setCollegePromptVisible(false)}>
-          <Pressable style={styles.modalCard} onPress={() => undefined}>
+          <Pressable
+            style={styles.modalCard}
+            onPress={() => undefined}
+            accessibilityViewIsModal
+          >
             <Text style={styles.modalTitle}>Which U of T college or campus are you in?</Text>
             <Text style={styles.modalBody}>
               We’ll point you to your college registrar’s academic assistance office.
             </Text>
-            {COLLEGES.map((college) => (
-              <TouchableOpacity
-                key={college.id}
-                style={styles.collegeOption}
-                onPress={() => {
-                  setCollegePromptVisible(false);
-                  onCollegeSelect(college.id);
-                }}
-              >
-                <Text style={styles.collegeOptionText}>{college.label}</Text>
-              </TouchableOpacity>
-            ))}
+            <ScrollView style={styles.collegeOptions} showsVerticalScrollIndicator={false}>
+              {COLLEGES.map((college) => (
+                <TouchableOpacity
+                  key={college.id}
+                  style={styles.collegeOption}
+                  onPress={() => {
+                    setCollegePromptVisible(false);
+                    onCollegeSelect(college.id);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={college.label}
+                >
+                  <Text style={styles.collegeOptionText}>{college.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </Pressable>
         </Pressable>
       </Modal>
@@ -264,9 +285,13 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   chip: {
+    alignItems: 'center',
     backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
     borderColor: colors.border,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 48,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     borderRadius: radius.lg,
@@ -275,6 +300,12 @@ const styles = StyleSheet.create({
     fontSize: fontSize.base,
     color: colors.textPrimary,
     fontWeight: '500',
+  },
+  chipChevron: {
+    color: colors.accent,
+    fontSize: fontSize.lg,
+    fontWeight: '400',
+    marginLeft: spacing.md,
   },
   moodTitle: {
     fontSize: fontSize.base,
@@ -296,6 +327,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
     borderRadius: radius.lg,
+    minHeight: 72,
+  },
+  moodButtonActive: {
+    backgroundColor: colors.surface,
+    borderColor: colors.accent,
   },
   moodEmoji: {
     fontSize: 28,
@@ -305,13 +341,17 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontWeight: '500',
   },
+  moodLabelActive: {
+    color: colors.textPrimary,
+    fontWeight: '700',
+  },
   inputBar: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     gap: spacing.sm,
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.md,
-    paddingBottom: spacing.sm,
+    paddingBottom: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
@@ -324,14 +364,23 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     fontSize: fontSize.base,
     color: colors.textPrimary,
+    minHeight: 48,
     maxHeight: 100,
     borderRadius: 999,
+    lineHeight: 20,
+    justifyContent: 'center',
+    textAlignVertical: 'center',
   },
   sendButton: {
     backgroundColor: colors.accent,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderRadius: 999,
+    justifyContent: 'center',
+    minHeight: 48,
+  },
+  sendButtonDisabled: {
+    opacity: 0.55,
   },
   sendButtonText: {
     color: colors.accentOn,
@@ -349,6 +398,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     padding: spacing.lg,
     gap: spacing.sm,
+    maxHeight: '82%',
   },
   modalTitle: {
     color: colors.textPrimary,
@@ -367,6 +417,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+  },
+  collegeOptions: {
+    flexGrow: 0,
   },
   collegeOptionText: {
     color: colors.accent,

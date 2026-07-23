@@ -52,3 +52,10 @@ logs/
 # --- Misc ---
 coverage/
 .cache/
+
+.codex/
+.agents/
+PRODUCT.md
+DESIGN.md
+.impeccable/
+.codebase-memory/

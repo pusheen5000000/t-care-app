@@ -33,7 +33,13 @@ export function ResultScreen({ result, onAskAnother, onTravelModeChange }: Props
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={onAskAnother} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={onAskAnother}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Ask another question"
+        >
           <Text style={styles.backText}>{'< Back'}</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
@@ -117,7 +123,11 @@ function LocationBlock({
   return (
     <>
       <View style={styles.mapCard}>
-        <MapView style={[styles.map, isPortrait && styles.mapPortrait]} initialRegion={initialRegion}>
+        <MapView
+          style={[styles.map, isPortrait && styles.mapPortrait]}
+          initialRegion={initialRegion}
+          accessibilityLabel={`Map to ${result.placeName}`}
+        >
           {origin && (
             <Marker
               coordinate={origin}
@@ -155,6 +165,8 @@ function LocationBlock({
               key={mode.key}
               accessibilityRole="button"
               accessibilityState={{ selected: travelMode === mode.key }}
+              accessibilityLabel={`${mode.label} travel mode`}
+              accessibilityHint="Updates the route and travel time"
               activeOpacity={0.8}
               disabled={isChangingMode}
               onPress={() => selectTravelMode(mode.key)}
@@ -207,6 +219,11 @@ const styles = StyleSheet.create({
     fontSize: fontSize.base,
     fontWeight: '600',
   },
+  backButton: {
+    justifyContent: 'center',
+    minHeight: 44,
+    minWidth: 44,
+  },
   headerTitle: {
     flex: 1,
     color: colors.textPrimary,
@@ -225,6 +242,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     marginBottom: spacing.lg,
     alignItems: 'center',
+    borderRadius: radius.lg,
   },
   answerTitle: {
     fontSize: fontSize.md,
@@ -283,6 +301,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     paddingVertical: spacing.md,
     alignItems: 'center',
+    borderRadius: radius.md,
   },
   statValue: {
     alignSelf: 'stretch',
@@ -332,7 +351,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flex: 1,
     justifyContent: 'center',
-    minHeight: 38,
+    minHeight: 44,
     paddingHorizontal: spacing.xs,
   },
   travelModeActive: {

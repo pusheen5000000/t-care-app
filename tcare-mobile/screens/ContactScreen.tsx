@@ -11,14 +11,14 @@ export function ContactScreen() {
   const [topic, setTopic] = useState(TOPICS[0]);
   const [customTopic, setCustomTopic] = useState('');
   const [message, setMessage] = useState('');
-  const [sent, setSent] = useState(false);
+  const [feedbackNotice, setFeedbackNotice] = useState(false);
 
-  const canSend = firstName.trim() !== '' && email.trim() !== '';
+  const canSend = firstName.trim() !== '' && email.trim() !== '' && message.trim() !== '';
 
   const handleSend = () => {
     if (!canSend) return;
-    // stub — no backend yet
-    setSent(true);
+    // A feedback endpoint has not been connected yet; avoid reporting a false success.
+    setFeedbackNotice(true);
   };
 
   return (
@@ -29,9 +29,11 @@ export function ContactScreen() {
         Outdated info? Wrong route? General bug? Please let us know here.
       </Text>
 
-      {sent ? (
+      {feedbackNotice ? (
         <View style={styles.sentBox}>
-          <Text style={styles.sentText}>Sent! We will get back to you.</Text>
+          <Text accessibilityRole="alert" style={styles.sentText}>
+            Feedback sending is not available yet. Please try again later.
+          </Text>
         </View>
       ) : (
         <>
@@ -43,6 +45,7 @@ export function ContactScreen() {
                 value={firstName}
                 onChangeText={setFirstName}
                 placeholderTextColor={colors.textMuted}
+                accessibilityLabel="First name"
               />
             </View>
             <View style={styles.halfField}>
@@ -52,6 +55,7 @@ export function ContactScreen() {
                 value={lastName}
                 onChangeText={setLastName}
                 placeholderTextColor={colors.textMuted}
+                accessibilityLabel="Last name"
               />
             </View>
           </View>
@@ -64,6 +68,7 @@ export function ContactScreen() {
             keyboardType="email-address"
             autoCapitalize="none"
             placeholderTextColor={colors.textMuted}
+            accessibilityLabel="Email"
           />
 
           <Text style={styles.label}>Topic</Text>
@@ -73,6 +78,9 @@ export function ContactScreen() {
                 key={t}
                 style={[styles.topicChip, topic === t && styles.topicChipActive]}
                 onPress={() => setTopic(t)}
+                accessibilityRole="button"
+                accessibilityLabel={t}
+                accessibilityState={{ selected: topic === t }}
               >
                 <Text style={[styles.topicText, topic === t && styles.topicTextActive]}>
                   {t}
@@ -88,6 +96,7 @@ export function ContactScreen() {
               onChangeText={setCustomTopic}
               placeholder="Type your topic..."
               placeholderTextColor={colors.textMuted}
+              accessibilityLabel="Other topic"
             />
           )}
 
@@ -100,6 +109,7 @@ export function ContactScreen() {
             placeholderTextColor={colors.textMuted}
             multiline
             numberOfLines={5}
+            accessibilityLabel="Message"
           />
 
           <TouchableOpacity
@@ -107,6 +117,9 @@ export function ContactScreen() {
             onPress={handleSend}
             activeOpacity={0.85}
             disabled={!canSend}
+            accessibilityRole="button"
+            accessibilityLabel="Send feedback"
+            accessibilityState={{ disabled: !canSend }}
           >
             <Text style={styles.sendBtnText}>Send message →</Text>
           </TouchableOpacity>
@@ -132,14 +145,19 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+    minHeight: 44,
+    justifyContent: 'center',
     color: colors.textPrimary,
     fontSize: fontSize.base,
   },
   textArea: { height: 100, textAlignVertical: 'top' },
   topicRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   topicChip: {
+    alignItems: 'center',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+    justifyContent: 'center',
+    minHeight: 44,
     borderRadius: radius.full,
     borderWidth: 1,
     borderColor: colors.border,
@@ -154,6 +172,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     paddingVertical: spacing.md,
     alignItems: 'center',
+    minHeight: 48,
   },
   sendBtnDisabled: { opacity: 0.4 },
   sendBtnText: { color: colors.white, fontSize: fontSize.md, fontWeight: '700' },

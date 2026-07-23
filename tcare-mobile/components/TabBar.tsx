@@ -27,6 +27,9 @@ export function TabBar({ active, onChange }: Props) {
             style={styles.tab}
             onPress={() => onChange(tab.key)}
             activeOpacity={0.7}
+            accessibilityRole="tab"
+            accessibilityLabel={tab.label}
+            accessibilityState={{ selected: isActive }}
           >
             <View
               style={[
@@ -56,13 +59,14 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
-    paddingTop: 10,
-    paddingBottom: 10,
+    paddingBottom: 15,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
     gap: 4,
+    justifyContent: 'center',
+    minHeight: 48,
   },
   indicator: {
     width: 18,

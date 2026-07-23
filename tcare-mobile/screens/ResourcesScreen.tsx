@@ -39,7 +39,14 @@ export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onC
         <Text style={styles.subtitle}>Find campus support for your wellbeing, access, and academics.</Text>
 
         <View style={styles.list}>
-          <TouchableOpacity style={styles.card} onPress={onMentalHealthPress} activeOpacity={0.75}>
+          <TouchableOpacity
+            style={styles.card}
+            onPress={onMentalHealthPress}
+            activeOpacity={0.75}
+            accessibilityRole="button"
+            accessibilityLabel="Mental health support"
+            accessibilityHint="Opens Health and Wellness support information"
+          >
             <View style={[styles.icon, styles.mentalHealthIcon]}><Text style={styles.iconText}>MH</Text></View>
             <View style={styles.cardCopy}>
               <Text style={styles.cardTitle}>Mental health support</Text>
@@ -48,7 +55,14 @@ export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onC
             <Text style={styles.chevron}>›</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.card} onPress={onAccessibilityPress} activeOpacity={0.75}>
+          <TouchableOpacity
+            style={styles.card}
+            onPress={onAccessibilityPress}
+            activeOpacity={0.75}
+            accessibilityRole="button"
+            accessibilityLabel="Accessibility services"
+            accessibilityHint="Opens accessibility service information"
+          >
             <View style={[styles.icon, styles.accessibilityIcon]}><Text style={styles.iconText}>A</Text></View>
             <View style={styles.cardCopy}>
               <Text style={styles.cardTitle}>Accessibility services</Text>
@@ -57,7 +71,14 @@ export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onC
             <Text style={styles.chevron}>›</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.card} onPress={() => setCollegePickerVisible(true)} activeOpacity={0.75}>
+          <TouchableOpacity
+            style={styles.card}
+            onPress={() => setCollegePickerVisible(true)}
+            activeOpacity={0.75}
+            accessibilityRole="button"
+            accessibilityLabel="Courses and academic support"
+            accessibilityHint="Choose your college or campus to find its registrar"
+          >
             <View style={[styles.icon, styles.academicsIcon]}><Text style={styles.iconText}>AC</Text></View>
             <View style={styles.cardCopy}>
               <Text style={styles.cardTitle}>Courses & academic support</Text>
@@ -70,7 +91,7 @@ export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onC
 
       <Modal visible={collegePickerVisible} transparent animationType="fade" onRequestClose={() => setCollegePickerVisible(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setCollegePickerVisible(false)}>
-          <Pressable style={styles.modalCard} onPress={() => undefined}>
+          <Pressable style={styles.modalCard} onPress={() => undefined} accessibilityViewIsModal>
             <Text style={styles.modalTitle}>Choose your college or campus</Text>
             <Text style={styles.modalBody}>We'll route you to the right registrar for course and academic support.</Text>
             <ScrollView style={styles.options} showsVerticalScrollIndicator={false}>
@@ -78,7 +99,7 @@ export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onC
                 <TouchableOpacity key={college.id} style={styles.collegeOption} onPress={() => {
                   setCollegePickerVisible(false);
                   onCollegeSelect(college.id);
-                }}>
+                }} accessibilityRole="button" accessibilityLabel={college.label}>
                   <Text style={styles.collegeOptionText}>{college.label}</Text>
                 </TouchableOpacity>
               ))}
@@ -96,7 +117,7 @@ const styles = StyleSheet.create({
   title: { color: colors.textPrimary, fontSize: fontSize.xl, fontWeight: '700' },
   subtitle: { color: colors.textSecondary, fontSize: fontSize.base, lineHeight: 21, marginTop: -spacing.md },
   list: { gap: spacing.md },
-  card: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg, borderWidth: 1, flexDirection: 'row', gap: spacing.md, padding: spacing.md },
+  card: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg, borderWidth: 1, flexDirection: 'row', gap: spacing.md, minHeight: 72, padding: spacing.md },
   icon: { alignItems: 'center', borderRadius: radius.md, height: 42, justifyContent: 'center', width: 42 },
   mentalHealthIcon: { backgroundColor: colors.purple },
   accessibilityIcon: { backgroundColor: colors.teal },
@@ -111,6 +132,6 @@ const styles = StyleSheet.create({
   modalTitle: { color: colors.textPrimary, fontSize: fontSize.lg, fontWeight: '700' },
   modalBody: { color: colors.textSecondary, fontSize: fontSize.base, lineHeight: 20, marginBottom: spacing.xs },
   options: { flexGrow: 0 },
-  collegeOption: { borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, marginBottom: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  collegeOption: { borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, marginBottom: spacing.sm, minHeight: 44, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, justifyContent: 'center' },
   collegeOptionText: { color: colors.accent, fontSize: fontSize.base, fontWeight: '600' },
 });

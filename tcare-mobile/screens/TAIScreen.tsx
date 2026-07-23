@@ -159,6 +159,7 @@ function RouteCard({ route }: { route: Route }) {
               accessibilityRole="button"
               accessibilityState={{ expanded: directionsVisible }}
               accessibilityLabel={directionsVisible ? 'Hide walking directions' : 'Show walking directions'}
+              accessibilityHint="Shows step-by-step directions to this destination"
               style={styles.directionsToggle}
               onPress={() => setDirectionsVisible((visible) => !visible)}
             >
@@ -258,13 +259,12 @@ export function TAIScreen() {
         { id: `${Date.now()}-assistant`, role: 'assistant', text, route },
       ]);
     } catch (error) {
-      const detail = error instanceof Error ? error.message : 'Unknown network error';
       setMessages((prev) => [
         ...prev,
         {
           id: `${Date.now()}-error`,
           role: 'assistant',
-          text: `I couldn't reach T-AI right now. ${detail}`,
+          text: "I couldn't reach T-AI right now. Please check your connection and try again.",
         },
       ]);
     } finally {
@@ -282,7 +282,7 @@ export function TAIScreen() {
           <Text style={styles.avatarEmoji}>🤖</Text>
         </View>
         <View>
-          <Text style={styles.headerTitle}>T-AI (T-Care AI Assistant)</Text>
+          <Text style={styles.headerTitle} numberOfLines={1}>T-AI (T-Care AI Assistant)</Text>
           <View style={styles.statusRow}>
             <View style={styles.statusDot} />
             <Text style={styles.statusText}>Online</Text>
@@ -345,12 +345,17 @@ export function TAIScreen() {
           placeholderTextColor={colors.textMuted}
           onSubmitEditing={send}
           editable={!isSending}
+          accessibilityLabel="Message T-AI"
+          accessibilityHint="Ask about campus resources, accommodations, or support services"
         />
         <TouchableOpacity
-          style={[styles.sendBtn, isSending && styles.sendBtnDisabled]}
+          style={[styles.sendBtn, (!input.trim() || isSending) && styles.sendBtnDisabled]}
           onPress={send}
           activeOpacity={0.8}
-          disabled={isSending}
+          disabled={!input.trim() || isSending}
+          accessibilityRole="button"
+          accessibilityLabel="Send message to T-AI"
+          accessibilityState={{ disabled: !input.trim() || isSending }}
         >
           <Text style={styles.sendBtnText}>➤</Text>
         </TouchableOpacity>
@@ -417,7 +422,7 @@ const styles = StyleSheet.create({
   routeAddress: { color: colors.textSecondary, fontSize: fontSize.sm },
   routeTime: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '600' },
   steps: { marginTop: spacing.sm, gap: spacing.sm },
-  directionsToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  directionsToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },
   stepsTitle: { color: colors.textPrimary, fontSize: fontSize.sm, fontWeight: '700' },
   directionsChevron: { color: colors.accent, fontSize: fontSize.md, fontWeight: '700' },
   stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs },
@@ -466,10 +471,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     fontSize: fontSize.base,
+    minHeight: 44,
   },
   sendBtn: {
-    width: 40,
-    height: 40,
+    width: 48,
+    height: 48,
     borderRadius: radius.full,
     backgroundColor: colors.accent,
     alignItems: 'center',
