@@ -1,6 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Alert, View, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AskScreen } from './screens/AskScreen';
 import { ResultScreen } from './screens/ResultScreen';
 import { TAIScreen } from './screens/TAIScreen';
@@ -13,6 +14,7 @@ import type { LocationResult, QueryResult, RecoveryKind, SupportResources, Trave
 
 const TCARD_QUERY = 'I lost my TCard, what do I do?';
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
+const CAMPUS_PREFERENCE_KEY = '@tcare/campus-preference';
 const RECOVERY_RESOURCES: SupportResources = {
   title: 'Official U of T support',
   intro: 'While T-Care reconnects, these official sites can help you find the next step.',
@@ -324,7 +326,30 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [emergencyVisible, setEmergencyVisible] = useState(false);
   const [campus, setCampus] = useState<{ id: 'utsg' | 'utsc' | 'utm'; label: string } | null>(null);
+  const [campusPreferenceLoaded, setCampusPreferenceLoaded] = useState(false);
   const requestId = useRef(0);
+
+  useEffect(() => {
+    void AsyncStorage.getItem(CAMPUS_PREFERENCE_KEY)
+      .then((savedCampus) => {
+        if (!savedCampus) return;
+        const parsed = JSON.parse(savedCampus) as { id?: string; label?: string };
+        if ((parsed.id === 'utsg' || parsed.id === 'utsc' || parsed.id === 'utm') && parsed.label) {
+          setCampus(parsed as { id: 'utsg' | 'utsc' | 'utm'; label: string });
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => setCampusPreferenceLoaded(true));
+  }, []);
+
+  const handleCampusChange = (nextCampus: { id: 'utsg' | 'utsc' | 'utm'; label: string } | null) => {
+    setCampus(nextCampus);
+    if (!campusPreferenceLoaded) return;
+    void (nextCampus
+      ? AsyncStorage.setItem(CAMPUS_PREFERENCE_KEY, JSON.stringify(nextCampus))
+      : AsyncStorage.removeItem(CAMPUS_PREFERENCE_KEY)
+    ).catch(() => undefined);
+  };
 
   const handleSubmit = async (query: string) => {
     if (/\b(mental health|counselling|counseling|anxious|anxiety|overwhelmed|stressed|talk to someone)\b/i.test(query)) {
@@ -339,9 +364,9 @@ export default function App() {
     setShowLocationPaths(false);
     setLoading(true);
     try {
-      const location = await getCurrentLocation();
-      setShowLocationPaths(Boolean(location));
-      const r = await resolveQuery(query, location, campus?.id);
+      // Answer general questions before asking for sensitive device location.
+      // Location is only needed after the student chooses directions.
+      const r = await resolveQuery(query, undefined, campus?.id);
       if (currentRequestId === requestId.current) setResult(r);
     } catch (err) {
       console.error(err);
@@ -376,13 +401,10 @@ export default function App() {
     setShowLocationPaths(false);
     setLoading(true);
     try {
-      // A selected campus can always be shown as a destination. We ask before
-      // using device location; declining still returns the campus service
-      // marker, but never a route or ETA.
-      const location = source === 'resources' && !campus
-        ? undefined
-        : await getCurrentLocation();
-      setShowLocationPaths(Boolean(location));
+      // Show the service first. Device location is requested only after the
+      // student explicitly asks to see a walking route or ETA.
+      const location = undefined;
+      setShowLocationPaths(false);
       const apiUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
 
       if (!apiUrl) throw new Error('Missing EXPO_PUBLIC_API_URL');
@@ -448,12 +470,10 @@ export default function App() {
     setShowLocationPaths(false);
     setLoading(true);
     try {
-      // Apply the Ask-page campus choice to every resource lookup so any
-      // campus-aware service resolves to that office as its destination. The
-      // route and ETA are included only after the student opts in.
-      const location = campus ? await getCurrentLocation() : undefined;
-      setShowLocationPaths(Boolean(location));
-      const response = await resolveQuery(query, location, campus?.id);
+      // Resolve the service and destination first. Location remains opt-in
+      // through the explicit walking-route action on the result.
+      setShowLocationPaths(false);
+      const response = await resolveQuery(query, undefined, campus?.id);
       if (currentRequestId === requestId.current) setResult(response);
     } catch (error) {
       console.warn('Could not load campus resource locations:', error);
@@ -468,14 +488,13 @@ export default function App() {
     setShowLocationPaths(false);
     setLoading(true);
     try {
-      const location = campus ? await getCurrentLocation() : undefined;
-      setShowLocationPaths(Boolean(location));
+      setShowLocationPaths(false);
       if (!API_BASE_URL) throw new Error('Missing EXPO_PUBLIC_API_URL');
 
       const response = await fetch(`${API_BASE_URL}/api/campus-location`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ serviceId, campusLocationName, location }),
+        body: JSON.stringify({ serviceId, campusLocationName, location: undefined }),
       });
       if (!response.ok) throw new Error(`Campus map request failed (${response.status})`);
       if (currentRequestId === requestId.current) {
@@ -484,6 +503,14 @@ export default function App() {
       }
     } catch (error) {
       console.warn('Could not load selected campus map:', error);
+      Alert.alert(
+        'Could not update directions',
+        'Your current result is still available. Please try again.',
+        [
+          { text: 'Not now', style: 'cancel' },
+          { text: 'Try again', onPress: () => void handleCampusLocationPress(serviceId, campusLocationName) },
+        ],
+      );
     } finally {
       if (currentRequestId === requestId.current) setLoading(false);
     }
@@ -522,6 +549,37 @@ export default function App() {
     }
   };
 
+  const handleShowWalkingRoute = async (): Promise<boolean> => {
+    if (result?.type !== 'location' || !result.destination) return false;
+
+    try {
+      const location = await getCurrentLocation();
+      if (!location) return false;
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
+      if (!apiUrl) throw new Error('Missing EXPO_PUBLIC_API_URL');
+
+      const response = await fetch(`${apiUrl}/api/route`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'walk',
+          origin: location,
+          destination: { lat: result.destination.latitude, lng: result.destination.longitude },
+        }),
+      });
+      if (!response.ok) throw new Error(`Route request failed (${response.status})`);
+      const route = await response.json() as Pick<LocationResult, 'travelMinutes' | 'polyline'>;
+      setResult((current) => current?.type === 'location'
+        ? { ...current, origin: { latitude: location.lat, longitude: location.lng }, travelMinutes: route.travelMinutes, polyline: route.polyline }
+        : current);
+      setShowLocationPaths(true);
+      return true;
+    } catch (error) {
+      console.warn('Could not load walking route:', error);
+      return false;
+    }
+  };
+
   const renderNonTaiBody = () => {
     if (tab === 'contact') {
       return <ContactScreen />;
@@ -536,7 +594,7 @@ export default function App() {
       );
     }
 
-    if (result) {
+    if (result && resultSource === tab) {
       return (
         <ResultScreen
           result={result}
@@ -545,6 +603,7 @@ export default function App() {
           onAskAnother={handleAskAnother}
           onRetry={handleRetry}
           onTravelModeChange={updateTravelRoute}
+          onShowWalkingRoute={handleShowWalkingRoute}
           onCampusLocationPress={handleCampusLocationPress}
           onCollegeSelect={(collegeId, serviceId) => handleCollegeSelect(collegeId, serviceId, resultSource, true)}
         />
@@ -582,15 +641,16 @@ export default function App() {
       );
     }
 
-    if (result) {
+    if (result && resultSource === tab) {
       return (
         <ResultScreen
           result={result}
-          showMap={resultSource !== 'resources' || showResourceMap}
+          showMap
           showLocationPaths={showLocationPaths}
           onAskAnother={handleAskAnother}
           onRetry={handleRetry}
           onTravelModeChange={updateTravelRoute}
+          onShowWalkingRoute={handleShowWalkingRoute}
           onCampusLocationPress={handleCampusLocationPress}
           onCollegeSelect={(collegeId, serviceId) => handleCollegeSelect(collegeId, serviceId, resultSource, true)}
         />
@@ -603,10 +663,9 @@ export default function App() {
         onTCardPress={handleLostTCard}
         onTalkSupportPress={handleTalkSupport}
         onAccessibilityPress={handleAccessibilityServices}
-        onCollegeSelect={handleCollegeSelect}
         onEmergencySupportPress={() => setEmergencyVisible(true)}
         campus={campus}
-        onCampusChange={setCampus}
+        onCampusChange={handleCampusChange}
       />
     );
   };
@@ -633,9 +692,6 @@ export default function App() {
         onChange={(key) => {
           requestId.current += 1;
           setTab(key);
-          setResult(null);
-          setShowResourceMap(false);
-          setShowLocationPaths(false);
           setLoading(false);
         }}
       />

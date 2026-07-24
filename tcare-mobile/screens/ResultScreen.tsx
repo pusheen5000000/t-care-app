@@ -5,6 +5,7 @@ import {
   View,
   Text,
   TouchableOpacity,
+  TextInput,
   ScrollView,
   StyleSheet,
   SafeAreaView,
@@ -23,12 +24,12 @@ type Props = {
   onAskAnother: () => void;
   onRetry: () => void;
   onTravelModeChange: (mode: TravelMode) => Promise<boolean>;
+  onShowWalkingRoute: () => Promise<boolean>;
   onCampusLocationPress: (serviceId: string, campusLocationName: string) => void;
   onCollegeSelect: (collegeId: string, serviceId: CollegeServiceId) => void;
 };
 
 type CollegeServiceId = 'academic-success' | 'financial-aid' | 'registrar-enrolment';
-
 const COLLEGE_SERVICE_IDS = new Set<CollegeServiceId>([
   'academic-success',
   'financial-aid',
@@ -52,7 +53,7 @@ const TRAVEL_MODES: { key: TravelMode; label: string }[] = [
   { key: 'transit', label: 'Transit' },
 ];
 
-export function ResultScreen({ result, showMap = true, showLocationPaths = true, onAskAnother, onRetry, onTravelModeChange, onCampusLocationPress, onCollegeSelect }: Props) {
+export function ResultScreen({ result, showMap = true, showLocationPaths = true, onAskAnother, onRetry, onTravelModeChange, onShowWalkingRoute, onCampusLocationPress, onCollegeSelect }: Props) {
   const isLocation = result.type === 'location';
   const isRecovery = result.type === 'recovery';
   const { width, height } = useWindowDimensions();
@@ -89,6 +90,7 @@ export function ResultScreen({ result, showMap = true, showLocationPaths = true,
             isPortrait={isPortrait}
             showLocationPaths={showLocationPaths}
             onTravelModeChange={onTravelModeChange}
+            onShowWalkingRoute={onShowWalkingRoute}
           />
         )}
         {result.supportResources && (
@@ -136,22 +138,42 @@ function LocationBlock({
   isPortrait,
   showLocationPaths,
   onTravelModeChange,
+  onShowWalkingRoute,
 }: {
   result: LocationResult;
   isPortrait: boolean;
   showLocationPaths: boolean;
   onTravelModeChange: (mode: TravelMode) => Promise<boolean>;
+  onShowWalkingRoute: () => Promise<boolean>;
 }) {
   const [travelMode, setTravelMode] = useState<TravelMode>('walk');
   const [isChangingMode, setIsChangingMode] = useState(false);
+  const [routeError, setRouteError] = useState<string | null>(null);
+  const [isLoadingRoute, setIsLoadingRoute] = useState(false);
   const [isWalkingPathExpanded, setIsWalkingPathExpanded] = useState(false);
-  const selectTravelMode = async (mode: TravelMode) => {
-    if (mode === travelMode || isChangingMode) return;
+  const selectTravelMode = async (mode: TravelMode, force = false) => {
+    if ((!force && mode === travelMode) || isChangingMode) return;
 
     setIsChangingMode(true);
     const changed = await onTravelModeChange(mode);
-    if (changed) setTravelMode(mode);
+    if (changed) {
+      setTravelMode(mode);
+      setRouteError(null);
+    } else {
+      setRouteError('We could not update this route. Your current route is still available—please try again.');
+    }
     setIsChangingMode(false);
+  };
+  const showWalkingRoute = async () => {
+    if (isLoadingRoute) return;
+    setIsLoadingRoute(true);
+    const loaded = await onShowWalkingRoute();
+    if (!loaded) {
+      setRouteError('We could not show a walking route. Your service details are still here. Try again or open the destination in Maps.');
+    } else {
+      setRouteError(null);
+    }
+    setIsLoadingRoute(false);
   };
   const routeCoords = geometryToCoordinates(result.polyline);
   const origin = result.origin;
@@ -199,6 +221,22 @@ function LocationBlock({
         </View>
       </View>
 
+      {!hasRoute && destination && (
+        <View style={styles.routePrompt}>
+          <Text style={styles.routePromptTitle}>Need directions?</Text>
+          <Text style={styles.routePromptBody}>Use your location only to show a walking route and time.</Text>
+          <View style={styles.routeActions}>
+            <TouchableOpacity style={styles.showRouteButton} onPress={() => void showWalkingRoute()} disabled={isLoadingRoute} accessibilityRole="button" accessibilityLabel="Show walking route">
+              <Text style={styles.showRouteButtonText}>{isLoadingRoute ? 'Getting route…' : 'Show walking route'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.openMapsButton} onPress={() => void openGoogleMapsDirections(result.placeName, result.placeSubtitle)} accessibilityRole="button" accessibilityLabel="Open destination in Maps">
+              <Text style={styles.openMapsButtonText}>Open in Maps</Text>
+            </TouchableOpacity>
+          </View>
+          {routeError && <Text style={styles.routeError} accessibilityLiveRegion="polite">{routeError}</Text>}
+        </View>
+      )}
+
       {hasRoute && <View style={styles.travelTimeCard}>
         <Text style={styles.travelTimeLabel}>Time to destination</Text>
         <Text style={styles.travelTimeValue}>
@@ -228,6 +266,10 @@ function LocationBlock({
         {isChangingMode && (
           <Text style={styles.travelTimeNote}>Updating route…</Text>
         )}
+        {routeError && <>
+          <Text style={styles.routeError} accessibilityLiveRegion="polite">{routeError}</Text>
+          <TouchableOpacity onPress={() => void selectTravelMode(travelMode, true)} accessibilityRole="button" accessibilityLabel="Retry route update"><Text style={styles.retryRouteText}>Retry</Text></TouchableOpacity>
+        </>}
       </View>}
 
       <View style={styles.statsRow}>
@@ -341,6 +383,7 @@ function SupportResourcesSection({
   onCollegeSelect: (collegeId: string, serviceId: CollegeServiceId) => void;
 }) {
   const [collegePickerService, setCollegePickerService] = useState<CollegeServiceId | null>(null);
+  const [collegeSearch, setCollegeSearch] = useState('');
   const governmentLinks = resources.links.filter((link) => link.group === 'Government support');
   const universityLinks = resources.links.filter((link) => link.group === 'U of T resources');
 
@@ -387,6 +430,7 @@ function SupportResourcesSection({
             onPress={() => {
               if (opensCollegePicker) {
                 setCollegePickerService(serviceId as CollegeServiceId);
+                setCollegeSearch('');
                 return;
               }
               if (usesInAppDirections && serviceId) {
@@ -412,10 +456,11 @@ function SupportResourcesSection({
       <Modal visible={collegePickerService !== null} transparent animationType="fade" onRequestClose={() => setCollegePickerService(null)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setCollegePickerService(null)}>
           <Pressable style={styles.modalCard} onPress={() => undefined} accessibilityViewIsModal>
-            <Text style={styles.modalTitle}>Choose your UTSG college</Text>
+            <Text style={styles.modalTitle}>Choose your college</Text>
             <Text style={styles.modalBody}>{pickerBody}</Text>
+            <TextInput value={collegeSearch} onChangeText={setCollegeSearch} placeholder="Search colleges" placeholderTextColor={colors.textMuted} style={styles.collegeSearch} accessibilityLabel="Search UTSG colleges" />
             <ScrollView style={styles.options} showsVerticalScrollIndicator={false}>
-              {COLLEGES.map((college) => (
+              {COLLEGES.filter((college) => college.label.toLowerCase().includes(collegeSearch.trim().toLowerCase())).map((college) => (
                 <TouchableOpacity
                   key={college.id}
                   style={styles.collegeOption}
@@ -431,6 +476,7 @@ function SupportResourcesSection({
                 </TouchableOpacity>
               ))}
             </ScrollView>
+            <TouchableOpacity style={styles.unknownCollegeButton} onPress={() => { if (collegePickerService) { onCollegeSelect('utsg', collegePickerService); setCollegePickerService(null); } }} accessibilityRole="button" accessibilityLabel="I do not know my college"><Text style={styles.unknownCollegeText}>I don’t know my college</Text></TouchableOpacity>
             <TouchableOpacity style={styles.cancelButton} onPress={() => setCollegePickerService(null)} accessibilityRole="button" accessibilityLabel="Cancel college selection">
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
@@ -701,6 +747,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     padding: spacing.md,
   },
+  routePrompt: { backgroundColor: colors.infoBg, borderColor: colors.border, borderRadius: radius.lg, borderWidth: 1, marginBottom: spacing.sm, padding: spacing.md },
+  routePromptTitle: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '700' },
+  routePromptBody: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 18, marginTop: spacing.xs },
+  routeActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+  showRouteButton: { alignItems: 'center', backgroundColor: colors.accent, borderRadius: radius.md, flex: 1, justifyContent: 'center', minHeight: 44, paddingHorizontal: spacing.sm },
+  showRouteButtonText: { color: colors.accentOn, fontSize: fontSize.sm, fontWeight: '700' },
+  openMapsButton: { alignItems: 'center', borderColor: colors.accent, borderRadius: radius.md, borderWidth: 1, flex: 1, justifyContent: 'center', minHeight: 44, paddingHorizontal: spacing.sm },
+  openMapsButtonText: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '700' },
   travelTimeLabel: {
     color: colors.textMuted,
     fontSize: fontSize.sm,
@@ -748,6 +802,8 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     textAlign: 'center',
   },
+  routeError: { color: colors.danger, fontSize: fontSize.sm, lineHeight: 18, marginTop: spacing.sm, textAlign: 'center' },
+  retryRouteText: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '700', marginTop: spacing.sm, textAlign: 'center' },
   pathCard: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
@@ -853,8 +909,11 @@ const styles = StyleSheet.create({
   modalTitle: { color: colors.textPrimary, fontSize: fontSize.lg, fontWeight: '700' },
   modalBody: { color: colors.textSecondary, fontSize: fontSize.base, lineHeight: 20, marginBottom: spacing.xs },
   options: { flexGrow: 0 },
+  collegeSearch: { backgroundColor: colors.background, borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, color: colors.textPrimary, fontSize: fontSize.base, marginBottom: spacing.sm, minHeight: 44, paddingHorizontal: spacing.md },
   collegeOption: { borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, justifyContent: 'center', marginBottom: spacing.sm, minHeight: 44, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   collegeOptionText: { color: colors.accent, fontSize: fontSize.base, fontWeight: '600' },
+  unknownCollegeButton: { alignItems: 'center', justifyContent: 'center', minHeight: 44, marginTop: spacing.sm },
+  unknownCollegeText: { color: colors.accent, fontSize: fontSize.base, fontWeight: '700' },
   cancelButton: { alignItems: 'center', justifyContent: 'center', minHeight: 44 },
   cancelButtonText: { color: colors.textSecondary, fontSize: fontSize.base, fontWeight: '600' },
   nextStepSection: { borderTopColor: colors.border, borderTopWidth: 1, gap: spacing.sm, marginTop: spacing.lg, paddingTop: spacing.lg },
