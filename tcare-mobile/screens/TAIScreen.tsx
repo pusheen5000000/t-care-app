@@ -182,6 +182,9 @@ function RouteCard({ route, onMapReady }: { route: Route; onMapReady?: () => voi
     latitudeDelta: 0.02,
     longitudeDelta: 0.02,
   };
+  const routeMapKey = coordinates.length > 0
+    ? `route-${coordinates.length}-${coordinates[0].latitude}-${coordinates[0].longitude}-${coordinates[coordinates.length - 1].latitude}-${coordinates[coordinates.length - 1].longitude}`
+    : 'destination';
 
   if (!region) return null;
 
@@ -206,6 +209,7 @@ function RouteCard({ route, onMapReady }: { route: Route; onMapReady?: () => voi
   return (
     <View style={styles.routeCard}>
       <MapView
+        key={routeMapKey}
         ref={mapRef}
         style={styles.routeMap}
         initialRegion={region}
@@ -213,7 +217,16 @@ function RouteCard({ route, onMapReady }: { route: Route; onMapReady?: () => voi
       >
         {route.origin && <Marker coordinate={route.origin} title="You" pinColor={colors.accent} />}
         <Marker coordinate={route.destination} title={route.placeName} />
-        {coordinates.length > 0 && <Polyline coordinates={coordinates} strokeColor={colors.accent} strokeWidth={4} />}
+        {coordinates.length > 0 && (
+          <Polyline
+            coordinates={coordinates}
+            strokeColor={colors.accent}
+            strokeWidth={6}
+            lineCap="round"
+            lineJoin="round"
+            zIndex={10}
+          />
+        )}
       </MapView>
       <View style={styles.routeDetails}>
         <Text style={styles.routeName}>{route.placeName}</Text>

@@ -181,6 +181,9 @@ function LocationBlock({
   const origin = result.origin;
   const destination = result.destination;
   const hasRoute = showLocationPaths && Boolean(origin && destination && routeCoords.length > 0);
+  const routeMapKey = hasRoute
+    ? `route-${routeCoords.length}-${routeCoords[0].latitude}-${routeCoords[0].longitude}-${routeCoords[routeCoords.length - 1].latitude}-${routeCoords[routeCoords.length - 1].longitude}`
+    : 'destination';
 
   const initialRegion = destination
     ? {
@@ -204,6 +207,7 @@ function LocationBlock({
     <>
       <View style={styles.mapCard}>
         <MapView
+          key={routeMapKey}
           ref={mapRef}
           style={[styles.map, isPortrait && styles.mapPortrait]}
           initialRegion={initialRegion}
@@ -224,7 +228,10 @@ function LocationBlock({
             <Polyline
               coordinates={routeCoords}
               strokeColor={colors.accent}
-              strokeWidth={4}
+              strokeWidth={6}
+              lineCap="round"
+              lineJoin="round"
+              zIndex={10}
             />
           )}
         </MapView>
