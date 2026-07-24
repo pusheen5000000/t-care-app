@@ -3,6 +3,7 @@ import * as Location from 'expo-location';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import {
   Animated,
+  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -23,6 +24,20 @@ import { openGoogleMapsDirections } from '../utils/googleMaps';
 type Coordinate = { latitude: number; longitude: number };
 type RouteStep = { instruction: string; distance: string };
 
+function confirmLocationUse(): Promise<boolean> {
+  return new Promise((resolve) => {
+    Alert.alert(
+      'Use your location for directions?',
+      'T-Care uses your location only to estimate walking time and show directions. You can still view office details without it.',
+      [
+        { text: 'Not now', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Continue', onPress: () => resolve(true) },
+      ],
+      { cancelable: true, onDismiss: () => resolve(false) },
+    );
+  });
+}
+
 type Route = {
   placeName: string;
   placeSubtitle: string;
@@ -42,6 +57,7 @@ type Message = {
   serviceId?: string;
   supportResources?: SupportResources;
   facilityPicker?: 'campus' | 'college';
+  retryQuery?: string;
 };
 
 type QueryResponse = {
@@ -67,6 +83,16 @@ type QueryResponse = {
 const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_URL ??
   (Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000');
+
+const RECOVERY_RESOURCES: SupportResources = {
+  title: 'Official U of T support',
+  intro: 'While T-AI reconnects, these official sites can help you find the next step.',
+  campusLocations: [],
+  links: [
+    { group: 'U of T resources', title: 'U of T Student Life', description: 'Find student services, support, and campus resources.', url: 'https://studentlife.utoronto.ca/' },
+    { group: 'U of T resources', title: 'University Registrar', description: 'Official information about registration, records, fees, and academic services.', url: 'https://www.registrar.utoronto.ca/' },
+  ],
+};
 
 const INITIAL: Message[] = [
   {
@@ -330,15 +356,17 @@ export function TAIScreen() {
   } | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const send = async () => {
-    const query = input.trim();
+  const send = async (retryQuery?: string) => {
+    const query = (retryQuery ?? input).trim();
     if (!query || isSending) return;
 
-    setMessages((prev) => [
-      ...prev,
-      { id: `${Date.now()}-user`, role: 'user', text: query },
-    ]);
-    setInput('');
+    if (!retryQuery) {
+      setMessages((prev) => [
+        ...prev,
+        { id: `${Date.now()}-user`, role: 'user', text: query },
+      ]);
+      setInput('');
+    }
     setIsSending(true);
 
     try {
@@ -348,7 +376,10 @@ export function TAIScreen() {
       const asksForOnCampusSupport = /\b(mental health|counselling|counseling|anxious|anxiety|overwhelmed|stressed|talk to someone|accessibility|accommodation|disability|adaptive technology|assistive technology|note taker|exam accommodation)\b/i.test(query);
       let location: { lat: number; lng: number } | undefined;
       if (asksForDirections || asksForOnCampusSupport) {
-        const permission = await Location.requestForegroundPermissionsAsync();
+        const shouldUseLocation = await confirmLocationUse();
+        const permission = shouldUseLocation
+          ? await Location.requestForegroundPermissionsAsync()
+          : { status: 'denied' as const };
         if (permission.status === 'granted') {
           try {
             const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
@@ -409,12 +440,20 @@ export function TAIScreen() {
         },
       ]);
     } catch (error) {
+      const message = error instanceof Error ? error.message.toLowerCase() : '';
+      const recoveryText = message.includes('location') || message.includes('permission')
+        ? "I saved your question, but I couldn't use your location. Check location access in your phone settings, then try again."
+        : message.includes('network') || message.includes('fetch') || message.includes('timeout')
+          ? "I saved your question, but I couldn't connect. Check your internet connection, then try again."
+          : "I saved your question, but T-AI is temporarily unavailable. Please try again in a moment.";
       setMessages((prev) => [
         ...prev,
         {
           id: `${Date.now()}-error`,
           role: 'assistant',
-          text: "I couldn't reach T-AI right now. Please check your connection and try again.",
+          text: recoveryText,
+          retryQuery: query,
+          supportResources: RECOVERY_RESOURCES,
         },
       ]);
     } finally {
@@ -558,13 +597,15 @@ export function TAIScreen() {
           <Text style={styles.avatarEmoji}>🤖</Text>
         </View>
         <View>
-          <Text style={styles.headerTitle} numberOfLines={1}>T-AI (T-Care AI Assistant)</Text>
+          <Text style={styles.headerTitle} numberOfLines={1}>Follow-up conversation</Text>
           <View style={styles.statusRow}>
             <View style={styles.statusDot} />
             <Text style={styles.statusText}>Online</Text>
           </View>
         </View>
       </View>
+
+      <Text style={styles.followUpHint}>Continue a question after you&apos;ve explored a result in Ask or Resources.</Text>
 
       <ScrollView
         ref={scrollViewRef}
@@ -598,6 +639,17 @@ export function TAIScreen() {
               >
                 {message.text}
               </Text>
+              {message.retryQuery && (
+                <TouchableOpacity
+                  style={styles.retryMessageButton}
+                  onPress={() => void send(message.retryQuery)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Try your question again"
+                  accessibilityHint="Sends the same question again"
+                >
+                  <Text style={styles.retryMessageButtonText}>Try again</Text>
+                </TouchableOpacity>
+              )}
               {message.supportResources && (
                 <SupportResourceLinks
                   resources={message.supportResources}
@@ -642,14 +694,14 @@ export function TAIScreen() {
           onChangeText={setInput}
           placeholder="Type a message..."
           placeholderTextColor={colors.textMuted}
-          onSubmitEditing={send}
+          onSubmitEditing={() => void send()}
           editable={!isSending}
           accessibilityLabel="Message T-AI"
           accessibilityHint="Ask about campus resources, accommodations, or support services"
         />
         <TouchableOpacity
           style={[styles.sendBtn, (!input.trim() || isSending) && styles.sendBtnDisabled]}
-          onPress={send}
+          onPress={() => void send()}
           activeOpacity={0.8}
           disabled={!input.trim() || isSending}
           accessibilityRole="button"
@@ -732,6 +784,7 @@ const styles = StyleSheet.create({
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.success },
   statusText: { color: colors.textMuted, fontSize: fontSize.sm },
+  followUpHint: { backgroundColor: colors.infoBg, color: colors.infoText, fontSize: fontSize.sm, lineHeight: 18, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   chatArea: { flex: 1 },
   chatContent: { padding: spacing.lg, gap: spacing.md },
   bubbleRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm },
@@ -751,6 +804,16 @@ const styles = StyleSheet.create({
   bubbleUser: { backgroundColor: colors.accent, borderTopRightRadius: radius.sm },
   bubbleTextAssistant: { color: colors.textSecondary, fontSize: fontSize.base, lineHeight: 20 },
   bubbleTextUser: { color: colors.white, fontSize: fontSize.base, lineHeight: 20 },
+  retryMessageButton: {
+    alignItems: 'center',
+    backgroundColor: colors.accent,
+    borderRadius: radius.sm,
+    justifyContent: 'center',
+    marginTop: spacing.sm,
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+  },
+  retryMessageButtonText: { color: colors.accentOn, fontSize: fontSize.sm, fontWeight: '700' },
   routeCard: {
     marginTop: spacing.sm,
     overflow: 'hidden',

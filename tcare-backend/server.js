@@ -16,6 +16,7 @@ const {
   campusLocationToOffice,
   findNearbyCampusLocation,
   findRequestedCampusLocation,
+  findSelectedCampusLocation,
   withRelevantCampusLocations,
   requiresCollegePicker,
 } = require('./services/campusLocationService');
@@ -47,9 +48,10 @@ async function createMapResult({ office, query, summary, location }) {
   };
 }
 
-function createInfoResult({ service, query, title, summary, location }) {
+function createInfoResult({ service, query, title, summary, location, campus }) {
   const campusLocations = service.supportResources?.campusLocations ?? [];
-  const confidentCampusLocation = findRequestedCampusLocation(query, campusLocations)
+  const confidentCampusLocation = findSelectedCampusLocation(campus, campusLocations)
+    ?? findRequestedCampusLocation(query, campusLocations)
     ?? findNearbyCampusLocation(location, campusLocations);
   return {
     type: 'info',
@@ -57,27 +59,30 @@ function createInfoResult({ service, query, title, summary, location }) {
     query,
     title: title || service.name,
     summary: summary || service.summary,
-    supportResources: withRelevantCampusLocations(service.supportResources, location, query),
+    supportResources: withRelevantCampusLocations(service.supportResources, location, query, campus),
     facilityPicker: requiresCollegePicker(service)
       ? 'college'
       : (campusLocations.length > 1 && !confidentCampusLocation ? 'campus' : undefined),
   };
 }
 
-async function createCampusAwareServiceResult({ service, query, title, summary, location }) {
+async function createCampusAwareServiceResult({ service, query, title, summary, location, campus }) {
   // A UTSG college is a required second choice for these services. Never let a
   // UTSG mention or device location bypass that choice and open a map instead.
-  if (requiresCollegePicker(service)) {
-    return createInfoResult({ service, query, title, summary, location });
-  }
   const campusLocations = service.supportResources?.campusLocations ?? [];
+  const selectedCampusLocation = findSelectedCampusLocation(campus, campusLocations);
+  // UTSG college services still require a college. UTSC and UTM selections
+  // identify a single campus office and can map directly.
+  if (requiresCollegePicker(service) && (!selectedCampusLocation || /st\.?\s*george|utsg/i.test(selectedCampusLocation.name))) {
+    return createInfoResult({ service, query, title, summary, location, campus });
+  }
   const requestedCampusLocation = findRequestedCampusLocation(query, campusLocations);
   const nearbyCampusLocation = findNearbyCampusLocation(location, campusLocations);
-  const selectedCampusLocation = requestedCampusLocation ?? nearbyCampusLocation;
-  if (!selectedCampusLocation) return createInfoResult({ service, query, title, summary, location });
+  const resolvedCampusLocation = selectedCampusLocation ?? requestedCampusLocation ?? nearbyCampusLocation;
+  if (!resolvedCampusLocation) return createInfoResult({ service, query, title, summary, location, campus });
 
   const result = await createMapResult({
-    office: campusLocationToOffice(selectedCampusLocation, service),
+    office: campusLocationToOffice(resolvedCampusLocation, service),
     query,
     summary: summary || service.summary,
     location,
@@ -85,8 +90,8 @@ async function createCampusAwareServiceResult({ service, query, title, summary, 
   return {
     ...result,
     serviceId: service.id,
-    title: title || selectedCampusLocation.name,
-    supportResources: withRelevantCampusLocations(service.supportResources, location, query),
+    title: title || resolvedCampusLocation.name,
+    supportResources: withRelevantCampusLocations(service.supportResources, location, query, campus),
   };
 }
 
@@ -101,7 +106,7 @@ async function createCampusAwareServiceResult({ service, query, title, summary, 
  *     placeSubtitle, walkMinutes, fee, hours, polyline, origin, destination }
  */
 app.post('/api/query', async (req, res) => {
-  const { query, location } = req.body;
+  const { query, location, campus } = req.body;
 
   if (!query || typeof query !== 'string') {
     return res.status(400).json({ error: 'Missing "query" string in body' });
@@ -149,6 +154,7 @@ app.post('/api/query', async (req, res) => {
           title: classification.title,
           summary: classification.summary,
           location,
+          campus,
         }),
       );
     }
@@ -298,7 +304,7 @@ app.post('/api/tcard-office', async (req, res) => {
 
 app.post('/api/accessibility-services', async (req, res) => {
   const accessibilityServices = services.find((service) => service.id === 'accessibility-services');
-  const { location, query } = req.body ?? {};
+  const { location, query, campus } = req.body ?? {};
 
   if (!accessibilityServices) {
     return res.status(500).json({ error: 'Accessibility Services is not configured' });
@@ -312,6 +318,7 @@ app.post('/api/accessibility-services', async (req, res) => {
         : 'Where can I access accessibility services?',
       summary: accessibilityServices.summary,
       location,
+      campus,
     }));
   } catch (err) {
     console.error(err);
@@ -350,7 +357,7 @@ app.post('/api/campus-location', async (req, res) => {
 
 app.post('/api/health-wellness', async (req, res) => {
   const healthWellness = services.find((service) => service.id === 'health-wellness');
-  const { location } = req.body ?? {};
+  const { location, campus } = req.body ?? {};
 
   if (!healthWellness) {
     return res.status(500).json({ error: 'Health & Wellness is not configured' });
@@ -362,6 +369,7 @@ app.post('/api/health-wellness', async (req, res) => {
       query: 'I need someone to talk to',
       summary: healthWellness.summary,
       location,
+      campus,
     }));
   } catch (err) {
     console.error(err);

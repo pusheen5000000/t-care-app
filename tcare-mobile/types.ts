@@ -51,4 +51,15 @@ export type InfoResult = {
   serviceId?: string;
 };
 
-export type QueryResult = LocationResult | InfoResult;
+export type RecoveryKind = 'connection' | 'location' | 'service';
+
+export type RecoveryResult = {
+  type: 'recovery';
+  query: string;
+  title: string;
+  summary: string;
+  recoveryKind: RecoveryKind;
+  supportResources: SupportResources;
+};
+
+export type QueryResult = LocationResult | InfoResult | RecoveryResult;

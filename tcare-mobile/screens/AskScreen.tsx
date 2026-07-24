@@ -22,7 +22,17 @@ type Props = {
   onAccessibilityPress: () => void;
   onCollegeSelect: (collegeId: string) => void;
   onEmergencySupportPress: () => void;
+  campus: Campus | null;
+  onCampusChange: (campus: Campus | null) => void;
 };
+
+type Campus = { id: 'utsg' | 'utsc' | 'utm'; label: string };
+
+const CAMPUSES: Campus[] = [
+  { id: 'utsg', label: 'St. George' },
+  { id: 'utsc', label: 'UTSC' },
+  { id: 'utm', label: 'UTM' },
+];
 
 const COLLEGES = [
   { id: 'innis', label: 'Innis College' },
@@ -58,10 +68,12 @@ const MOODS: { emoji: string; label: string; mood: 'good' | 'okay' | 'struggling
   { emoji: '😔', label: 'Struggling', mood: 'struggling' },
 ];
 
-export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccessibilityPress, onCollegeSelect, onEmergencySupportPress }: Props) {
+export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccessibilityPress, onCollegeSelect, onEmergencySupportPress, campus, onCampusChange }: Props) {
   const [text, setText] = useState('');
   const [activeMood, setActiveMood] = useState<'good' | 'okay' | 'struggling' | null>(null);
   const [collegePromptVisible, setCollegePromptVisible] = useState(false);
+  const [campusPickerVisible, setCampusPickerVisible] = useState(false);
+  const [moodOptionsVisible, setMoodOptionsVisible] = useState(false);
   const [isLayoutReady, setIsLayoutReady] = useState(false);
 
   useEffect(() => {
@@ -110,6 +122,20 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
             The fastest path to campus support. 
           </Text>
 
+          <TouchableOpacity
+            style={styles.campusSelector}
+            onPress={() => setCampusPickerVisible(true)}
+            accessibilityRole="button"
+            accessibilityLabel={campus ? `Your campus: ${campus.label}` : 'Choose your campus'}
+            accessibilityHint="Optionally chooses a campus to make results more relevant"
+          >
+            <View>
+              <Text style={styles.campusLabel}>YOUR CAMPUS</Text>
+              <Text style={styles.campusValue}>{campus?.label ?? 'Choose for more relevant results'}</Text>
+            </View>
+            <Text style={styles.campusChevron}>›</Text>
+          </TouchableOpacity>
+
           <View style={styles.chipList}>
             {SUGGESTIONS.map((s) => (
               <TouchableOpacity
@@ -119,7 +145,12 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
                   if (s.label === 'I lost my TCard') return onTCardPress();
                   if (s.label === 'I need someone to talk to') return onTalkSupportPress();
                   if (s.label === 'Accessibility services') return onAccessibilityPress();
-                  if (s.label === 'I need help with my studies') return setCollegePromptVisible(true);
+                  if (s.label === 'I need help with my studies') {
+                    // UTSC and UTM each have one campus-level academic office.
+                    // St. George still needs the student's college to route them.
+                    if (campus?.id === 'utsc' || campus?.id === 'utm') return onCollegeSelect(campus.id);
+                    return setCollegePromptVisible(true);
+                  }
                   onSubmit(s.query);
                 }}
                 activeOpacity={0.7}
@@ -133,23 +164,34 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
             ))}
           </View>
 
-          <Text style={styles.moodTitle}>How are you feeling right now?</Text>
-          <View style={styles.moodRow}>
-            {MOODS.map((m) => (
-              <TouchableOpacity
-                key={m.label}
-                style={[styles.moodButton, activeMood === m.mood && styles.moodButtonActive]}
-                onPress={() => setActiveMood(m.mood)}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityLabel={`I am feeling ${m.label.toLowerCase()}`}
-                accessibilityState={{ selected: activeMood === m.mood }}
-              >
-                <Text style={styles.moodEmoji}>{m.emoji}</Text>
-                <Text style={[styles.moodLabel, activeMood === m.mood && styles.moodLabelActive]}>{m.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <TouchableOpacity
+            style={styles.wellbeingToggle}
+            onPress={() => setMoodOptionsVisible((visible) => !visible)}
+            accessibilityRole="button"
+            accessibilityLabel="Optional wellbeing check-in"
+            accessibilityState={{ expanded: moodOptionsVisible }}
+          >
+            <Text style={styles.wellbeingToggleText}>Need wellbeing support?</Text>
+            <Text style={styles.wellbeingToggleHint}>Optional check-in {moodOptionsVisible ? '⌃' : '⌄'}</Text>
+          </TouchableOpacity>
+          {moodOptionsVisible && (
+            <View style={styles.moodRow}>
+              {MOODS.map((m) => (
+                <TouchableOpacity
+                  key={m.label}
+                  style={[styles.moodButton, activeMood === m.mood && styles.moodButtonActive]}
+                  onPress={() => setActiveMood(m.mood)}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={`I am feeling ${m.label.toLowerCase()}`}
+                  accessibilityState={{ selected: activeMood === m.mood }}
+                >
+                  <Text style={styles.moodEmoji}>{m.emoji}</Text>
+                  <Text style={[styles.moodLabel, activeMood === m.mood && styles.moodLabelActive]}>{m.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </ScrollView>
 
         <View style={styles.inputBar}>
@@ -219,6 +261,40 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
           </Pressable>
         </Pressable>
       </Modal>
+
+      <Modal
+        visible={campusPickerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCampusPickerVisible(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setCampusPickerVisible(false)}>
+          <Pressable style={styles.modalCard} onPress={() => undefined} accessibilityViewIsModal>
+            <Text style={styles.modalTitle}>Choose your campus</Text>
+            <Text style={styles.modalBody}>This helps T-Care give more relevant service and location guidance. You can change it anytime.</Text>
+            {CAMPUSES.map((option) => (
+              <TouchableOpacity
+                key={option.id}
+                style={styles.collegeOption}
+                onPress={() => { onCampusChange(option); setCampusPickerVisible(false); }}
+                accessibilityRole="button"
+                accessibilityLabel={option.label}
+                accessibilityState={{ selected: campus?.id === option.id }}
+              >
+                <Text style={styles.collegeOptionText}>{option.label}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              style={styles.skipCampusButton}
+              onPress={() => { onCampusChange(null); setCampusPickerVisible(false); }}
+              accessibilityRole="button"
+              accessibilityLabel="Skip campus selection"
+            >
+              <Text style={styles.skipCampusText}>Skip for now</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -283,6 +359,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
     lineHeight: 20,
   },
+  campusSelector: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg, borderWidth: 1, flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.lg, minHeight: 56, paddingHorizontal: spacing.md },
+  campusLabel: { color: colors.textMuted, fontSize: fontSize.sm, fontWeight: '700', letterSpacing: 0.7 },
+  campusValue: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '600', marginTop: 2 },
+  campusChevron: { color: colors.accent, fontSize: 28, fontWeight: '300' },
   chipList: {
     gap: spacing.sm,
   },
@@ -309,13 +389,9 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     marginLeft: spacing.md,
   },
-  moodTitle: {
-    fontSize: fontSize.base,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginTop: spacing.xl,
-    marginBottom: spacing.md,
-  },
+  wellbeingToggle: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.xl, minHeight: 44 },
+  wellbeingToggleText: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '600' },
+  wellbeingToggleHint: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '600' },
   moodRow: {
     flexDirection: 'row',
     gap: spacing.sm,
@@ -428,4 +504,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.base,
     fontWeight: '600',
   },
+  skipCampusButton: { alignSelf: 'flex-start', justifyContent: 'center', minHeight: 44, paddingHorizontal: spacing.sm },
+  skipCampusText: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '700' },
 });

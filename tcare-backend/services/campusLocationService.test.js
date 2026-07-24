@@ -3,6 +3,7 @@ const test = require('node:test');
 const {
   findNearbyCampusLocation,
   findRequestedCampusLocation,
+  findSelectedCampusLocation,
   withRelevantCampusLocations,
   requiresCollegePicker,
 } = require('./campusLocationService');
@@ -26,7 +27,7 @@ test('keeps all campus locations when no campus is nearby or location is unavail
   assert.equal(withRelevantCampusLocations(resources).campusLocations.length, 3);
 });
 
-test('uses the campus explicitly named in the query before the nearby campus', () => {
+test('uses the campus explicitly named in the query before the nearby campus while listing every campus', () => {
   const requested = findRequestedCampusLocation('Where is UTSG accessibility services?', campusLocations);
   assert.equal(requested.name, 'St. George');
 
@@ -36,7 +37,20 @@ test('uses the campus explicitly named in the query before the nearby campus', (
     { lat: 43.79, lng: -79.19 },
     'I need accessibility services at UTSG',
   );
-  assert.deepEqual(relevant.campusLocations.map((location) => location.name), ['St. George']);
+  assert.deepEqual(relevant.campusLocations.map((location) => location.name), ['St. George', 'UTSC', 'UTM']);
+});
+
+test('uses the selected campus before a query mention or the nearby campus while listing every campus', () => {
+  assert.equal(findSelectedCampusLocation('utm', campusLocations).name, 'UTM');
+
+  const resources = { campusLocations, links: [] };
+  const relevant = withRelevantCampusLocations(
+    resources,
+    { lat: 43.79, lng: -79.19 },
+    'I need accessibility services at UTSG',
+    'utm',
+  );
+  assert.deepEqual(relevant.campusLocations.map((location) => location.name), ['St. George', 'UTSC', 'UTM']);
 });
 
 test('accessibility and mental-health support both include all three U of T campuses', () => {

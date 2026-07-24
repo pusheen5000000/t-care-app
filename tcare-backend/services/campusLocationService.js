@@ -56,20 +56,36 @@ function findRequestedCampusLocation(query, campusLocations) {
     : null;
 }
 
-function withRelevantCampusLocations(supportResources, location, query) {
+function findSelectedCampusLocation(campus, campusLocations) {
+  if (!['utsg', 'utsc', 'utm'].includes(campus)) return null;
+
+  const campusNames = {
+    utsg: /st\.?\s*george|utsg/i,
+    utsc: /utsc|scarborough/i,
+    utm: /utm|mississauga/i,
+  };
+  return campusLocations.find((campusLocation) => campusNames[campus].test(campusLocation.name)) ?? null;
+}
+
+function withRelevantCampusLocations(supportResources, location, query, campus) {
   if (!supportResources?.campusLocations) return supportResources;
 
+  const selectedLocation = findSelectedCampusLocation(campus, supportResources.campusLocations);
   const requestedLocation = findRequestedCampusLocation(query, supportResources.campusLocations);
   const nearbyLocation = findNearbyCampusLocation(location, supportResources.campusLocations);
-  const relevantLocation = requestedLocation ?? nearbyLocation;
+  const relevantLocation = selectedLocation ?? requestedLocation ?? nearbyLocation;
   return {
     ...supportResources,
     intro: relevantLocation
-      ? requestedLocation
+      ? selectedLocation
+        ? `Showing the in-person support for your selected campus at ${relevantLocation.name}.`
+        : requestedLocation
         ? `Showing the in-person support at ${relevantLocation.name}.`
         : `Showing the in-person support available near you at ${relevantLocation.name}.`
       : 'We could not confidently match you to a U of T campus, so here are all in-person options.',
-    campusLocations: relevantLocation ? [relevantLocation] : supportResources.campusLocations,
+    // Keep every campus visible after choosing the map destination, so a
+    // student can compare or switch to another campus office from the result.
+    campusLocations: supportResources.campusLocations,
   };
 }
 
@@ -85,6 +101,7 @@ function campusLocationToOffice(campusLocation, service) {
 module.exports = {
   findNearbyCampusLocation,
   findRequestedCampusLocation,
+  findSelectedCampusLocation,
   withRelevantCampusLocations,
   campusLocationToOffice,
   requiresCollegePicker,

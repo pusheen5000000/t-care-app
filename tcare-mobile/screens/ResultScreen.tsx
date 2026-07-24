@@ -13,12 +13,14 @@ import {
 } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import { colors, spacing, fontSize, radius } from '../theme';
-import type { QueryResult, LocationResult, SupportResources, TravelMode } from '../types';
+import type { QueryResult, LocationResult, RecoveryResult, SupportResources, TravelMode } from '../types';
 import { openGoogleMapsDirections } from '../utils/googleMaps';
 
 type Props = {
   result: QueryResult;
+  showLocationPaths?: boolean;
   onAskAnother: () => void;
+  onRetry: () => void;
   onTravelModeChange: (mode: TravelMode) => Promise<boolean>;
   onCampusLocationPress: (serviceId: string, campusLocationName: string) => void;
   onCollegeSelect: (collegeId: string, serviceId: CollegeServiceId) => void;
@@ -29,6 +31,12 @@ type CollegeServiceId = 'academic-success' | 'financial-aid' | 'registrar-enrolm
 const COLLEGE_SERVICE_IDS = new Set<CollegeServiceId>([
   'academic-success',
   'financial-aid',
+  'registrar-enrolment',
+]);
+
+const IN_APP_DIRECTION_SERVICE_IDS = new Set([
+  'health-wellness',
+  'accessibility-services',
   'registrar-enrolment',
 ]);
 
@@ -49,8 +57,9 @@ const TRAVEL_MODES: { key: TravelMode; label: string }[] = [
   { key: 'transit', label: 'Transit' },
 ];
 
-export function ResultScreen({ result, onAskAnother, onTravelModeChange, onCampusLocationPress, onCollegeSelect }: Props) {
+export function ResultScreen({ result, showLocationPaths = true, onAskAnother, onRetry, onTravelModeChange, onCampusLocationPress, onCollegeSelect }: Props) {
   const isLocation = result.type === 'location';
+  const isRecovery = result.type === 'recovery';
   const { width, height } = useWindowDimensions();
   const isPortrait = height >= width;
 
@@ -77,10 +86,13 @@ export function ResultScreen({ result, onAskAnother, onTravelModeChange, onCampu
           <Text style={styles.answerBody}>{result.summary}</Text>
         </View>
 
+        {isRecovery && <RecoveryActions result={result} onRetry={onRetry} />}
+
         {isLocation && (
           <LocationBlock
             result={result as LocationResult}
             isPortrait={isPortrait}
+            showLocationPaths={showLocationPaths}
             onTravelModeChange={onTravelModeChange}
           />
         )}
@@ -89,12 +101,13 @@ export function ResultScreen({ result, onAskAnother, onTravelModeChange, onCampu
             resources={result.supportResources}
             query={result.query}
             resultTitle={result.title}
-            serviceId={result.serviceId}
+            serviceId={result.type === 'recovery' ? undefined : result.serviceId}
+            showLocationPaths={showLocationPaths}
             onCampusLocationPress={onCampusLocationPress}
             onCollegeSelect={onCollegeSelect}
           />
         )}
-        <ResultNextStep result={result} />
+        <ResultNextStep result={result} showLocationPaths={showLocationPaths} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -126,10 +139,12 @@ function geometryToCoordinates(
 function LocationBlock({
   result,
   isPortrait,
+  showLocationPaths,
   onTravelModeChange,
 }: {
   result: LocationResult;
   isPortrait: boolean;
+  showLocationPaths: boolean;
   onTravelModeChange: (mode: TravelMode) => Promise<boolean>;
 }) {
   const [travelMode, setTravelMode] = useState<TravelMode>('walk');
@@ -164,7 +179,7 @@ function LocationBlock({
           initialRegion={initialRegion}
           accessibilityLabel={`Map to ${result.placeName}`}
         >
-          {origin && (
+          {showLocationPaths && origin && (
             <Marker
               coordinate={origin}
               title="You"
@@ -174,7 +189,7 @@ function LocationBlock({
           {destination && (
             <Marker coordinate={destination} title={result.placeName} />
           )}
-          {routeCoords.length > 0 && (
+          {showLocationPaths && routeCoords.length > 0 && (
             <Polyline
               coordinates={routeCoords}
               strokeColor={colors.accent}
@@ -188,7 +203,7 @@ function LocationBlock({
         </View>
       </View>
 
-      <View style={styles.travelTimeCard}>
+      {showLocationPaths && <View style={styles.travelTimeCard}>
         <Text style={styles.travelTimeLabel}>Time to destination</Text>
         <Text style={styles.travelTimeValue}>
           {(result.travelMinutes ?? result.walkMinutes) > 0
@@ -217,14 +232,14 @@ function LocationBlock({
         {isChangingMode && (
           <Text style={styles.travelTimeNote}>Updating route…</Text>
         )}
-      </View>
+      </View>}
 
       <View style={styles.statsRow}>
         <StatBox label="fee" value={result.fee} />
         <StatBox label="hours" value={result.hours} />
       </View>
 
-      {result.steps && result.steps.length > 0 && (
+      {showLocationPaths && result.steps && result.steps.length > 0 && (
         <View style={styles.pathCard}>
           <TouchableOpacity
             accessibilityRole="button"
@@ -254,18 +269,37 @@ function LocationBlock({
   );
 }
 
-function ResultNextStep({ result }: { result: QueryResult }) {
+function RecoveryActions({ result, onRetry }: { result: RecoveryResult; onRetry: () => void }) {
+  return (
+    <View style={styles.recoveryCard} accessibilityLiveRegion="polite">
+      <Text style={styles.recoveryLabel}>Your question</Text>
+      <Text style={styles.recoveryQuestion}>{result.query}</Text>
+      <TouchableOpacity
+        style={styles.retryButton}
+        onPress={onRetry}
+        accessibilityRole="button"
+        accessibilityLabel="Try your question again"
+        accessibilityHint="Sends the same question again"
+      >
+        <Text style={styles.retryButtonText}>Try again</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function ResultNextStep({ result, showLocationPaths }: { result: QueryResult; showLocationPaths: boolean }) {
   const isLocation = result.type === 'location';
   const primaryLink = getBestNextStepLink(result);
-  const actionLabel = isLocation
+  const useDirections = isLocation && showLocationPaths;
+  const actionLabel = useDirections
     ? 'Open directions in Google Maps'
     : getActionLabel(result.query, result.title, primaryLink);
-  const prompt = isLocation
+  const prompt = useDirections
     ? `Ready to find ${result.placeName}?`
     : getNextStepPrompt(result.query, result.title, actionLabel);
 
   const handlePress = async () => {
-    if (isLocation) {
+    if (useDirections) {
       await openGoogleMapsDirections(result.placeName, result.placeSubtitle);
       return;
     }
@@ -282,7 +316,7 @@ function ResultNextStep({ result }: { result: QueryResult }) {
         onPress={() => void handlePress()}
         accessibilityRole="button"
         accessibilityLabel={actionLabel}
-        accessibilityHint={isLocation ? `Opens directions to ${result.placeName} in Google Maps or your default browser` : 'Opens the most relevant official resource for your question'}
+        accessibilityHint={useDirections ? `Opens directions to ${result.placeName} in Google Maps or your default browser` : 'Opens the most relevant official resource for your question'}
       >
         <Text style={styles.nextStepButtonText}>{actionLabel}</Text>
       </TouchableOpacity>
@@ -295,6 +329,7 @@ function SupportResourcesSection({
   query,
   resultTitle,
   serviceId,
+  showLocationPaths,
   onCampusLocationPress,
   onCollegeSelect,
 }: {
@@ -302,6 +337,7 @@ function SupportResourcesSection({
   query: string;
   resultTitle: string;
   serviceId?: string;
+  showLocationPaths: boolean;
   onCampusLocationPress: (serviceId: string, campusLocationName: string) => void;
   onCollegeSelect: (collegeId: string, serviceId: CollegeServiceId) => void;
 }) {
@@ -312,6 +348,7 @@ function SupportResourcesSection({
   const isCollegeService = (candidate?: string): candidate is CollegeServiceId =>
     Boolean(candidate) && COLLEGE_SERVICE_IDS.has(candidate as CollegeServiceId);
   const isUtsgLocation = (locationName: string) => /\b(?:st\.?\s*george|utsg)\b/i.test(locationName);
+  const usesInAppDirections = showLocationPaths && Boolean(serviceId) && IN_APP_DIRECTION_SERVICE_IDS.has(serviceId);
   const pickerBody = collegePickerService === 'financial-aid'
     ? "Choose your UTSG college to find its financial-aid and awards office."
     : collegePickerService === 'academic-success'
@@ -334,28 +371,38 @@ function SupportResourcesSection({
       )}
       {resources.campusLocations.map((location) => {
         const opensCollegePicker = isCollegeService(serviceId) && isUtsgLocation(location.name);
+        const actionLabel = opensCollegePicker
+          ? 'Choose your college'
+          : usesInAppDirections
+            ? 'Show in T-Care'
+            : 'Get directions in Google Maps';
         return (
-        <TouchableOpacity
+        <View
           key={location.name}
           style={styles.locationRow}
-          disabled={!serviceId}
-          onPress={() => {
-            if (!serviceId) return;
-            if (opensCollegePicker) {
-              setCollegePickerService(serviceId as CollegeServiceId);
-              return;
-            }
-            onCampusLocationPress(serviceId, location.name);
-          }}
-          accessibilityRole="button"
-          accessibilityLabel={opensCollegePicker ? `Choose a college for ${location.name}` : `Show ${location.name} on the map`}
-          accessibilityHint={opensCollegePicker ? 'Opens a list of UTSG colleges' : 'Opens this office as the map destination'}
         >
           <Text style={styles.locationName}>{location.name}</Text>
           <Text style={styles.locationAddress}>{location.location}</Text>
           <Text style={styles.locationDetail}>{location.detail}</Text>
-          {serviceId && <Text style={styles.locationAction}>{opensCollegePicker ? 'Choose your college' : 'Show on map'}</Text>}
-        </TouchableOpacity>
+          {showLocationPaths && <TouchableOpacity
+            onPress={() => {
+              if (opensCollegePicker) {
+                setCollegePickerService(serviceId as CollegeServiceId);
+                return;
+              }
+              if (usesInAppDirections && serviceId) {
+                onCampusLocationPress(serviceId, location.name);
+                return;
+              }
+              void openGoogleMapsDirections(location.name, location.location);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={opensCollegePicker ? `Choose a college for ${location.name}` : `${actionLabel} to ${location.name}`}
+            accessibilityHint={opensCollegePicker ? 'Opens a list of UTSG colleges' : usesInAppDirections ? 'Opens this office as the T-Care map destination' : 'Opens turn-by-turn directions in Google Maps'}
+          >
+            <Text style={styles.locationAction}>{actionLabel}</Text>
+          </TouchableOpacity>}
+        </View>
         );
       })}
 
@@ -579,6 +626,39 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textPrimary,
     textAlign: 'center',
+  },
+  recoveryCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+    padding: spacing.lg,
+  },
+  recoveryLabel: {
+    color: colors.textMuted,
+    fontSize: fontSize.sm,
+    fontWeight: '700',
+  },
+  recoveryQuestion: {
+    color: colors.textPrimary,
+    fontSize: fontSize.base,
+    lineHeight: 20,
+  },
+  retryButton: {
+    alignItems: 'center',
+    backgroundColor: colors.accent,
+    borderRadius: radius.md,
+    justifyContent: 'center',
+    marginTop: spacing.xs,
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+  },
+  retryButtonText: {
+    color: colors.accentOn,
+    fontSize: fontSize.base,
+    fontWeight: '700',
   },
   placeSubtitle: {
     fontSize: fontSize.sm,

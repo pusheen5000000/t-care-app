@@ -7,7 +7,7 @@ export type TabKey = 'ask' | 'resources' | 'tai' | 'contact';
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'ask', label: 'Ask' },
   { key: 'resources', label: 'Resources' },
-  { key: 'tai', label: 'T-AI' },
+  { key: 'tai', label: 'Follow-up' },
   { key: 'contact', label: 'Contact' },
 ];
 

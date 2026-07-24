@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { View, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
+import { Alert, View, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import * as Location from 'expo-location';
 import { AskScreen } from './screens/AskScreen';
 import { ResultScreen } from './screens/ResultScreen';
@@ -9,10 +9,19 @@ import { ResourcesScreen } from './screens/ResourcesScreen';
 import { TabBar, TabKey } from './components/TabBar';
 import { EmergencySupportSheet } from './components/EmergencySupportSheet';
 import { colors, fontSize } from './theme';
-import type { LocationResult, QueryResult, SupportResources, TravelMode } from './types';
+import type { LocationResult, QueryResult, RecoveryKind, SupportResources, TravelMode } from './types';
 
 const TCARD_QUERY = 'I lost my TCard, what do I do?';
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
+const RECOVERY_RESOURCES: SupportResources = {
+  title: 'Official U of T support',
+  intro: 'While T-Care reconnects, these official sites can help you find the next step.',
+  campusLocations: [],
+  links: [
+    { group: 'U of T resources', title: 'U of T Student Life', description: 'Find student services, support, and campus resources.', url: 'https://studentlife.utoronto.ca/' },
+    { group: 'U of T resources', title: 'University Registrar', description: 'Official information about registration, records, fees, and academic services.', url: 'https://www.registrar.utoronto.ca/' },
+  ],
+};
 const ACCESSIBILITY_SUPPORT_RESOURCES: SupportResources = {
   title: 'Accessibility support',
   intro: 'Find academic accommodations, assistive technology, and support that works for you. The map above routes to St. George Accessibility Services.',
@@ -226,20 +235,69 @@ const HEALTH_WELLNESS_FALLBACK: QueryResult = {
 type DeviceLocation = { lat: number; lng: number };
 
 async function getCurrentLocation(): Promise<DeviceLocation | undefined> {
+  const shouldUseLocation = await new Promise<boolean>((resolve) => {
+    Alert.alert(
+      'Use your location for directions?',
+      'T-Care uses your location only to estimate walking time and show directions. You can still view office details without it.',
+      [
+        { text: 'Not now', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Continue', onPress: () => resolve(true) },
+      ],
+      { cancelable: true, onDismiss: () => resolve(false) },
+    );
+  });
+  if (!shouldUseLocation) return undefined;
   const permission = await Location.requestForegroundPermissionsAsync();
   if (permission.status !== 'granted') return undefined;
 
-  const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-  return { lat: position.coords.latitude, lng: position.coords.longitude };
+  try {
+    const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+    return { lat: position.coords.latitude, lng: position.coords.longitude };
+  } catch {
+    throw new Error('LOCATION_UNAVAILABLE');
+  }
 }
 
-async function resolveQuery(query: string, location?: DeviceLocation): Promise<QueryResult> {
+function recoveryKindFor(error: unknown): RecoveryKind {
+  const message = error instanceof Error ? error.message.toLowerCase() : '';
+  if (message.includes('location') || message.includes('permission')) return 'location';
+  if (message.includes('network') || message.includes('fetch') || message.includes('timeout')) return 'connection';
+  return 'service';
+}
+
+function createRecoveryResult(query: string, error: unknown): QueryResult {
+  const recoveryKind = recoveryKindFor(error);
+  const message = recoveryKind === 'connection'
+    ? 'We saved your question, but T-Care could not connect. Check your internet connection, then try again.'
+    : recoveryKind === 'location'
+      ? 'We saved your question, but T-Care could not get your location. Check location access in your phone settings, then try again.'
+      : 'We saved your question, but T-Care is temporarily unavailable. Please try again in a moment.';
+
+  return {
+    type: 'recovery',
+    query,
+    title: recoveryKind === 'connection'
+      ? 'Connection issue'
+      : recoveryKind === 'location'
+        ? 'Location issue'
+        : 'Service issue',
+    summary: message,
+    recoveryKind,
+    supportResources: RECOVERY_RESOURCES,
+  };
+}
+
+async function resolveQuery(
+  query: string,
+  location?: DeviceLocation,
+  campus?: 'utsg' | 'utsc' | 'utm',
+): Promise<QueryResult> {
   if (!API_BASE_URL) throw new Error('Missing EXPO_PUBLIC_API_URL');
 
   const response = await fetch(`${API_BASE_URL}/api/query`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, location }),
+    body: JSON.stringify({ query, location, campus }),
   });
   if (!response.ok) throw new Error(`Query request failed (${response.status})`);
   return response.json() as Promise<QueryResult>;
@@ -261,6 +319,7 @@ export default function App() {
   const [resultSource, setResultSource] = useState<TabKey>('ask');
   const [loading, setLoading] = useState(false);
   const [emergencyVisible, setEmergencyVisible] = useState(false);
+  const [campus, setCampus] = useState<{ id: 'utsg' | 'utsc' | 'utm'; label: string } | null>(null);
   const requestId = useRef(0);
 
   const handleSubmit = async (query: string) => {
@@ -276,17 +335,12 @@ export default function App() {
     setLoading(true);
     try {
       const location = await getCurrentLocation();
-      const r = await resolveQuery(query, location);
+      const r = await resolveQuery(query, location, campus?.id);
       if (currentRequestId === requestId.current) setResult(r);
     } catch (err) {
       console.error(err);
       if (currentRequestId === requestId.current) {
-        setResult({
-          type: 'info',
-          query,
-          title: 'Something went wrong',
-          summary: 'Stub error.',
-        });
+        setResult(createRecoveryResult(query, err));
       }
     } finally {
       if (currentRequestId === requestId.current) setLoading(false);
@@ -296,6 +350,10 @@ export default function App() {
   const handleAskAnother = () => {
     setResult(null);
     setTab(resultSource);
+  };
+
+  const handleRetry = () => {
+    if (result?.type === 'recovery') void handleSubmit(result.query);
   };
 
   const loadMapDestination = async (
@@ -309,7 +367,9 @@ export default function App() {
     setResultSource(source);
     setLoading(true);
     try {
-      const location = await getCurrentLocation();
+      // Resource pages identify the selected campus office without requesting
+      // the student's position or calculating a route to it.
+      const location = source === 'resources' ? undefined : await getCurrentLocation();
       const apiUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
 
       if (!apiUrl) throw new Error('Missing EXPO_PUBLIC_API_URL');
@@ -317,7 +377,7 @@ export default function App() {
       const response = await fetch(`${apiUrl}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ location, query, serviceId }),
+        body: JSON.stringify({ location, query, serviceId, campus: campus?.id }),
       });
 
       if (!response.ok) throw new Error(`Map request failed (${response.status})`);
@@ -372,9 +432,9 @@ export default function App() {
     setResultSource('resources');
     setLoading(true);
     try {
-      // Deliberately omit device location here: the resource view should present
-      // every campus office so the student can choose the destination.
-      const response = await resolveQuery(query);
+      // Apply the Ask-page campus choice to every resource lookup so any
+      // campus-aware service resolves to that office as its destination.
+      const response = await resolveQuery(query, undefined, campus?.id);
       if (currentRequestId === requestId.current) setResult(response);
     } catch (error) {
       console.warn('Could not load campus resource locations:', error);
@@ -458,7 +518,9 @@ export default function App() {
       return (
         <ResultScreen
           result={result}
+          showLocationPaths={resultSource !== 'resources'}
           onAskAnother={handleAskAnother}
+          onRetry={handleRetry}
           onTravelModeChange={updateTravelRoute}
           onCampusLocationPress={handleCampusLocationPress}
           onCollegeSelect={(collegeId, serviceId) => handleCollegeSelect(collegeId, serviceId, resultSource)}
@@ -501,7 +563,9 @@ export default function App() {
       return (
         <ResultScreen
           result={result}
+          showLocationPaths={resultSource !== 'resources'}
           onAskAnother={handleAskAnother}
+          onRetry={handleRetry}
           onTravelModeChange={updateTravelRoute}
           onCampusLocationPress={handleCampusLocationPress}
           onCollegeSelect={(collegeId, serviceId) => handleCollegeSelect(collegeId, serviceId, resultSource)}
@@ -517,6 +581,8 @@ export default function App() {
         onAccessibilityPress={handleAccessibilityServices}
         onCollegeSelect={handleCollegeSelect}
         onEmergencySupportPress={() => setEmergencyVisible(true)}
+        campus={campus}
+        onCampusChange={setCampus}
       />
     );
   };
