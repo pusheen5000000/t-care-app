@@ -166,7 +166,10 @@ app.post('/api/query', async (req, res) => {
 
     // Known services should route whenever the student asks for directions,
     // even if the AI omits its optional destination field.
-    if (requestedDestination || (matched && asksForDirections)) {
+    // An AI-provided destination is useful only when the student explicitly
+    // asks to go somewhere. Never turn a broad request such as "I need help"
+    // into an arbitrary map result.
+    if (asksForDirections && (requestedDestination || matched)) {
       try {
         return res.json(
           await createMapResult({
@@ -194,7 +197,6 @@ app.post('/api/query', async (req, res) => {
         query,
         title: classification.title || "Here's what I found",
         summary: classification.summary,
-        supportResources: matched?.supportResources,
       });
     }
 

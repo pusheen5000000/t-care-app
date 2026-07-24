@@ -24,7 +24,10 @@ const STUDENT_LIFE_RESOURCES = [
   { id: 'safety', label: 'Campus safety', description: 'Find emergency contacts, safety planning, and escort services.', icon: 'SAFE', tone: 'safetyIcon' },
   { id: 'career', label: 'Career support', description: 'Book advising, explore careers, and find job-search support.', icon: 'CAR', tone: 'careerIcon' },
   { id: 'libraries-it', label: 'Libraries & IT', description: 'Access study spaces, research tools, Wi-Fi, and tech help.', icon: 'LIB', tone: 'librariesIcon' },
+  { id: 'learning-strategies', label: 'Study skills & learning support', description: 'Build study, writing, time-management, and exam-preparation strategies.', icon: 'STDY', tone: 'learningIcon' },
+  { id: 'indigenous-support', label: 'Indigenous student support', description: 'Connect with culturally relevant academic, wellness, financial, and community support.', icon: 'INDI', tone: 'indigenousIcon' },
   { id: 'food', label: 'Food & basic needs', description: 'Find food-bank support and other community resources.', icon: 'FOOD', tone: 'foodIcon' },
+  { id: 'tenant-rights', label: 'Tenant rights & legal help', description: 'Get guidance for off-campus housing concerns and tenant-rights questions.', icon: 'LAW', tone: 'legalIcon' },
   { id: 'sexual-violence', label: 'Sexual violence support', description: 'Access confidential, non-judgmental support and options.', icon: 'SV', tone: 'sexualViolenceIcon' },
 ] as const;
 
@@ -39,6 +42,9 @@ export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onS
   const popularResources = STUDENT_LIFE_RESOURCES.filter((resource) =>
     ['financial-aid', 'housing', 'food'].includes(resource.id),
   );
+  const browseResources = normalizedSearch
+    ? matchingResources
+    : STUDENT_LIFE_RESOURCES.filter((resource) => !popularResources.includes(resource));
 
   useEffect(() => {
     // On web, the viewport can settle one frame after this screen mounts. Keep
@@ -60,8 +66,10 @@ export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onS
       pointerEvents={isLayoutReady ? 'auto' : 'none'}
     >
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Resources</Text>
-        <Text style={styles.subtitle}>Find trusted U of T support for your wellbeing, studies, and student life.</Text>
+        <View style={styles.intro}>
+          <Text style={styles.title}>Resources</Text>
+          <Text style={styles.subtitle}>Find trusted U of T support for your wellbeing, studies, and student life.</Text>
+        </View>
 
         <TextInput
           style={styles.searchInput}
@@ -96,10 +104,10 @@ export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onS
             onPress={onAccessibilityPress}
             activeOpacity={0.75}
             accessibilityRole="button"
-            accessibilityLabel="Accessibility services"
+            accessibilityLabel="Accessibility Services"
             accessibilityHint="Opens accessibility service information"
           >
-            <View style={[styles.icon, styles.accessibilityIcon]}><Text style={styles.iconText}>A</Text></View>
+            <View style={[styles.icon, styles.accessibilityIcon]}><Text style={styles.iconText}>AS</Text></View>
             <View style={styles.cardCopy}>
               <Text style={styles.cardTitle}>Accessibility services</Text>
               <Text style={styles.cardDescription}>Learn about accommodations, assistive technology, and exams.</Text>
@@ -112,7 +120,7 @@ export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onS
             onPress={() => onStudentLifePress('registrar')}
             activeOpacity={0.75}
             accessibilityRole="button"
-            accessibilityLabel="Courses and academic support"
+            accessibilityLabel="Courses and Academic Support"
             accessibilityHint="Choose your college or campus to find its registrar"
           >
             <View style={[styles.icon, styles.academicsIcon]}><Text style={styles.iconText}>AC</Text></View>
@@ -149,8 +157,8 @@ export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onS
             </>
           )}
 
-          <Text style={styles.sectionTitle}>{normalizedSearch ? 'Matching services' : 'Browse all student services'}</Text>
-          {matchingResources.map((resource) => (
+          <Text style={styles.sectionTitle}>{normalizedSearch ? 'Matching services' : 'Browse more student services'}</Text>
+          {browseResources.map((resource) => (
             <TouchableOpacity
               key={resource.id}
               style={styles.card}
@@ -170,7 +178,7 @@ export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onS
               <Text style={styles.chevron}>›</Text>
             </TouchableOpacity>
           ))}
-          {matchingResources.length === 0 && (
+          {browseResources.length === 0 && (
             <View style={styles.emptyState} accessibilityRole="text">
               <Text style={styles.emptyTitle}>No matching services yet</Text>
               <Text style={styles.emptyText}>Try a broader term, or use Ask for help with a specific situation.</Text>
@@ -186,10 +194,11 @@ export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onS
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   pendingLayout: { opacity: 0 },
-  content: { padding: spacing.xl, gap: spacing.xl },
+  content: { paddingHorizontal: spacing.xl, paddingTop: spacing.xl, paddingBottom: spacing.xxl + spacing.lg },
+  intro: { gap: spacing.xs, marginBottom: spacing.xl },
   title: { color: colors.textPrimary, fontSize: fontSize.xl, fontWeight: '700' },
-  subtitle: { color: colors.textSecondary, fontSize: fontSize.base, lineHeight: 21, marginTop: -spacing.md },
-  searchInput: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, color: colors.textPrimary, fontSize: fontSize.base, minHeight: 48, paddingHorizontal: spacing.md },
+  subtitle: { color: colors.textSecondary, fontSize: fontSize.base, lineHeight: 21 },
+  searchInput: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, color: colors.textPrimary, fontSize: fontSize.base, marginBottom: spacing.xl, minHeight: 48, paddingHorizontal: spacing.md },
   list: { gap: spacing.md },
   card: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg, borderWidth: 1, flexDirection: 'row', gap: spacing.md, minHeight: 72, padding: spacing.md },
   icon: { alignItems: 'center', borderRadius: radius.md, height: 42, justifyContent: 'center', width: 42 },
@@ -203,7 +212,10 @@ const styles = StyleSheet.create({
   safetyIcon: { backgroundColor: colors.red },
   careerIcon: { backgroundColor: colors.yellow },
   librariesIcon: { backgroundColor: colors.darkTeal },
+  learningIcon: { backgroundColor: colors.sky },
+  indigenousIcon: { backgroundColor: colors.green },
   foodIcon: { backgroundColor: colors.green },
+  legalIcon: { backgroundColor: colors.purple },
   sexualViolenceIcon: { backgroundColor: colors.magenta },
   iconText: { color: colors.white, fontSize: fontSize.sm, fontWeight: '700' },
   iconTextDark: { color: colors.accentOn },

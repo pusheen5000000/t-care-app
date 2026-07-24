@@ -1,11 +1,11 @@
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { colors, spacing, fontSize, radius } from '../theme';
 
 export function ContactScreen() {
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-      <Text style={styles.eyebrow}>CONTACT</Text>
+    <SafeAreaView style={styles.root}>
+    <ScrollView contentContainerStyle={styles.content}>
       <Text style={styles.title}>Help us improve T-Care</Text>
       <Text style={styles.subtitle}>
         We&apos;re not collecting feedback in the app yet, so we won&apos;t ask for information we can&apos;t send or protect.
@@ -30,14 +30,14 @@ export function ContactScreen() {
         For urgent wellbeing, safety, or accessibility support, use the resources in T-Care instead of waiting for app feedback.
       </Text>
     </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.xl, paddingTop: spacing.xxl * 2, gap: spacing.md },
-  eyebrow: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '700', letterSpacing: 1 },
-  title: { color: colors.textPrimary, fontSize: fontSize.xl, fontWeight: '700', marginTop: spacing.xs },
+  content: { padding: spacing.xl, paddingBottom: spacing.xxl + spacing.lg, paddingTop: spacing.xxl, gap: spacing.md },
+  title: { color: colors.textPrimary, fontSize: fontSize.xl, fontWeight: '700' },
   subtitle: { color: colors.textSecondary, fontSize: fontSize.base, lineHeight: 21, marginBottom: spacing.md },
   notice: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg, borderWidth: 1, gap: spacing.sm, padding: spacing.lg },
   noticeTitle: { color: colors.textPrimary, fontSize: fontSize.md, fontWeight: '700' },

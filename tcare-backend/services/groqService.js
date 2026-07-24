@@ -18,22 +18,23 @@ const GROQ_MODEL = 'llama-3.3-70b-versatile';
  * @returns {Promise<{ serviceId: string|null, title: string, summary: string, destination?: string|null }>}
  */
 async function classifyQuery(query, services) {
-  if (/^(hi|hello|hey|good (morning|afternoon|evening))[!,.?\s]*$/i.test(query.trim())) {
+  const normalizedQuery = query.trim();
+  if (/^(?:hi|hello|hey|good (?:morning|afternoon|evening)|i need (?:some )?help|can you help(?: me)?|help me)[!,.?\s]*$/i.test(normalizedQuery)) {
     return {
       serviceId: null,
       title: 'Hi, how can I help?',
       summary:
-        'I can help with TCards, wellbeing, accessibility, academics, money, housing, international support, safety, careers, libraries, food, and sexual violence support. What do you need?',
+        'Tell me what you need help with. I can connect you with a U of T resource for TCards, wellbeing, accessibility, academics, money, housing, international support, safety, careers, libraries, food, or sexual violence support.',
     };
   }
 
-  const normalizedQuery = query.toLowerCase();
+  const queryForMatching = normalizedQuery.toLowerCase();
   const keywordAppearsInQuery = (keyword) => {
     const escapedKeyword = keyword
       .trim()
       .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
       .replace(/\s+/g, '\\s+');
-    return new RegExp(`(^|\\W)${escapedKeyword}(?=$|\\W)`, 'i').test(normalizedQuery);
+    return new RegExp(`(^|\\W)${escapedKeyword}(?=$|\\W)`, 'i').test(queryForMatching);
   };
   const keywordMatch = services
     .map((service) => ({

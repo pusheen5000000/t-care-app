@@ -86,8 +86,8 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <Text style={styles.greeting}>What can we help with?</Text>
-          <Text style={styles.subtitle}>Ask in your own words. We’ll point you to the right next step.</Text>
+          <Text style={styles.greeting}>How can we help?</Text>
+          <Text style={styles.subtitle}>Ask a question. We’ll find the next step.</Text>
 
           <View style={styles.askPanel}>
             <TextInput
@@ -114,7 +114,7 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.popularHeading}>Popular questions</Text>
+          <Text style={styles.popularHeading}>Try one of these</Text>
           <View style={styles.chipList}>
             {SUGGESTIONS.map((suggestion) => (
               <TouchableOpacity key={suggestion.label} style={styles.chip} onPress={() => askSuggestion(suggestion)} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={suggestion.label}>
@@ -124,17 +124,16 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
             ))}
           </View>
 
-          <TouchableOpacity style={styles.campusRow} onPress={() => setCampusPickerVisible(true)} accessibilityRole="button" accessibilityLabel={campus ? `Campus preference: ${campus.label}` : 'Set a campus preference'} accessibilityHint="Optional. Saved for more relevant results.">
-            <View style={styles.campusCopy}>
-              <Text style={styles.campusTitle}>Campus preference</Text>
-              <Text style={styles.campusValue}>{campus ? `${campus.label} · Change` : 'Optional · Set for more relevant results'}</Text>
-            </View>
-            <Text style={styles.campusChevron} accessibilityElementsHidden>›</Text>
-          </TouchableOpacity>
-
           <View style={styles.supportSection}>
+            <TouchableOpacity style={styles.campusRow} onPress={() => setCampusPickerVisible(true)} accessibilityRole="button" accessibilityLabel={campus ? `Campus preference: ${campus.label}` : 'Set a campus preference'} accessibilityHint="Optional. Saved for more relevant results.">
+              <View style={styles.campusCopy}>
+                <Text style={styles.campusTitle}>Campus</Text>
+                <Text style={styles.campusValue}>{campus ? campus.label : 'Set a preference'}</Text>
+              </View>
+              <Text style={styles.campusChevron} accessibilityElementsHidden>›</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.wellbeingToggle} onPress={() => setMoodOptionsVisible((visible) => !visible)} accessibilityRole="button" accessibilityLabel="Wellbeing support" accessibilityState={{ expanded: moodOptionsVisible }}>
-              <View><Text style={styles.wellbeingToggleText}>Need wellbeing support?</Text><Text style={styles.wellbeingHint}>A private check-in, separate from your question.</Text></View>
+              <View><Text style={styles.wellbeingToggleText}>Wellbeing support</Text><Text style={styles.wellbeingHint}>Private and separate from your question.</Text></View>
               <Text style={styles.campusChevron} accessibilityElementsHidden>{moodOptionsVisible ? '⌃' : '⌄'}</Text>
             </TouchableOpacity>
             {moodOptionsVisible && <>
@@ -178,10 +177,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background }, flex: { flex: 1 }, pendingLayout: { opacity: 0 },
   header: { alignItems: 'center', borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.xl, paddingVertical: spacing.md },
   logoBox: { alignItems: 'center', backgroundColor: colors.accent, borderRadius: radius.md, height: 32, justifyContent: 'center', width: 32 }, logoText: { color: colors.accentOn, fontSize: fontSize.base, fontWeight: '700' }, headerTitle: { color: colors.textPrimary, fontSize: fontSize.md, fontWeight: '700' },
-  scrollContent: { padding: spacing.xl, paddingBottom: spacing.xxl }, greeting: { color: colors.textPrimary, fontSize: fontSize.xl, fontWeight: '700', marginBottom: spacing.xs }, subtitle: { color: colors.textSecondary, fontSize: fontSize.base, lineHeight: 20, marginBottom: spacing.lg },
-  askPanel: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.xl, borderWidth: 1, gap: spacing.md, marginBottom: spacing.xxl, padding: spacing.md }, input: { color: colors.textPrimary, fontSize: fontSize.base, lineHeight: 20, minHeight: 74, textAlignVertical: 'top' }, askButton: { alignItems: 'center', backgroundColor: colors.accent, borderRadius: radius.md, justifyContent: 'center', minHeight: 48, paddingHorizontal: spacing.lg }, askButtonDisabled: { backgroundColor: colors.border }, askButtonText: { color: colors.accentOn, fontSize: fontSize.base, fontWeight: '700' },
-  popularHeading: { color: colors.textPrimary, fontSize: fontSize.md, fontWeight: '700', marginBottom: spacing.sm }, chipList: { gap: spacing.sm }, chip: { alignItems: 'center', backgroundColor: colors.surfaceMuted, borderColor: colors.border, borderRadius: radius.lg, borderWidth: 1, flexDirection: 'row', justifyContent: 'space-between', minHeight: 48, paddingHorizontal: spacing.lg }, chipText: { color: colors.textPrimary, flex: 1, fontSize: fontSize.base, fontWeight: '600' }, chipChevron: { color: colors.accent, fontSize: 24, marginLeft: spacing.md },
-  campusRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.xxl, minHeight: 48 }, campusCopy: { flex: 1 }, campusTitle: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '600' }, campusValue: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 18, marginTop: 2 }, campusChevron: { color: colors.accent, fontSize: 24, marginLeft: spacing.md },
-  supportSection: { borderTopColor: colors.border, borderTopWidth: 1, marginTop: spacing.lg, paddingTop: spacing.md }, wellbeingToggle: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', minHeight: 52 }, wellbeingToggleText: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '700' }, wellbeingHint: { color: colors.textSecondary, fontSize: fontSize.sm, marginTop: 2 }, moodRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }, moodButton: { alignItems: 'center', backgroundColor: colors.surfaceMuted, borderColor: colors.border, borderRadius: radius.lg, borderWidth: 1, flex: 1, gap: spacing.xs, minHeight: 76, justifyContent: 'center', paddingVertical: spacing.sm }, moodButtonActive: { backgroundColor: colors.surface, borderColor: colors.accent }, moodEmoji: { fontSize: 24 }, moodLabel: { color: colors.textSecondary, fontSize: fontSize.sm, fontWeight: '600' }, moodLabelActive: { color: colors.textPrimary }, talkSupportButton: { alignItems: 'center', borderColor: colors.purple, borderRadius: radius.md, borderWidth: 1, justifyContent: 'center', marginTop: spacing.sm, minHeight: 48 }, talkSupportText: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '700' },
+  scrollContent: { padding: spacing.xl, paddingBottom: spacing.xxl }, greeting: { color: colors.textPrimary, fontSize: fontSize.xl, fontWeight: '700', marginBottom: spacing.xs }, subtitle: { color: colors.textSecondary, fontSize: fontSize.base, lineHeight: 20, marginBottom: spacing.xl },
+  askPanel: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.xl, borderWidth: 1, gap: spacing.sm, marginBottom: spacing.xxl, padding: spacing.md }, input: { color: colors.textPrimary, fontSize: fontSize.base, lineHeight: 20, minHeight: 64, textAlignVertical: 'top' }, askButton: { alignItems: 'center', backgroundColor: colors.accent, borderRadius: radius.md, justifyContent: 'center', minHeight: 48, paddingHorizontal: spacing.lg }, askButtonDisabled: { backgroundColor: colors.border }, askButtonText: { color: colors.accentOn, fontSize: fontSize.base, fontWeight: '700' },
+  popularHeading: { color: colors.textSecondary, fontSize: fontSize.sm, fontWeight: '700', marginBottom: spacing.sm }, chipList: { gap: 0 }, chip: { alignItems: 'center', borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: 'row', justifyContent: 'space-between', minHeight: 52 }, chipText: { color: colors.textPrimary, flex: 1, fontSize: fontSize.base, fontWeight: '600' }, chipChevron: { color: colors.accent, fontSize: 24, marginLeft: spacing.md },
+  campusRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', minHeight: 60 }, campusCopy: { flex: 1 }, campusTitle: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '600' }, campusValue: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 18, marginTop: 2 }, campusChevron: { color: colors.accent, fontSize: 24, marginLeft: spacing.md },
+  supportSection: { borderTopColor: colors.border, borderTopWidth: 1, marginTop: spacing.xxl }, wellbeingToggle: { alignItems: 'center', borderTopColor: colors.border, borderTopWidth: 1, flexDirection: 'row', justifyContent: 'space-between', minHeight: 60 }, wellbeingToggleText: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '600' }, wellbeingHint: { color: colors.textSecondary, fontSize: fontSize.sm, marginTop: 2 }, moodRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }, moodButton: { alignItems: 'center', backgroundColor: colors.surfaceMuted, borderColor: colors.border, borderRadius: radius.lg, borderWidth: 1, flex: 1, gap: spacing.xs, minHeight: 76, justifyContent: 'center', paddingVertical: spacing.sm }, moodButtonActive: { backgroundColor: colors.surface, borderColor: colors.accent }, moodEmoji: { fontSize: 24 }, moodLabel: { color: colors.textSecondary, fontSize: fontSize.sm, fontWeight: '600' }, moodLabelActive: { color: colors.textPrimary }, talkSupportButton: { alignItems: 'center', borderColor: colors.purple, borderRadius: radius.md, borderWidth: 1, justifyContent: 'center', marginTop: spacing.sm, minHeight: 48 }, talkSupportText: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '700' },
   modalBackdrop: { backgroundColor: 'rgba(0,0,0,0.58)', flex: 1, justifyContent: 'flex-end' }, modalCard: { backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.xl }, modalTitle: { color: colors.textPrimary, fontSize: fontSize.lg, fontWeight: '700' }, modalBody: { color: colors.textSecondary, fontSize: fontSize.base, lineHeight: 20, marginBottom: spacing.lg, marginTop: spacing.xs }, campusOption: { alignItems: 'center', borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm, minHeight: 52, paddingHorizontal: spacing.md }, campusOptionSelected: { borderColor: colors.accent }, collegeOptionText: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '600' }, selectedMark: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '700' }, skipCampusButton: { alignItems: 'center', justifyContent: 'center', minHeight: 44, marginTop: spacing.xs }, skipCampusText: { color: colors.accent, fontSize: fontSize.base, fontWeight: '700' },
 });

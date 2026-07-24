@@ -174,6 +174,7 @@ function geometryToCoordinates(polyline: Route['polyline']): Coordinate[] {
 function RouteCard({ route, onMapReady }: { route: Route; onMapReady?: () => void }) {
   const coordinates = geometryToCoordinates(route.polyline);
   const [directionsVisible, setDirectionsVisible] = useState(false);
+  const [isMapReady, setIsMapReady] = useState(false);
   const mapRef = useRef<MapView>(null);
   const region = route.destination && {
     latitude: route.destination.latitude,
@@ -184,23 +185,32 @@ function RouteCard({ route, onMapReady }: { route: Route; onMapReady?: () => voi
 
   if (!region) return null;
 
-  const fitRoute = () => {
+  const fitRoute = (animated = false) => {
     const points = coordinates.length > 0
       ? coordinates
       : [route.origin, route.destination].filter(Boolean) as Coordinate[];
 
     if (points.length > 1) {
       mapRef.current?.fitToCoordinates(points, {
-        animated: false,
+        animated,
         edgePadding: { top: 36, right: 36, bottom: 36, left: 36 },
       });
     }
     onMapReady?.();
   };
 
+  useEffect(() => {
+    if (isMapReady) fitRoute(true);
+  }, [isMapReady, route.destination, route.origin, route.polyline]);
+
   return (
     <View style={styles.routeCard}>
-      <MapView ref={mapRef} style={styles.routeMap} initialRegion={region} onMapReady={fitRoute}>
+      <MapView
+        ref={mapRef}
+        style={styles.routeMap}
+        initialRegion={region}
+        onMapReady={() => setIsMapReady(true)}
+      >
         {route.origin && <Marker coordinate={route.origin} title="You" pinColor={colors.accent} />}
         <Marker coordinate={route.destination} title={route.placeName} />
         {coordinates.length > 0 && <Polyline coordinates={coordinates} strokeColor={colors.accent} strokeWidth={4} />}

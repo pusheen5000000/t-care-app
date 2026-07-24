@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -151,6 +151,8 @@ function LocationBlock({
   const [routeError, setRouteError] = useState<string | null>(null);
   const [isLoadingRoute, setIsLoadingRoute] = useState(false);
   const [isWalkingPathExpanded, setIsWalkingPathExpanded] = useState(false);
+  const mapRef = useRef<MapView>(null);
+  const [isMapReady, setIsMapReady] = useState(false);
   const selectTravelMode = async (mode: TravelMode, force = false) => {
     if ((!force && mode === travelMode) || isChangingMode) return;
 
@@ -189,12 +191,23 @@ function LocationBlock({
       }
     : undefined;
 
+  useEffect(() => {
+    if (!isMapReady || !hasRoute || !origin || !destination) return;
+
+    mapRef.current?.fitToCoordinates([origin, ...routeCoords, destination], {
+      animated: true,
+      edgePadding: { top: 48, right: 36, bottom: 48, left: 36 },
+    });
+  }, [destination, hasRoute, isMapReady, origin, result.polyline]);
+
   return (
     <>
       <View style={styles.mapCard}>
         <MapView
+          ref={mapRef}
           style={[styles.map, isPortrait && styles.mapPortrait]}
           initialRegion={initialRegion}
+          onMapReady={() => setIsMapReady(true)}
           accessibilityLabel={`Map to ${result.placeName}`}
         >
           {hasRoute && origin && (
@@ -268,7 +281,7 @@ function LocationBlock({
         )}
         {routeError && <>
           <Text style={styles.routeError} accessibilityLiveRegion="polite">{routeError}</Text>
-          <TouchableOpacity onPress={() => void selectTravelMode(travelMode, true)} accessibilityRole="button" accessibilityLabel="Retry route update"><Text style={styles.retryRouteText}>Retry</Text></TouchableOpacity>
+          <TouchableOpacity style={styles.retryRouteButton} onPress={() => void selectTravelMode(travelMode, true)} accessibilityRole="button" accessibilityLabel="Retry route update"><Text style={styles.retryRouteText}>Retry</Text></TouchableOpacity>
         </>}
       </View>}
 
@@ -427,6 +440,7 @@ function SupportResourcesSection({
           <Text style={styles.locationAddress}>{location.location}</Text>
           <Text style={styles.locationDetail}>{location.detail}</Text>
           {serviceId && <TouchableOpacity
+            style={styles.locationActionButton}
             onPress={() => {
               if (opensCollegePicker) {
                 setCollegePickerService(serviceId as CollegeServiceId);
@@ -629,7 +643,6 @@ const styles = StyleSheet.create({
     borderColor: colors.accent,
     padding: spacing.lg,
     marginBottom: spacing.lg,
-    alignItems: 'center',
     borderRadius: radius.lg,
   },
   answerTitle: {
@@ -637,13 +650,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.infoText,
     marginBottom: spacing.xs,
-    textAlign: 'center',
   },
   answerBody: {
     fontSize: fontSize.base,
     color: colors.infoText,
     lineHeight: 20,
-    textAlign: 'center',
   },
   mapCard: {
     backgroundColor: colors.surface,
@@ -803,7 +814,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   routeError: { color: colors.danger, fontSize: fontSize.sm, lineHeight: 18, marginTop: spacing.sm, textAlign: 'center' },
-  retryRouteText: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '700', marginTop: spacing.sm, textAlign: 'center' },
+  retryRouteButton: { alignSelf: 'center', justifyContent: 'center', minHeight: 44, paddingHorizontal: spacing.md },
+  retryRouteText: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '700', textAlign: 'center' },
   pathCard: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
@@ -886,7 +898,8 @@ const styles = StyleSheet.create({
   locationName: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '700' },
   locationAddress: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '600', lineHeight: 18 },
   locationDetail: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 18 },
-  locationAction: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '700', marginTop: spacing.xs },
+  locationActionButton: { alignSelf: 'flex-start', justifyContent: 'center', marginTop: spacing.xs, minHeight: 24, paddingRight: spacing.md },
+  locationAction: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '700' },
   linkGroup: { gap: spacing.sm, marginTop: spacing.sm },
   resourceLink: {
     alignItems: 'center',
@@ -905,7 +918,7 @@ const styles = StyleSheet.create({
   resourceLinkAction: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '700', marginTop: spacing.xs },
   resourceLinkArrow: { color: colors.accent, fontSize: fontSize.lg, fontWeight: '700' },
   modalBackdrop: { backgroundColor: 'rgba(0, 0, 0, 0.45)', flex: 1, justifyContent: 'center', padding: spacing.xl },
-  modalCard: { backgroundColor: colors.surface, borderRadius: radius.lg, gap: spacing.sm, maxHeight: '82%', padding: spacing.lg },
+  modalCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg, borderWidth: 1, gap: spacing.sm, maxHeight: '82%', padding: spacing.lg },
   modalTitle: { color: colors.textPrimary, fontSize: fontSize.lg, fontWeight: '700' },
   modalBody: { color: colors.textSecondary, fontSize: fontSize.base, lineHeight: 20, marginBottom: spacing.xs },
   options: { flexGrow: 0 },

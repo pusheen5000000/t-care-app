@@ -178,9 +178,13 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
   },
   closeButton: {
+    alignItems: 'center',
+    height: 44,
+    justifyContent: 'center',
     position: 'absolute',
     top: spacing.md,
     right: spacing.md,
+    width: 44,
     zIndex: 1,
   },
   closeButtonText: {
@@ -217,11 +221,13 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   answerButton: {
+    justifyContent: 'center',
     flex: 1,
     borderWidth: 1,
     paddingVertical: spacing.md,
     alignItems: 'center',
     borderRadius: radius.lg,
+    minHeight: 48,
   },
   answerYes: {
     backgroundColor: colors.danger,
@@ -244,7 +250,7 @@ const styles = StyleSheet.create({
   resourceCard: {
     backgroundColor: colors.infoBg,
     borderWidth: 1,
-    borderColor: colors.danger,
+    borderColor: colors.border,
     padding: spacing.md,
     marginBottom: spacing.sm,
     borderRadius: radius.lg,
@@ -292,6 +298,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: spacing.sm,
     borderRadius: radius.lg,
+    minHeight: 48,
+    justifyContent: 'center',
   },
   primaryButtonText: {
     color: colors.accentOn,

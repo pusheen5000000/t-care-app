@@ -15,6 +15,7 @@ import type { LocationResult, QueryResult, RecoveryKind, SupportResources, Trave
 const TCARD_QUERY = 'I lost my TCard, what do I do?';
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
 const CAMPUS_PREFERENCE_KEY = '@tcare/campus-preference';
+const REQUEST_TIMEOUT_MS = 15_000;
 const RECOVERY_RESOURCES: SupportResources = {
   title: 'Official U of T support',
   intro: 'While T-Care reconnects, these official sites can help you find the next step.',
@@ -107,12 +108,38 @@ const STUDENT_LIFE_RESOURCES: Record<string, QueryResult> = {
       { group: 'U of T resources', title: 'Libraries & hours', description: 'Find an open U of T library, current hours, and available study spaces.', url: 'https://library.utoronto.ca/libraries' },
     ] },
   },
+  'learning-strategies': {
+    type: 'info', query: 'Study skills and learning support', title: 'Study skills & learning support',
+    summary: 'Build practical strategies for studying, writing, time management, exam preparation, and navigating academic challenges.',
+    supportResources: { campusLocations: [], links: [
+      { group: 'U of T resources', title: 'Learning strategist appointments', description: 'Book one-on-one support for study habits, exam preparation, academic stress, and assignment planning.', url: 'https://studentlife.utoronto.ca/service/learning-strategist-appointments/' },
+      { group: 'U of T resources', title: 'Centre for Learning Strategy Support', description: 'Explore academic-skills workshops, peer mentoring, and learning resources.', url: 'https://studentlife.utoronto.ca/department/centre-for-learning-strategy-support/' },
+      { group: 'U of T resources', title: 'Writing support', description: 'Find writing centres, programs, and resources for writing effectively at U of T.', url: 'https://studentlife.utoronto.ca/task/write-effectively/' },
+    ] },
+  },
+  'indigenous-support': {
+    type: 'info', query: 'Indigenous student support', title: 'Indigenous student support',
+    summary: 'Find culturally relevant academic, wellness, financial, career, and community support for Indigenous students.',
+    supportResources: { campusLocations: [], links: [
+      { group: 'U of T resources', title: 'First Nations House', description: 'Connect with Indigenous Student Services for academic support, financial planning, wellness, and cultural programs.', url: 'https://studentlife.utoronto.ca/department/first-nations-house/' },
+      { group: 'U of T resources', title: 'Indigenous learning strategist support', description: 'Meet one-to-one with an Indigenous learning strategist to build study plans and learning strategies.', url: 'https://studentlife.utoronto.ca/service/indigenous-learning-strategist-support/' },
+      { group: 'U of T resources', title: 'Indigenous Gateway', description: 'Explore current-student services, programs, and Indigenous community resources across all three campuses.', url: 'https://indigenous.utoronto.ca/students/current-students/' },
+    ] },
+  },
   food: {
     type: 'info', query: 'Food and basic needs', title: 'Food & basic needs',
     summary: 'Connect with food-bank support and basic-needs resources. Services and eligibility may vary by campus.',
     supportResources: { campusLocations: [], links: [
       { group: 'U of T resources', title: 'UTSU Food Bank', description: 'Free, year-round food-bank support for U of T students, including students with families.', url: 'https://www.utsu.ca/food-bank/' },
       { group: 'U of T resources', title: 'UTSU food programming', description: 'Explore food-bank support and other student food programs.', url: 'https://www.utsu.ca/food-programming/' },
+    ] },
+  },
+  'tenant-rights': {
+    type: 'info', query: 'Tenant rights and legal help', title: 'Tenant rights & legal help',
+    summary: 'Get guidance for off-campus housing concerns, including tenant rights, landlord issues, and referrals for legal support.',
+    supportResources: { campusLocations: [], links: [
+      { group: 'U of T resources', title: 'Tenant rights', description: 'Learn about tenant rights, off-campus housing support, and where to get legal advice.', url: 'https://studentlife.utoronto.ca/task/tenant-rights/' },
+      { group: 'U of T resources', title: 'Tenancy issues', description: 'Find support for concerns with landlords, negotiating, and housing-related dispute resolution.', url: 'https://studentlife.utoronto.ca/task/tenancy-issues/' },
     ] },
   },
   'sexual-violence': {
@@ -133,7 +160,10 @@ const STUDENT_LIFE_RESOURCE_QUERIES: Record<string, string> = {
   safety: 'Where is Campus Safety?',
   career: 'Where is the career support adviser?',
   'libraries-it': 'Where is student IT support?',
+  'learning-strategies': 'Where can I get help with studying and academic skills?',
+  'indigenous-support': 'Where can Indigenous students get support?',
   food: 'Where is food and basic needs support?',
+  'tenant-rights': 'Where can I get help with tenant rights and legal housing concerns?',
   'sexual-violence': 'Where is sexual violence support?',
 };
 const TCARD_OFFICE_FALLBACK: QueryResult = {
@@ -236,6 +266,56 @@ const HEALTH_WELLNESS_FALLBACK: QueryResult = {
 
 type DeviceLocation = { lat: number; lng: number };
 
+class RequestError extends Error {
+  constructor(
+    public readonly kind: 'configuration' | 'connection' | 'rate-limit' | 'service' | 'invalid-response',
+    message: string,
+  ) {
+    super(message);
+    this.name = 'RequestError';
+  }
+}
+
+async function postJson<T>(url: string, body: object): Promise<T> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    if (response.status === 429) {
+      throw new RequestError('rate-limit', 'Too many requests');
+    }
+    if (!response.ok) {
+      throw new RequestError(response.status === 408 ? 'connection' : 'service', `Request failed (${response.status})`);
+    }
+
+    try {
+      const payload: unknown = await response.json();
+      if (!payload || typeof payload !== 'object') {
+        throw new RequestError('invalid-response', 'The service returned an empty response');
+      }
+      return payload as T;
+    } catch (error) {
+      if (error instanceof RequestError) throw error;
+      throw new RequestError('invalid-response', 'The service returned an unreadable response');
+    }
+  } catch (error) {
+    if (error instanceof RequestError) throw error;
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new RequestError('connection', 'Request timed out');
+    }
+    throw new RequestError('connection', 'Network request failed');
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function getCurrentLocation(): Promise<DeviceLocation | undefined> {
   const shouldUseLocation = await new Promise<boolean>((resolve) => {
     Alert.alert(
@@ -261,6 +341,7 @@ async function getCurrentLocation(): Promise<DeviceLocation | undefined> {
 }
 
 function recoveryKindFor(error: unknown): RecoveryKind {
+  if (error instanceof RequestError && error.kind === 'connection') return 'connection';
   const message = error instanceof Error ? error.message.toLowerCase() : '';
   if (message.includes('location') || message.includes('permission')) return 'location';
   if (message.includes('network') || message.includes('fetch') || message.includes('timeout')) return 'connection';
@@ -269,7 +350,14 @@ function recoveryKindFor(error: unknown): RecoveryKind {
 
 function createRecoveryResult(query: string, error: unknown): QueryResult {
   const recoveryKind = recoveryKindFor(error);
-  const message = recoveryKind === 'connection'
+  const requestKind = error instanceof RequestError ? error.kind : undefined;
+  const message = requestKind === 'configuration'
+    ? 'T-Care is not configured to answer questions right now. Please use the official U of T links below.'
+    : requestKind === 'rate-limit'
+      ? 'T-Care is receiving a lot of requests. Please wait a moment, then try your question again.'
+      : requestKind === 'invalid-response'
+        ? 'T-Care received an incomplete answer. Please try your question again.'
+        : recoveryKind === 'connection'
     ? 'We saved your question, but T-Care could not connect. Check your internet connection, then try again.'
     : recoveryKind === 'location'
       ? 'We saved your question, but T-Care could not get your location. Check location access in your phone settings, then try again.'
@@ -278,7 +366,13 @@ function createRecoveryResult(query: string, error: unknown): QueryResult {
   return {
     type: 'recovery',
     query,
-    title: recoveryKind === 'connection'
+    title: requestKind === 'rate-limit'
+      ? 'Please try again shortly'
+      : requestKind === 'configuration'
+        ? 'T-Care is unavailable'
+        : requestKind === 'invalid-response'
+          ? 'Incomplete response'
+          : recoveryKind === 'connection'
       ? 'Connection issue'
       : recoveryKind === 'location'
         ? 'Location issue'
@@ -294,15 +388,13 @@ async function resolveQuery(
   location?: DeviceLocation,
   campus?: 'utsg' | 'utsc' | 'utm',
 ): Promise<QueryResult> {
-  if (!API_BASE_URL) throw new Error('Missing EXPO_PUBLIC_API_URL');
+  if (!API_BASE_URL) throw new RequestError('configuration', 'Missing EXPO_PUBLIC_API_URL');
 
-  const response = await fetch(`${API_BASE_URL}/api/query`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, location, campus }),
-  });
-  if (!response.ok) throw new Error(`Query request failed (${response.status})`);
-  return response.json() as Promise<QueryResult>;
+  const result = await postJson<unknown>(`${API_BASE_URL}/api/query`, { query, location, campus });
+  if (!result || typeof result !== 'object' || !('type' in result) || !['info', 'location', 'recovery'].includes(String(result.type))) {
+    throw new RequestError('invalid-response', 'The service returned an incomplete answer');
+  }
+  return result as QueryResult;
 
   /*
   await new Promise((r) => setTimeout(r, 700));

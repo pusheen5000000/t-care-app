@@ -101,6 +101,14 @@ test('location-style questions match the intended campus service without an AI r
   }
 });
 
+test('broad help requests wait for the student to name a resource category', async () => {
+  for (const query of ['I need some help', 'Can you help me?', 'Help me']) {
+    const result = await classifyQuery(query, services);
+    assert.equal(result.serviceId, null, `${query} should not select a service`);
+    assert.equal(result.destination, undefined, `${query} should not select a destination`);
+  }
+});
+
 test('food support routes UTSC and UTM students to their campus food centres', () => {
   const foodSupport = services.find((service) => service.id === 'food-basic-needs');
   const locations = foodSupport.supportResources.campusLocations;
