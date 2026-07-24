@@ -18,6 +18,7 @@ import { openGoogleMapsDirections } from '../utils/googleMaps';
 
 type Props = {
   result: QueryResult;
+  showMap?: boolean;
   showLocationPaths?: boolean;
   onAskAnother: () => void;
   onRetry: () => void;
@@ -31,12 +32,6 @@ type CollegeServiceId = 'academic-success' | 'financial-aid' | 'registrar-enrolm
 const COLLEGE_SERVICE_IDS = new Set<CollegeServiceId>([
   'academic-success',
   'financial-aid',
-  'registrar-enrolment',
-]);
-
-const IN_APP_DIRECTION_SERVICE_IDS = new Set([
-  'health-wellness',
-  'accessibility-services',
   'registrar-enrolment',
 ]);
 
@@ -57,7 +52,7 @@ const TRAVEL_MODES: { key: TravelMode; label: string }[] = [
   { key: 'transit', label: 'Transit' },
 ];
 
-export function ResultScreen({ result, showLocationPaths = true, onAskAnother, onRetry, onTravelModeChange, onCampusLocationPress, onCollegeSelect }: Props) {
+export function ResultScreen({ result, showMap = true, showLocationPaths = true, onAskAnother, onRetry, onTravelModeChange, onCampusLocationPress, onCollegeSelect }: Props) {
   const isLocation = result.type === 'location';
   const isRecovery = result.type === 'recovery';
   const { width, height } = useWindowDimensions();
@@ -88,7 +83,7 @@ export function ResultScreen({ result, showLocationPaths = true, onAskAnother, o
 
         {isRecovery && <RecoveryActions result={result} onRetry={onRetry} />}
 
-        {isLocation && (
+        {isLocation && showMap && (
           <LocationBlock
             result={result as LocationResult}
             isPortrait={isPortrait}
@@ -161,6 +156,7 @@ function LocationBlock({
   const routeCoords = geometryToCoordinates(result.polyline);
   const origin = result.origin;
   const destination = result.destination;
+  const hasRoute = showLocationPaths && Boolean(origin && destination && routeCoords.length > 0);
 
   const initialRegion = destination
     ? {
@@ -179,7 +175,7 @@ function LocationBlock({
           initialRegion={initialRegion}
           accessibilityLabel={`Map to ${result.placeName}`}
         >
-          {showLocationPaths && origin && (
+          {hasRoute && origin && (
             <Marker
               coordinate={origin}
               title="You"
@@ -189,7 +185,7 @@ function LocationBlock({
           {destination && (
             <Marker coordinate={destination} title={result.placeName} />
           )}
-          {showLocationPaths && routeCoords.length > 0 && (
+          {hasRoute && routeCoords.length > 0 && (
             <Polyline
               coordinates={routeCoords}
               strokeColor={colors.accent}
@@ -203,7 +199,7 @@ function LocationBlock({
         </View>
       </View>
 
-      {showLocationPaths && <View style={styles.travelTimeCard}>
+      {hasRoute && <View style={styles.travelTimeCard}>
         <Text style={styles.travelTimeLabel}>Time to destination</Text>
         <Text style={styles.travelTimeValue}>
           {(result.travelMinutes ?? result.walkMinutes) > 0
@@ -239,7 +235,7 @@ function LocationBlock({
         <StatBox label="hours" value={result.hours} />
       </View>
 
-      {showLocationPaths && result.steps && result.steps.length > 0 && (
+      {hasRoute && result.steps && result.steps.length > 0 && (
         <View style={styles.pathCard}>
           <TouchableOpacity
             accessibilityRole="button"
@@ -290,7 +286,10 @@ function RecoveryActions({ result, onRetry }: { result: RecoveryResult; onRetry:
 function ResultNextStep({ result, showLocationPaths }: { result: QueryResult; showLocationPaths: boolean }) {
   const isLocation = result.type === 'location';
   const primaryLink = getBestNextStepLink(result);
-  const useDirections = isLocation && showLocationPaths;
+  const locationResult = result as LocationResult;
+  const useDirections = isLocation
+    && showLocationPaths
+    && Boolean(locationResult.origin && geometryToCoordinates(locationResult.polyline).length > 0);
   const actionLabel = useDirections
     ? 'Open directions in Google Maps'
     : getActionLabel(result.query, result.title, primaryLink);
@@ -348,7 +347,7 @@ function SupportResourcesSection({
   const isCollegeService = (candidate?: string): candidate is CollegeServiceId =>
     Boolean(candidate) && COLLEGE_SERVICE_IDS.has(candidate as CollegeServiceId);
   const isUtsgLocation = (locationName: string) => /\b(?:st\.?\s*george|utsg)\b/i.test(locationName);
-  const usesInAppDirections = showLocationPaths && Boolean(serviceId) && IN_APP_DIRECTION_SERVICE_IDS.has(serviceId);
+  const usesInAppDirections = Boolean(serviceId);
   const pickerBody = collegePickerService === 'financial-aid'
     ? "Choose your UTSG college to find its financial-aid and awards office."
     : collegePickerService === 'academic-success'
@@ -384,7 +383,7 @@ function SupportResourcesSection({
           <Text style={styles.locationName}>{location.name}</Text>
           <Text style={styles.locationAddress}>{location.location}</Text>
           <Text style={styles.locationDetail}>{location.detail}</Text>
-          {showLocationPaths && <TouchableOpacity
+          {serviceId && <TouchableOpacity
             onPress={() => {
               if (opensCollegePicker) {
                 setCollegePickerService(serviceId as CollegeServiceId);

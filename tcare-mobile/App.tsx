@@ -317,6 +317,10 @@ export default function App() {
   const [tab, setTab] = useState<TabKey>('ask');
   const [result, setResult] = useState<QueryResult | null>(null);
   const [resultSource, setResultSource] = useState<TabKey>('ask');
+  const [showResourceMap, setShowResourceMap] = useState(false);
+  // A route is only meaningful after the student has explicitly shared their
+  // location. A campus choice still lets us place the service marker.
+  const [showLocationPaths, setShowLocationPaths] = useState(false);
   const [loading, setLoading] = useState(false);
   const [emergencyVisible, setEmergencyVisible] = useState(false);
   const [campus, setCampus] = useState<{ id: 'utsg' | 'utsc' | 'utm'; label: string } | null>(null);
@@ -332,9 +336,11 @@ export default function App() {
 
     const currentRequestId = ++requestId.current;
     setResultSource('ask');
+    setShowLocationPaths(false);
     setLoading(true);
     try {
       const location = await getCurrentLocation();
+      setShowLocationPaths(Boolean(location));
       const r = await resolveQuery(query, location, campus?.id);
       if (currentRequestId === requestId.current) setResult(r);
     } catch (err) {
@@ -362,14 +368,21 @@ export default function App() {
     source: TabKey = 'ask',
     query?: string,
     serviceId?: string,
+    requestRoute = false,
   ) => {
     const currentRequestId = ++requestId.current;
     setResultSource(source);
+    setShowResourceMap(source !== 'resources' || Boolean(campus) || requestRoute);
+    setShowLocationPaths(false);
     setLoading(true);
     try {
-      // Resource pages identify the selected campus office without requesting
-      // the student's position or calculating a route to it.
-      const location = source === 'resources' ? undefined : await getCurrentLocation();
+      // A selected campus can always be shown as a destination. We ask before
+      // using device location; declining still returns the campus service
+      // marker, but never a route or ETA.
+      const location = source === 'resources' && !campus
+        ? undefined
+        : await getCurrentLocation();
+      setShowLocationPaths(Boolean(location));
       const apiUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
 
       if (!apiUrl) throw new Error('Missing EXPO_PUBLIC_API_URL');
@@ -404,6 +417,7 @@ export default function App() {
     collegeId: string,
     serviceId: 'academic-success' | 'financial-aid' | 'registrar-enrolment' = 'registrar-enrolment',
     source: TabKey = 'ask',
+    requestRoute = false,
   ) =>
     loadMapDestination(`/api/college-service/${collegeId}`, {
       type: 'info',
@@ -422,7 +436,7 @@ export default function App() {
         : serviceId === 'academic-success'
           ? 'We could not load your college academic advising office. Please try again shortly.'
           : 'We could not load your college registrar’s office. Please try again shortly.',
-    }, source, undefined, serviceId);
+    }, source, undefined, serviceId, requestRoute);
 
   const handleStudentLifeResource = async (resourceId: string) => {
     const resource = STUDENT_LIFE_RESOURCES[resourceId];
@@ -430,11 +444,16 @@ export default function App() {
     if (!resource || !query) return;
     const currentRequestId = ++requestId.current;
     setResultSource('resources');
+    setShowResourceMap(Boolean(campus));
+    setShowLocationPaths(false);
     setLoading(true);
     try {
       // Apply the Ask-page campus choice to every resource lookup so any
-      // campus-aware service resolves to that office as its destination.
-      const response = await resolveQuery(query, undefined, campus?.id);
+      // campus-aware service resolves to that office as its destination. The
+      // route and ETA are included only after the student opts in.
+      const location = campus ? await getCurrentLocation() : undefined;
+      setShowLocationPaths(Boolean(location));
+      const response = await resolveQuery(query, location, campus?.id);
       if (currentRequestId === requestId.current) setResult(response);
     } catch (error) {
       console.warn('Could not load campus resource locations:', error);
@@ -446,9 +465,11 @@ export default function App() {
 
   const handleCampusLocationPress = async (serviceId: string, campusLocationName: string) => {
     const currentRequestId = ++requestId.current;
+    setShowLocationPaths(false);
     setLoading(true);
     try {
-      const location = await getCurrentLocation();
+      const location = campus ? await getCurrentLocation() : undefined;
+      setShowLocationPaths(Boolean(location));
       if (!API_BASE_URL) throw new Error('Missing EXPO_PUBLIC_API_URL');
 
       const response = await fetch(`${API_BASE_URL}/api/campus-location`, {
@@ -458,6 +479,7 @@ export default function App() {
       });
       if (!response.ok) throw new Error(`Campus map request failed (${response.status})`);
       if (currentRequestId === requestId.current) {
+        setShowResourceMap(true);
         setResult((await response.json()) as QueryResult);
       }
     } catch (error) {
@@ -518,12 +540,13 @@ export default function App() {
       return (
         <ResultScreen
           result={result}
-          showLocationPaths={resultSource !== 'resources'}
+          showMap={resultSource !== 'resources' || showResourceMap}
+          showLocationPaths={showLocationPaths}
           onAskAnother={handleAskAnother}
           onRetry={handleRetry}
           onTravelModeChange={updateTravelRoute}
           onCampusLocationPress={handleCampusLocationPress}
-          onCollegeSelect={(collegeId, serviceId) => handleCollegeSelect(collegeId, serviceId, resultSource)}
+          onCollegeSelect={(collegeId, serviceId) => handleCollegeSelect(collegeId, serviceId, resultSource, true)}
         />
       );
     }
@@ -563,12 +586,13 @@ export default function App() {
       return (
         <ResultScreen
           result={result}
-          showLocationPaths={resultSource !== 'resources'}
+          showMap={resultSource !== 'resources' || showResourceMap}
+          showLocationPaths={showLocationPaths}
           onAskAnother={handleAskAnother}
           onRetry={handleRetry}
           onTravelModeChange={updateTravelRoute}
           onCampusLocationPress={handleCampusLocationPress}
-          onCollegeSelect={(collegeId, serviceId) => handleCollegeSelect(collegeId, serviceId, resultSource)}
+          onCollegeSelect={(collegeId, serviceId) => handleCollegeSelect(collegeId, serviceId, resultSource, true)}
         />
       );
     }
@@ -610,6 +634,8 @@ export default function App() {
           requestId.current += 1;
           setTab(key);
           setResult(null);
+          setShowResourceMap(false);
+          setShowLocationPaths(false);
           setLoading(false);
         }}
       />

@@ -243,7 +243,10 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
               We’ll point you to your college registrar’s academic assistance office.
             </Text>
             <ScrollView style={styles.collegeOptions} showsVerticalScrollIndicator={false}>
-              {COLLEGES.map((college) => (
+              {(campus
+                ? COLLEGES.filter((college) => college.id !== 'utsc' && college.id !== 'utm')
+                : COLLEGES
+              ).map((college) => (
                 <TouchableOpacity
                   key={college.id}
                   style={styles.collegeOption}
