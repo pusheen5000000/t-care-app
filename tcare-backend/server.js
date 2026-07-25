@@ -3,9 +3,11 @@
 // Fresh backend for T-Care.
 // Stack: Express + Groq (query understanding) + Geoapify (routing)
 
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
+const nodemailer = require('nodemailer');
 
 const services = require('./data/services');
 const collegeRegistrarOffices = require('./data/collegeRegistrarOffices');
@@ -24,6 +26,13 @@ const {
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+const INQUIRIES_EMAIL = 'inquiries.tcare@gmail.com';
+const CONTACT_TOPICS = new Set(['App issue', 'Service question', 'Suggestion', 'Other']);
+
+function contactField(value, maxLength) {
+  return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
+}
 
 async function createMapResult({ office, query, summary, location }) {
   const route = location ? await getWalkingRoute(location, office.address) : null;
@@ -269,6 +278,57 @@ app.post('/api/route', async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(502).json({ error: 'Could not calculate route', detail: err.message });
+  }
+});
+
+app.post('/api/contact', async (req, res) => {
+  const firstName = contactField(req.body?.firstName, 80);
+  const lastName = contactField(req.body?.lastName, 80);
+  const email = contactField(req.body?.email, 254).toLowerCase();
+  const topic = contactField(req.body?.topic, 80);
+  const inquiry = contactField(req.body?.inquiry, 2000);
+
+  if (!firstName || !lastName || !email || !topic || !inquiry) {
+    return res.status(400).json({ error: 'First name, last name, email, topic, and inquiry are required.' });
+  }
+  if (!/^\S+@\S+\.\S+$/.test(email)) {
+    return res.status(400).json({ error: 'Enter a valid email address.' });
+  }
+  if (!CONTACT_TOPICS.has(topic)) {
+    return res.status(400).json({ error: 'Choose a valid inquiry topic.' });
+  }
+  const gmailAppPassword = process.env.GMAIL_APP_PASSWORD?.replace(/\s/g, '');
+  if (!gmailAppPassword) {
+    console.error('Contact email is unavailable: GMAIL_APP_PASSWORD is not configured.');
+    return res.status(503).json({ error: 'Contact submission is temporarily unavailable. Please try again later.' });
+  }
+
+  try {
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user: INQUIRIES_EMAIL, pass: gmailAppPassword },
+    });
+    await transporter.sendMail({
+      from: `T-Care inquiries <${INQUIRIES_EMAIL}>`,
+      to: INQUIRIES_EMAIL,
+      replyTo: email,
+      subject: `[T-Care] ${topic}: ${firstName} ${lastName}`,
+      text: [
+        'A new T-Care inquiry was submitted.',
+        '',
+        `First name: ${firstName}`,
+        `Last name: ${lastName}`,
+        `Email: ${email}`,
+        `Topic: ${topic}`,
+        '',
+        'Inquiry:',
+        inquiry,
+      ].join('\n'),
+    });
+    return res.status(201).json({ ok: true });
+  } catch (error) {
+    console.error('Could not send contact email:', error.message);
+    return res.status(502).json({ error: 'We could not send your inquiry. Please try again later.' });
   }
 });
 
