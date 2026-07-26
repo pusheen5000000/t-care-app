@@ -1,45 +1,52 @@
-// theme.ts
-// Colors pulled from the official U of T brand "Colour Quick Guide"
-// (brand.utoronto.ca/guidelines/#colour)
-// Semantic mapping below is flipped to a dark theme, using the same
-// brand palette as accents on dark surfaces.
+// T-Care's light campus palette. Primitive names are retained so existing
+// screens can keep consuming stable semantic roles.
 
 export const colors = {
-  // Primary
-  uoftBlue: '#1E3765',      // Pantone 655 — always present per brand guide
+  // Brand primitives
+  uoftBlue: '#002A5C',
+  teal: '#008BB0',
+  red: '#E31837',
+  yellow: '#FFE498',
 
-  // Secondary (use as accents only, per brand guide)
-  sky: '#007FA3',           // Pantone 633
-  purple: '#6D247A',        // Pantone 2613
-  red: '#DC4633',           // Pantone Warm Red
-  lightBlue: '#6FC7EA',     // Pantone 2985
-  teal: '#00A189',          // Pantone 3285
-  magenta: '#AB1368',       // Pantone 227
-  darkTeal: '#0D534D',      // Pantone 7722
-  yellow: '#F1C500',        // Pantone 7406
-  green: '#8DBF2E',         // Pantone 376
+  // Compatibility aliases for service-category treatments. Keep category
+  // colors in the same blue/teal/yellow/red family.
+  sky: '#008BB0',
+  purple: '#002A5C',
+  lightBlue: '#E8F4F8',
+  magenta: '#002A5C',
+  darkTeal: '#006D8C',
+  green: '#008BB0',
 
   // Neutrals
-  coolGray: '#D0D1C9',      // Pantone Cool Gray 2
+  coolGray: '#D9E5EB',
   white: '#FFFFFF',
   black: '#000000',
 
-  // Semantic mapping for the app — dark mode.
-  background: '#0B1F3A',      // dark navy background
-  surface: '#142B4D',         // slightly lighter navy for bars/cards
-  surfaceMuted: '#1E3765',    // UofT blue buttons/cards
-  border: '#34527A',
-  textPrimary: '#F2F3F4',
-  textSecondary: '#C6D0E0',
-  textMuted: '#8FA0BE',
-  accent: '#0091f2',          // light blue send button
-  accentOn: '#0B1F33',
-  success: '#8DBF2E',
-  danger: '#FF6B55',
-  infoBg: '#17293A',
-  infoText: '#DCEEF6',
+  // Semantic mapping — light, high-clarity campus surfaces.
+  background: '#FFFFFF',
+  surface: '#FFFFFF',
+  surfaceMuted: '#E8F4F8',
+  border: '#B9D7E0',
+  textPrimary: '#002A5C',
+  textSecondary: '#204F6C',
+  textMuted: '#4E7186',
+  accent: '#002A5C',
+  accentOn: '#FFFFFF',
+  success: '#008BB0',
+  danger: '#E31837',
+  infoBg: '#F2F9FB',
+  infoText: '#002A5C',
+  dangerSurface: '#FFF9FA',
 
-
+  // Resource-directory icon colors. These are intentionally limited to the
+  // icon layer so the product canvas stays recognizably blue and white.
+  resourcePurple: '#5846B8',
+  resourceTeal: '#007791',
+  resourceBlue: '#1266A4',
+  resourceGreen: '#277553',
+  resourceOrange: '#B85417',
+  resourceIndigo: '#3055A5',
+  resourceBerry: '#A13D73',
 };
 
 // Rounded corners

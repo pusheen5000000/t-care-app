@@ -823,7 +823,7 @@ const styles = StyleSheet.create({
   },
   avatarEmojiSmall: { fontSize: 13 },
   bubble: { maxWidth: '75%', padding: spacing.md, borderRadius: radius.lg },
-  bubbleAssistant: { backgroundColor: colors.surface, borderTopLeftRadius: radius.sm },
+  bubbleAssistant: { backgroundColor: colors.surface, borderColor: colors.border, borderTopLeftRadius: radius.sm, borderWidth: 1 },
   bubbleUser: { backgroundColor: colors.accent, borderTopRightRadius: radius.sm },
   bubbleTextAssistant: { color: colors.textSecondary, fontSize: fontSize.base, lineHeight: 20 },
   bubbleTextUser: { color: colors.white, fontSize: fontSize.base, lineHeight: 20 },

@@ -96,7 +96,7 @@ export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onS
               <Text style={styles.cardTitle}>Mental health support</Text>
               <Text style={styles.cardDescription}>Connect with Health & Wellness for counselling and care.</Text>
             </View>
-            <Text style={styles.chevron}>›</Text>
+            <View style={styles.chevronBadge}><Text style={styles.chevron}>›</Text></View>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -112,7 +112,7 @@ export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onS
               <Text style={styles.cardTitle}>Accessibility services</Text>
               <Text style={styles.cardDescription}>Learn about accommodations, assistive technology, and exams.</Text>
             </View>
-            <Text style={styles.chevron}>›</Text>
+            <View style={styles.chevronBadge}><Text style={styles.chevron}>›</Text></View>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -128,7 +128,7 @@ export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onS
               <Text style={styles.cardTitle}>Courses & academic support</Text>
               <Text style={styles.cardDescription}>Choose your college or campus to find its registrar.</Text>
             </View>
-            <Text style={styles.chevron}>›</Text>
+            <View style={styles.chevronBadge}><Text style={styles.chevron}>›</Text></View>
           </TouchableOpacity>
 
           {!normalizedSearch && (
@@ -145,13 +145,13 @@ export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onS
                   accessibilityHint="Opens trusted support links"
                 >
                   <View style={[styles.icon, styles[resource.tone]]}>
-                    <Text style={[styles.iconText, ['financial-aid', 'career', 'food'].includes(resource.id) && styles.iconTextDark]}>{resource.icon}</Text>
+                    <Text style={[styles.iconText, resource.id === 'financial-aid' && styles.iconTextDark]}>{resource.icon}</Text>
                   </View>
                   <View style={styles.cardCopy}>
                     <Text style={styles.cardTitle}>{resource.label}</Text>
                     <Text style={styles.cardDescription}>{resource.description}</Text>
                   </View>
-                  <Text style={styles.chevron}>›</Text>
+                  <View style={styles.chevronBadge}><Text style={styles.chevron}>›</Text></View>
                 </TouchableOpacity>
               ))}
             </>
@@ -169,13 +169,13 @@ export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onS
               accessibilityHint="Opens trusted support links"
             >
               <View style={[styles.icon, styles[resource.tone]]}>
-                <Text style={[styles.iconText, ['financial-aid', 'career', 'food'].includes(resource.id) && styles.iconTextDark]}>{resource.icon}</Text>
+                <Text style={[styles.iconText, resource.id === 'financial-aid' && styles.iconTextDark]}>{resource.icon}</Text>
               </View>
               <View style={styles.cardCopy}>
                 <Text style={styles.cardTitle}>{resource.label}</Text>
                 <Text style={styles.cardDescription}>{resource.description}</Text>
               </View>
-              <Text style={styles.chevron}>›</Text>
+              <View style={styles.chevronBadge}><Text style={styles.chevron}>›</Text></View>
             </TouchableOpacity>
           ))}
           {browseResources.length === 0 && (
@@ -202,28 +202,29 @@ const styles = StyleSheet.create({
   list: { gap: spacing.md },
   card: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg, borderWidth: 1, flexDirection: 'row', gap: spacing.md, minHeight: 72, padding: spacing.md },
   icon: { alignItems: 'center', borderRadius: radius.md, height: 42, justifyContent: 'center', width: 42 },
-  mentalHealthIcon: { backgroundColor: colors.purple },
-  accessibilityIcon: { backgroundColor: colors.teal },
-  academicsIcon: { backgroundColor: colors.sky },
-  financialIcon: { backgroundColor: colors.green },
-  housingIcon: { backgroundColor: colors.purple },
-  internationalIcon: { backgroundColor: colors.sky },
-  registrarIcon: { backgroundColor: colors.teal },
+  mentalHealthIcon: { backgroundColor: colors.resourcePurple },
+  accessibilityIcon: { backgroundColor: colors.resourceTeal },
+  academicsIcon: { backgroundColor: colors.resourceBlue },
+  financialIcon: { backgroundColor: colors.yellow },
+  housingIcon: { backgroundColor: colors.resourcePurple },
+  internationalIcon: { backgroundColor: colors.resourceBlue },
+  registrarIcon: { backgroundColor: colors.resourceTeal },
   safetyIcon: { backgroundColor: colors.red },
-  careerIcon: { backgroundColor: colors.yellow },
-  librariesIcon: { backgroundColor: colors.darkTeal },
-  learningIcon: { backgroundColor: colors.sky },
-  indigenousIcon: { backgroundColor: colors.green },
-  foodIcon: { backgroundColor: colors.green },
-  legalIcon: { backgroundColor: colors.purple },
-  sexualViolenceIcon: { backgroundColor: colors.magenta },
+  careerIcon: { backgroundColor: colors.resourceOrange },
+  librariesIcon: { backgroundColor: colors.resourceIndigo },
+  learningIcon: { backgroundColor: colors.resourceBlue },
+  indigenousIcon: { backgroundColor: colors.resourceBerry },
+  foodIcon: { backgroundColor: colors.resourceGreen },
+  legalIcon: { backgroundColor: colors.resourcePurple },
+  sexualViolenceIcon: { backgroundColor: colors.resourceBerry },
   iconText: { color: colors.white, fontSize: fontSize.sm, fontWeight: '700' },
   iconTextDark: { color: colors.accentOn },
   sectionTitle: { color: colors.textPrimary, fontSize: fontSize.md, fontWeight: '700', marginTop: spacing.xs },
   cardCopy: { flex: 1, gap: spacing.xs },
   cardTitle: { color: colors.textPrimary, fontSize: fontSize.md, fontWeight: '700' },
   cardDescription: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 18 },
-  chevron: { color: colors.accent, fontSize: 28, fontWeight: '300' },
+  chevronBadge: { alignItems: 'center', backgroundColor: colors.accent, borderRadius: radius.full, height: 28, justifyContent: 'center', width: 28 },
+  chevron: { color: colors.yellow, fontSize: 25, fontWeight: '500', lineHeight: 27 },
   emptyState: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg, borderWidth: 1, gap: spacing.xs, padding: spacing.lg },
   emptyTitle: { color: colors.textPrimary, fontSize: fontSize.md, fontWeight: '700' },
   emptyText: { color: colors.textSecondary, fontSize: fontSize.base, lineHeight: 20 },

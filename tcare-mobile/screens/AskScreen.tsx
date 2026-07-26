@@ -18,10 +18,10 @@ import { MoodCheckIn } from '../components/MoodCheckIn';
 type Campus = { id: 'utsg' | 'utsc' | 'utm'; label: string };
 
 type Props = {
-  onSubmit: (query: string) => void;
-  onTCardPress: () => void;
-  onTalkSupportPress: () => void;
-  onAccessibilityPress: () => void;
+  onSubmit: (query: string) => void | Promise<void>;
+  onTCardPress: () => void | Promise<void>;
+  onTalkSupportPress: () => void | Promise<void>;
+  onAccessibilityPress: () => void | Promise<void>;
   onEmergencySupportPress: () => void;
   campus: Campus | null;
   onCampusChange: (campus: Campus | null) => void;
@@ -50,8 +50,8 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
   const [text, setText] = useState('');
   const [activeMood, setActiveMood] = useState<'good' | 'okay' | 'struggling' | null>(null);
   const [campusPickerVisible, setCampusPickerVisible] = useState(false);
-  const [moodOptionsVisible, setMoodOptionsVisible] = useState(false);
   const [isLayoutReady, setIsLayoutReady] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     let secondFrame: number | undefined;
@@ -64,17 +64,27 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
     };
   }, []);
 
+  const submit = async (action: () => void | Promise<void>) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await action();
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleSend = () => {
     const query = text.trim();
     if (!query) return;
-    onSubmit(query);
+    void submit(() => onSubmit(query));
     setText('');
   };
 
   const askSuggestion = (suggestion: typeof SUGGESTIONS[number]) => {
-    if (suggestion.label === 'I lost my TCard') return onTCardPress();
-    if (suggestion.label === 'Accessibility services') return onAccessibilityPress();
-    onSubmit(suggestion.query);
+    if (suggestion.label === 'I lost my TCard') return void submit(onTCardPress);
+    if (suggestion.label === 'Accessibility services') return void submit(onAccessibilityPress);
+    void submit(() => onSubmit(suggestion.query));
   };
 
   return (
@@ -89,6 +99,17 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
           <Text style={styles.greeting}>How can we help?</Text>
           <Text style={styles.subtitle}>Ask a question. We’ll find the next step.</Text>
 
+          <TouchableOpacity
+            style={styles.campusControl}
+            onPress={() => setCampusPickerVisible(true)}
+            accessibilityRole="button"
+            accessibilityLabel={campus ? `Campus preference: ${campus.label}` : 'Set a campus preference'}
+            accessibilityHint="Optional. Used to make your result more relevant."
+          >
+            <Text style={styles.campusControlLabel}>Campus</Text>
+            <Text style={styles.campusControlValue}>{campus ? campus.label : 'Choose campus'}</Text>
+          </TouchableOpacity>
+
           <View style={styles.askPanel}>
             <TextInput
               style={styles.input}
@@ -98,26 +119,27 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
               placeholderTextColor={colors.textMuted}
               multiline
               maxLength={500}
+              editable={!isSubmitting}
               accessibilityLabel="Ask T-Care a question"
               accessibilityHint="Type a question about a U of T service or campus need"
             />
             <TouchableOpacity
-              style={[styles.askButton, !text.trim() && styles.askButtonDisabled]}
+              style={[styles.askButton, (!text.trim() || isSubmitting) && styles.askButtonDisabled]}
               onPress={handleSend}
               activeOpacity={0.8}
-              disabled={!text.trim()}
+              disabled={!text.trim() || isSubmitting}
               accessibilityRole="button"
               accessibilityLabel="Ask T-Care"
-              accessibilityState={{ disabled: !text.trim() }}
+              accessibilityState={{ disabled: !text.trim() || isSubmitting, busy: isSubmitting }}
             >
-              <Text style={styles.askButtonText}>Ask T-Care</Text>
+              <Text style={styles.askButtonText}>{isSubmitting ? 'Finding support…' : 'Ask T-Care'}</Text>
             </TouchableOpacity>
           </View>
 
           <Text style={styles.popularHeading}>Try one of these</Text>
           <View style={styles.chipList}>
             {SUGGESTIONS.map((suggestion) => (
-              <TouchableOpacity key={suggestion.label} style={styles.chip} onPress={() => askSuggestion(suggestion)} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={suggestion.label}>
+              <TouchableOpacity key={suggestion.label} style={styles.chip} onPress={() => askSuggestion(suggestion)} activeOpacity={0.7} disabled={isSubmitting} accessibilityRole="button" accessibilityLabel={suggestion.label} accessibilityState={{ disabled: isSubmitting }}>
                 <Text style={styles.chipText}>{suggestion.label}</Text>
                 <Text style={styles.chipChevron} accessibilityElementsHidden>›</Text>
               </TouchableOpacity>
@@ -132,11 +154,9 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
               </View>
               <Text style={styles.campusChevron} accessibilityElementsHidden>›</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.wellbeingToggle} onPress={() => setMoodOptionsVisible((visible) => !visible)} accessibilityRole="button" accessibilityLabel="Wellbeing support" accessibilityState={{ expanded: moodOptionsVisible }}>
-              <View><Text style={styles.wellbeingToggleText}>Wellbeing support</Text><Text style={styles.wellbeingHint}>Private and separate from your question.</Text></View>
-              <Text style={styles.campusChevron} accessibilityElementsHidden>{moodOptionsVisible ? '⌃' : '⌄'}</Text>
-            </TouchableOpacity>
-            {moodOptionsVisible && <>
+            <View style={styles.wellbeingHeader}>
+              <View><Text style={styles.wellbeingTitle}>Wellbeing support</Text><Text style={styles.wellbeingHint}>Private and separate from your question.</Text></View>
+            </View>
               <View style={styles.moodRow}>
                 {MOODS.map((mood) => (
                   <TouchableOpacity key={mood.label} style={[styles.moodButton, activeMood === mood.mood && styles.moodButtonActive]} onPress={() => setActiveMood(mood.mood)} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={`I am feeling ${mood.label.toLowerCase()}`} accessibilityState={{ selected: activeMood === mood.mood }}>
@@ -147,7 +167,6 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
               <TouchableOpacity style={styles.talkSupportButton} onPress={onTalkSupportPress} accessibilityRole="button" accessibilityLabel="Talk to someone now">
                 <Text style={styles.talkSupportText}>Talk to someone</Text>
               </TouchableOpacity>
-            </>}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -176,11 +195,12 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background }, flex: { flex: 1 }, pendingLayout: { opacity: 0 },
   header: { alignItems: 'center', borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.xl, paddingVertical: spacing.md },
-  logoBox: { alignItems: 'center', backgroundColor: colors.accent, borderRadius: radius.md, height: 32, justifyContent: 'center', width: 32 }, logoText: { color: colors.accentOn, fontSize: fontSize.base, fontWeight: '700' }, headerTitle: { color: colors.textPrimary, fontSize: fontSize.md, fontWeight: '700' },
+  logoBox: { alignItems: 'center', backgroundColor: colors.accent, borderRadius: radius.md, height: 32, justifyContent: 'center', width: 32 }, logoText: { color: colors.yellow, fontSize: fontSize.base, fontWeight: '700' }, headerTitle: { color: colors.textPrimary, fontSize: fontSize.md, fontWeight: '700' },
   scrollContent: { padding: spacing.xl, paddingBottom: spacing.xxl }, greeting: { color: colors.textPrimary, fontSize: fontSize.xl, fontWeight: '700', marginBottom: spacing.xs }, subtitle: { color: colors.textSecondary, fontSize: fontSize.base, lineHeight: 20, marginBottom: spacing.xl },
   askPanel: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.xl, borderWidth: 1, gap: spacing.sm, marginBottom: spacing.xxl, padding: spacing.md }, input: { color: colors.textPrimary, fontSize: fontSize.base, lineHeight: 20, minHeight: 64, textAlignVertical: 'top' }, askButton: { alignItems: 'center', backgroundColor: colors.accent, borderRadius: radius.md, justifyContent: 'center', minHeight: 48, paddingHorizontal: spacing.lg }, askButtonDisabled: { backgroundColor: colors.border }, askButtonText: { color: colors.accentOn, fontSize: fontSize.base, fontWeight: '700' },
   popularHeading: { color: colors.textSecondary, fontSize: fontSize.sm, fontWeight: '700', marginBottom: spacing.sm }, chipList: { gap: 0 }, chip: { alignItems: 'center', borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: 'row', justifyContent: 'space-between', minHeight: 52 }, chipText: { color: colors.textPrimary, flex: 1, fontSize: fontSize.base, fontWeight: '600' }, chipChevron: { color: colors.accent, fontSize: 24, marginLeft: spacing.md },
-  campusRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', minHeight: 60 }, campusCopy: { flex: 1 }, campusTitle: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '600' }, campusValue: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 18, marginTop: 2 }, campusChevron: { color: colors.accent, fontSize: 24, marginLeft: spacing.md },
-  supportSection: { borderTopColor: colors.border, borderTopWidth: 1, marginTop: spacing.xxl }, wellbeingToggle: { alignItems: 'center', borderTopColor: colors.border, borderTopWidth: 1, flexDirection: 'row', justifyContent: 'space-between', minHeight: 60 }, wellbeingToggleText: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '600' }, wellbeingHint: { color: colors.textSecondary, fontSize: fontSize.sm, marginTop: 2 }, moodRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }, moodButton: { alignItems: 'center', backgroundColor: colors.surfaceMuted, borderColor: colors.border, borderRadius: radius.lg, borderWidth: 1, flex: 1, gap: spacing.xs, minHeight: 76, justifyContent: 'center', paddingVertical: spacing.sm }, moodButtonActive: { backgroundColor: colors.surface, borderColor: colors.accent }, moodEmoji: { fontSize: 24 }, moodLabel: { color: colors.textSecondary, fontSize: fontSize.sm, fontWeight: '600' }, moodLabelActive: { color: colors.textPrimary }, talkSupportButton: { alignItems: 'center', borderColor: colors.purple, borderRadius: radius.md, borderWidth: 1, justifyContent: 'center', marginTop: spacing.sm, minHeight: 48 }, talkSupportText: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '700' },
+  campusControl: { alignItems: 'center', backgroundColor: colors.surfaceMuted, borderRadius: radius.md, flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md, minHeight: 44, paddingHorizontal: spacing.md }, campusControlLabel: { color: colors.textSecondary, fontSize: fontSize.sm, fontWeight: '600' }, campusControlValue: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '700' },
+  campusRow: { display: 'none' }, campusCopy: { flex: 1 }, campusTitle: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '600' }, campusValue: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 18, marginTop: 2 }, campusChevron: { color: colors.accent, fontSize: 24, marginLeft: spacing.md },
+  supportSection: { borderTopColor: colors.border, borderTopWidth: 1, marginTop: spacing.xxl, paddingTop: spacing.lg }, wellbeingHeader: { marginBottom: spacing.sm }, wellbeingTitle: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '600' }, wellbeingHint: { color: colors.textSecondary, fontSize: fontSize.sm, marginTop: 2 }, moodRow: { flexDirection: 'row', gap: spacing.sm }, moodButton: { alignItems: 'center', backgroundColor: colors.surfaceMuted, borderColor: colors.border, borderRadius: radius.lg, borderWidth: 1, flex: 1, gap: spacing.xs, minHeight: 76, justifyContent: 'center', paddingVertical: spacing.sm }, moodButtonActive: { backgroundColor: colors.surface, borderColor: colors.accent }, moodEmoji: { fontSize: 24 }, moodLabel: { color: colors.textSecondary, fontSize: fontSize.sm, fontWeight: '600' }, moodLabelActive: { color: colors.textPrimary }, talkSupportButton: { alignItems: 'center', borderColor: colors.purple, borderRadius: radius.md, borderWidth: 1, justifyContent: 'center', marginTop: spacing.sm, minHeight: 48 }, talkSupportText: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '700' },
   modalBackdrop: { backgroundColor: 'rgba(0,0,0,0.58)', flex: 1, justifyContent: 'flex-end' }, modalCard: { backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.xl }, modalTitle: { color: colors.textPrimary, fontSize: fontSize.lg, fontWeight: '700' }, modalBody: { color: colors.textSecondary, fontSize: fontSize.base, lineHeight: 20, marginBottom: spacing.lg, marginTop: spacing.xs }, campusOption: { alignItems: 'center', borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm, minHeight: 52, paddingHorizontal: spacing.md }, campusOptionSelected: { borderColor: colors.accent }, collegeOptionText: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '600' }, selectedMark: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '700' }, skipCampusButton: { alignItems: 'center', justifyContent: 'center', minHeight: 44, marginTop: spacing.xs }, skipCampusText: { color: colors.accent, fontSize: fontSize.base, fontWeight: '700' },
 });

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, View, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
+import { Alert, View, StyleSheet, ActivityIndicator, Text, TouchableOpacity, SafeAreaView } from 'react-native';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AskScreen } from './screens/AskScreen';
@@ -770,23 +770,26 @@ export default function App() {
         </View>
         {tab !== 'tai' && renderNonTaiBody()}
       </View>
-      <TouchableOpacity
-        style={styles.urgentSupportButton}
-        onPress={() => setEmergencyVisible(true)}
-        accessibilityRole="button"
-        accessibilityLabel="Get urgent support"
-        accessibilityHint="Opens urgent support options without making a call"
-      >
-        <Text style={styles.urgentSupportText}>Need urgent support?</Text>
-      </TouchableOpacity>
-      <TabBar
-        active={tab}
-        onChange={(key) => {
-          requestId.current += 1;
-          setTab(key);
-          setLoading(false);
-        }}
-      />
+      <SafeAreaView style={styles.footer}>
+        <TouchableOpacity
+          style={styles.urgentSupportButton}
+          onPress={() => setEmergencyVisible(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Get urgent support"
+          accessibilityHint="Opens urgent support options without making a call"
+        >
+          <Text style={styles.urgentSupportText}>Need urgent support?</Text>
+        </TouchableOpacity>
+        <TabBar
+          active={tab}
+          onChange={(key) => {
+            if (key === tab) return;
+            requestId.current += 1;
+            setTab(key);
+            setLoading(false);
+          }}
+        />
+      </SafeAreaView>
       <EmergencySupportSheet visible={emergencyVisible} onClose={() => setEmergencyVisible(false)} />
     </View>
   );
@@ -795,9 +798,10 @@ export default function App() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   body: { flex: 1 },
+  footer: { backgroundColor: colors.surface },
   taiScreen: { flex: 1 },
   hiddenTaiScreen: { display: 'none' },
-  urgentSupportButton: { alignItems: 'center', backgroundColor: colors.infoBg, borderTopColor: colors.danger, borderTopWidth: 1, justifyContent: 'center', minHeight: 44 },
+  urgentSupportButton: { alignItems: 'center', backgroundColor: colors.dangerSurface, borderTopColor: colors.danger, borderTopWidth: 2, justifyContent: 'center', minHeight: 44 },
   urgentSupportText: { color: colors.danger, fontSize: fontSize.base, fontWeight: '700' },
   loadingScreen: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   loadingText: { color: colors.textSecondary, fontSize: fontSize.base },

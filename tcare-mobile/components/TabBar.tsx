@@ -55,11 +55,11 @@ export function TabBar({ active, onChange }: Props) {
 const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
-    height: 70,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
-    paddingBottom: 15,
+    minHeight: 64,
+    paddingVertical: 8,
   },
   tab: {
     flex: 1,

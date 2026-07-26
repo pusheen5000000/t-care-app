@@ -56,6 +56,7 @@ const TRAVEL_MODES: { key: TravelMode; label: string }[] = [
 export function ResultScreen({ result, showMap = true, showLocationPaths = true, onAskAnother, onRetry, onTravelModeChange, onShowWalkingRoute, onCampusLocationPress, onCollegeSelect }: Props) {
   const isLocation = result.type === 'location';
   const isRecovery = result.type === 'recovery';
+  const headerTitle = getResultHeaderTitle(result);
   const { width, height } = useWindowDimensions();
   const isPortrait = height >= width;
 
@@ -72,7 +73,7 @@ export function ResultScreen({ result, showMap = true, showLocationPaths = true,
           <Text style={styles.backText}>{'< Back'}</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
-          {result.title}
+          {headerTitle}
         </Text>
       </View>
 
@@ -82,6 +83,12 @@ export function ResultScreen({ result, showMap = true, showLocationPaths = true,
           <Text style={styles.answerBody}>{result.summary}</Text>
         </View>
 
+        <ResultNextStep
+          result={result}
+          showLocationPaths={showLocationPaths}
+          onShowWalkingRoute={onShowWalkingRoute}
+        />
+
         {isRecovery && <RecoveryActions result={result} onRetry={onRetry} />}
 
         {isLocation && showMap && (
@@ -90,7 +97,6 @@ export function ResultScreen({ result, showMap = true, showLocationPaths = true,
             isPortrait={isPortrait}
             showLocationPaths={showLocationPaths}
             onTravelModeChange={onTravelModeChange}
-            onShowWalkingRoute={onShowWalkingRoute}
           />
         )}
         {result.supportResources && (
@@ -104,7 +110,6 @@ export function ResultScreen({ result, showMap = true, showLocationPaths = true,
             onCollegeSelect={onCollegeSelect}
           />
         )}
-        <ResultNextStep result={result} showLocationPaths={showLocationPaths} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -138,18 +143,16 @@ function LocationBlock({
   isPortrait,
   showLocationPaths,
   onTravelModeChange,
-  onShowWalkingRoute,
 }: {
   result: LocationResult;
   isPortrait: boolean;
   showLocationPaths: boolean;
   onTravelModeChange: (mode: TravelMode) => Promise<boolean>;
-  onShowWalkingRoute: () => Promise<boolean>;
 }) {
   const [travelMode, setTravelMode] = useState<TravelMode>('walk');
   const [isChangingMode, setIsChangingMode] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
-  const [isLoadingRoute, setIsLoadingRoute] = useState(false);
+  const isLoadingRoute = isChangingMode;
   const [isWalkingPathExpanded, setIsWalkingPathExpanded] = useState(false);
   const mapRef = useRef<MapView>(null);
   const [isMapReady, setIsMapReady] = useState(false);
@@ -167,15 +170,7 @@ function LocationBlock({
     setIsChangingMode(false);
   };
   const showWalkingRoute = async () => {
-    if (isLoadingRoute) return;
-    setIsLoadingRoute(true);
-    const loaded = await onShowWalkingRoute();
-    if (!loaded) {
-      setRouteError('We could not show a walking route. Your service details are still here. Try again or open the destination in Maps.');
-    } else {
-      setRouteError(null);
-    }
-    setIsLoadingRoute(false);
+    await selectTravelMode('walk');
   };
   const routeCoords = geometryToCoordinates(result.polyline);
   const origin = result.origin;
@@ -241,7 +236,7 @@ function LocationBlock({
         </View>
       </View>
 
-      {!hasRoute && destination && (
+      {hasRoute && destination && Boolean(routeError) && (
         <View style={styles.routePrompt}>
           <Text style={styles.routePromptTitle}>Need directions?</Text>
           <Text style={styles.routePromptBody}>Use your location only to show a walking route and time.</Text>
@@ -345,23 +340,47 @@ function RecoveryActions({ result, onRetry }: { result: RecoveryResult; onRetry:
   );
 }
 
-function ResultNextStep({ result, showLocationPaths }: { result: QueryResult; showLocationPaths: boolean }) {
+function ResultNextStep({
+  result,
+  showLocationPaths,
+  onShowWalkingRoute,
+}: {
+  result: QueryResult;
+  showLocationPaths: boolean;
+  onShowWalkingRoute: () => Promise<boolean>;
+}) {
+  const [isLoadingRoute, setIsLoadingRoute] = useState(false);
+  const [routeError, setRouteError] = useState<string | null>(null);
   const isLocation = result.type === 'location';
   const primaryLink = getBestNextStepLink(result);
   const locationResult = result as LocationResult;
   const useDirections = isLocation
     && showLocationPaths
     && Boolean(locationResult.origin && geometryToCoordinates(locationResult.polyline).length > 0);
-  const actionLabel = useDirections
-    ? 'Open directions in Google Maps'
+  const actionLabel = isLocation
+    ? useDirections
+      ? 'Open directions in Google Maps'
+      : isLoadingRoute
+        ? 'Getting walking route...'
+        : 'Show walking route'
     : getActionLabel(result.query, result.title, primaryLink);
   const prompt = useDirections
     ? `Ready to find ${result.placeName}?`
-    : getNextStepPrompt(result.query, result.title, actionLabel);
+    : isLocation
+      ? `Ready to find ${result.placeName}?`
+    : getNextStepPrompt(actionLabel);
 
   const handlePress = async () => {
     if (useDirections) {
       await openGoogleMapsDirections(result.placeName, result.placeSubtitle);
+      return;
+    }
+
+    if (isLocation) {
+      setIsLoadingRoute(true);
+      const loaded = await onShowWalkingRoute();
+      setRouteError(loaded ? null : 'We could not show a walking route. Your service details are still available - please try again.');
+      setIsLoadingRoute(false);
       return;
     }
 
@@ -370,17 +389,23 @@ function ResultNextStep({ result, showLocationPaths }: { result: QueryResult; sh
   };
 
   return (
-    <View style={styles.nextStepSection}>
+    <View style={[styles.nextStepSection, isLocation && styles.locationNextStepSection]}>
       <Text style={styles.nextStepPrompt}>{prompt}</Text>
       <TouchableOpacity
         style={styles.nextStepButton}
         onPress={() => void handlePress()}
+        disabled={isLoadingRoute}
         accessibilityRole="button"
         accessibilityLabel={actionLabel}
-        accessibilityHint={useDirections ? `Opens directions to ${result.placeName} in Google Maps or your default browser` : 'Opens the most relevant official resource for your question'}
+        accessibilityHint={useDirections
+          ? `Opens directions to ${result.placeName} in Google Maps or your default browser`
+          : isLocation
+            ? 'Uses your location to show a walking route and travel time'
+            : 'Opens the most relevant official resource for your question'}
       >
         <Text style={styles.nextStepButtonText}>{actionLabel}</Text>
       </TouchableOpacity>
+      {routeError && <Text style={styles.routeError} accessibilityLiveRegion="polite">{routeError}</Text>}
     </View>
   );
 }
@@ -570,11 +595,42 @@ function getBestNextStepLink(result: QueryResult): SupportResources['links'][num
   });
 }
 
-function getNextStepPrompt(query: string, title: string, actionLabel: string) {
-  const cleanTitle = title === "Here's what I found" ? query.trim() : title;
-  if (/\b(?:book|appointment|advising)\b/i.test(actionLabel)) return `Ready to book support for ${cleanTitle}?`;
-  if (/\b(?:apply|manage|explore|learn|find|read|review)\b/i.test(actionLabel)) return `Ready to continue with ${cleanTitle}?`;
-  return `Ready to open help for ${cleanTitle}?`;
+function getNextStepPrompt(actionLabel: string) {
+  if (/\b(?:book|appointment|advising)\b/i.test(actionLabel)) {
+    return 'Choose a time that works for you.';
+  }
+  if (/\bmanage your enrolment\b/i.test(actionLabel)) {
+    return 'Use ACORN to review your enrolment details.';
+  }
+  if (/\b(?:learn|read|review)\b/i.test(actionLabel)) {
+    return 'Review the details when you’re ready.';
+  }
+  if (/\b(?:apply|explore|find)\b/i.test(actionLabel)) {
+    return 'This official U of T resource can help you take the next step.';
+  }
+  return 'Open the official U of T resource for next steps.';
+}
+
+function getResultHeaderTitle(result: QueryResult) {
+  if (result.type === 'recovery') return 'Let’s try that again';
+
+  const context = `${result.query} ${result.title} ${result.summary}`.toLowerCase();
+
+  if (/\b(?:hello|hi|hey|welcome)\b/.test(context)) return 'Welcome to T-Care';
+  if (/\b(?:mental health|counselling|counseling|wellness)\b/.test(context)) return 'Wellbeing support';
+  if (/\b(?:accessibility|accommodation|assistive)\b/.test(context)) return 'Accessibility support';
+  if (/\b(?:financial aid|award|scholarship|osap|funding)\b/.test(context)) return 'Funding support';
+  if (/\b(?:housing|residence)\b/.test(context)) return 'Housing support';
+  if (/\b(?:immigration|international)\b/.test(context)) return 'International student support';
+  if (/\b(?:registrar|enrolment|acorn|tuition|fee|deadline)\b/.test(context)) return 'Enrolment support';
+  if (/\b(?:career|job|work study)\b/.test(context)) return 'Career support';
+  if (/\b(?:library|study space|research|technology|wi-fi|utorid)\b/.test(context)) return 'Study resources';
+  if (/\b(?:food|basic needs)\b/.test(context)) return 'Basic-needs support';
+  if (/\b(?:sexual violence|harassment)\b/.test(context)) return 'Support options';
+  if (/\b(?:safety|travelsafer|escort)\b/.test(context)) return 'Campus safety';
+  if (result.type === 'location') return 'Getting there';
+
+  return 'Campus support';
 }
 
 function getActionLabel(
@@ -765,7 +821,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     padding: spacing.md,
   },
-  routePrompt: { backgroundColor: colors.infoBg, borderColor: colors.border, borderRadius: radius.lg, borderWidth: 1, marginBottom: spacing.sm, padding: spacing.md },
+  routePrompt: { backgroundColor: colors.infoBg, borderColor: colors.border, borderRadius: radius.lg, borderWidth: 1, marginBottom: spacing.sm, padding: spacing.sm },
   routePromptTitle: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '700' },
   routePromptBody: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 18, marginTop: spacing.xs },
   routeActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
@@ -937,6 +993,7 @@ const styles = StyleSheet.create({
   cancelButton: { alignItems: 'center', justifyContent: 'center', minHeight: 44 },
   cancelButtonText: { color: colors.textSecondary, fontSize: fontSize.base, fontWeight: '600' },
   nextStepSection: { borderTopColor: colors.border, borderTopWidth: 1, gap: spacing.sm, marginTop: spacing.lg, paddingTop: spacing.lg },
+  locationNextStepSection: { marginBottom: spacing.md },
   nextStepPrompt: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '700' },
   nextStepButton: { alignItems: 'center', backgroundColor: colors.accent, borderRadius: radius.lg, justifyContent: 'center', minHeight: 48, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
   nextStepButtonText: { color: colors.accentOn, fontSize: fontSize.base, fontWeight: '700' },
