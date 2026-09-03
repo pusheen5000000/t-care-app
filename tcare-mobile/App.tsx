@@ -150,6 +150,85 @@ const STUDENT_LIFE_RESOURCES: Record<string, QueryResult> = {
       { group: 'U of T resources', title: 'Sexual violence & sexual harassment support', description: 'Find tri-campus support options and immediate-help information.', url: 'https://safety.utoronto.ca/sexual-violence-sexual-harassment/' },
     ] },
   },
+  'campus-dining': {
+    type: 'info', query: 'Campus food and dining', title: 'Campus food & dining',
+    summary: 'Find dining halls, food courts, cafés, and meal-plan options across all three campuses.',
+    supportResources: { campusLocations: [], links: [
+      { group: 'U of T resources', title: 'U of T Food Services', description: 'Explore dining halls, cafés, meal plans, and where-to-eat guides across campus.', url: 'https://foodservices.utoronto.ca/' },
+      { group: 'U of T resources', title: 'UEat food ordering', description: 'Order ahead from campus dining locations and food halls.', url: 'https://ueat.utoronto.ca/' },
+      { group: 'U of T resources', title: 'UTM food locations & hours', description: 'Check dining hall, food court, and vending hours at UTM.', url: 'https://www.utm.utoronto.ca/hospitality/FoodLocationsAndHours' },
+    ] },
+  },
+  'study-spots': {
+    type: 'info', query: 'Quiet places to study', title: 'Study spots',
+    summary: 'Find libraries, quiet rooms, and study spaces open across campus, with current hours.',
+    supportResources: { campusLocations: [], links: [
+      { group: 'U of T resources', title: 'Libraries & hours', description: 'Find an open U of T library, current hours, and available study spaces.', url: 'https://library.utoronto.ca/libraries' },
+      { group: 'U of T resources', title: 'Interactive campus map', description: 'Search the campus map for study lounges, common rooms, and quiet spaces by building.', url: 'https://map.utoronto.ca/' },
+    ] },
+  },
+  events: {
+    type: 'info', query: "What's happening on campus", title: 'Events & activities',
+    summary: 'See what clubs, talks, socials, and student-group events are happening on campus this week.',
+    supportResources: { campusLocations: [], links: [
+      { group: 'U of T resources', title: 'Student Life events calendar', description: 'Browse upcoming workshops, socials, and events from Student Life departments.', url: 'https://events.studentlife.utoronto.ca/Calendar' },
+      { group: 'U of T resources', title: 'Ulife', description: 'Discover student clubs and campus groups and their upcoming events.', url: 'https://www.ulife.utoronto.ca/events' },
+    ] },
+  },
+  atms: {
+    type: 'info', query: 'Where can I find an ATM on campus', title: 'ATMs & banking',
+    summary: 'Use the interactive campus map to find the nearest ATM or bank branch — most student centres and residences have one close by.',
+    supportResources: { campusLocations: [], links: [
+      { group: 'U of T resources', title: 'Interactive campus map', description: 'Search by building or service, including banking and student-space layers.', url: 'https://map.utoronto.ca/' },
+    ] },
+  },
+  recreation: {
+    type: 'info', query: 'Gyms and recreation on campus', title: 'Gyms & recreation',
+    summary: 'Membership to the Athletic Centre and other Sport & Rec facilities is included in your tuition — find drop-in hours, pools, and courts.',
+    supportResources: { campusLocations: [], links: [
+      { group: 'U of T resources', title: 'Athletic Centre', description: 'St. George campus gym, pools, courts, and fitness facilities included in tuition.', url: 'https://kpe.utoronto.ca/facility/athletic-centre' },
+      { group: 'U of T resources', title: 'Sport & Rec membership', description: 'See what your student membership includes and how to access facilities.', url: 'https://kpe.utoronto.ca/facilities-memberships/join-sport-rec-community' },
+    ] },
+  },
+  clubs: {
+    type: 'info', query: 'How do I join a club', title: 'Clubs & student groups',
+    summary: 'Browse hundreds of recognized clubs — from cultural and academic groups to Hart House clubs like chess and archery.',
+    supportResources: { campusLocations: [], links: [
+      { group: 'U of T resources', title: 'Student Organization Portal', description: 'Search the directory of all recognized student clubs and groups.', url: 'https://sop.utoronto.ca/' },
+      { group: 'U of T resources', title: 'Find a club', description: 'Learn how to browse and connect with clubs that match your interests.', url: 'https://www.studentlife.utoronto.ca/task/find-a-club-on-the-student-organization-portal/' },
+    ] },
+  },
+  'transit-parking': {
+    type: 'info', query: 'Transit and parking on campus', title: 'Transit & parking',
+    summary: 'Find campus parking rates and permits, or plan your route with the TTC.',
+    supportResources: { campusLocations: [], links: [
+      { group: 'U of T resources', title: 'Transportation Services', description: 'Parking rates, permits, EV charging, and regulations across campus.', url: 'https://transportation.utoronto.ca/' },
+      { group: 'Government support', title: 'TTC route planner', description: 'Plan subway, streetcar, and bus routes around Toronto.', url: 'https://www.ttc.ca/' },
+    ] },
+  },
+  printing: {
+    type: 'info', query: 'Where can I print on campus', title: 'Printing & tech help',
+    summary: 'Print wirelessly from your laptop to campus printers, or get help from an IT help desk.',
+    supportResources: { campusLocations: [], links: [
+      { group: 'U of T resources', title: 'Wireless printing', description: 'Set up wireless printing to release stations across campus using your TCard.', url: 'https://printhere.utoronto.ca/' },
+      { group: 'U of T resources', title: 'Information Technology Services', description: 'Find student help-desk contacts and IT support across all three campuses.', url: 'https://www.its.utoronto.ca/contact/' },
+    ] },
+  },
+  'lost-found': {
+    type: 'info', query: 'I lost something on campus', title: 'Lost & found',
+    summary: 'Report a lost item or find out where to check first — most buildings also keep their own lost-and-found.',
+    supportResources: { campusLocations: [], links: [
+      { group: 'U of T resources', title: 'Lost and found (St. George)', description: 'Submit a lost-item report or find drop-off details for found items.', url: 'https://www.fs.utoronto.ca/services/lost-found/' },
+    ] },
+  },
+  'multi-faith': {
+    type: 'info', query: 'Is there a prayer or meditation space on campus', title: 'Multi-faith & prayer spaces',
+    summary: 'Find prayer, meditation, and reflection spaces open to all faiths across campus.',
+    supportResources: { campusLocations: [], links: [
+      { group: 'U of T resources', title: 'Multi-Faith Centre', description: 'Bookable rooms for prayer, worship, and spiritual practice at 569 Spadina Ave.', url: 'https://studentlife.utoronto.ca/department/multi-faith-centre/' },
+      { group: 'U of T resources', title: 'Find worship space on campus', description: 'See additional prayer and reflection spaces across St. George buildings.', url: 'https://www.studentlife.utoronto.ca/task/find-worship-space-on-campus/' },
+    ] },
+  },
 };
 
 const STUDENT_LIFE_RESOURCE_QUERIES: Record<string, string> = {
@@ -165,6 +244,16 @@ const STUDENT_LIFE_RESOURCE_QUERIES: Record<string, string> = {
   food: 'Where is food and basic needs support?',
   'tenant-rights': 'Where can I get help with tenant rights and legal housing concerns?',
   'sexual-violence': 'Where is sexual violence support?',
+  'campus-dining': 'Where can I get food on campus?',
+  'study-spots': 'Where can I find a quiet place to study?',
+  events: "What's happening on campus this week?",
+  atms: 'Where can I find an ATM?',
+  recreation: 'Where can I work out on campus?',
+  clubs: 'Where can I find student clubs?',
+  'transit-parking': 'Where can I park or catch transit near campus?',
+  printing: 'Where can I print documents on campus?',
+  'lost-found': 'Where do I report a lost item?',
+  'multi-faith': 'Where can I find a prayer or meditation space?',
 };
 const TCARD_OFFICE_FALLBACK: QueryResult = {
   type: 'location',
@@ -395,16 +484,6 @@ async function resolveQuery(
     throw new RequestError('invalid-response', 'The service returned an incomplete answer');
   }
   return result as QueryResult;
-
-  /*
-  await new Promise((r) => setTimeout(r, 700));
-  return {
-    type: 'info',
-    query,
-    title: "Here's what I found",
-    summary: 'Frontend-only stub response — no backend connected right now.',
-  };
-  */
 }
 
 export default function App() {
@@ -412,8 +491,6 @@ export default function App() {
   const [result, setResult] = useState<QueryResult | null>(null);
   const [resultSource, setResultSource] = useState<TabKey>('ask');
   const [showResourceMap, setShowResourceMap] = useState(false);
-  // A route is only meaningful after the student has explicitly shared their
-  // location. A campus choice still lets us place the service marker.
   const [showLocationPaths, setShowLocationPaths] = useState(false);
   const [loading, setLoading] = useState(false);
   const [emergencyVisible, setEmergencyVisible] = useState(false);
@@ -456,8 +533,6 @@ export default function App() {
     setShowLocationPaths(false);
     setLoading(true);
     try {
-      // Answer general questions before asking for sensitive device location.
-      // Location is only needed after the student chooses directions.
       const r = await resolveQuery(query, undefined, campus?.id);
       if (currentRequestId === requestId.current) setResult(r);
     } catch (err) {
@@ -493,8 +568,6 @@ export default function App() {
     setShowLocationPaths(false);
     setLoading(true);
     try {
-      // Show the service first. Device location is requested only after the
-      // student explicitly asks to see a walking route or ETA.
       const location = undefined;
       setShowLocationPaths(false);
       const apiUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
@@ -562,8 +635,6 @@ export default function App() {
     setShowLocationPaths(false);
     setLoading(true);
     try {
-      // Resolve the service and destination first. Location remains opt-in
-      // through the explicit walking-route action on the result.
       setShowLocationPaths(false);
       const response = await resolveQuery(query, undefined, campus?.id);
       if (currentRequestId === requestId.current) setResult(response);
@@ -716,7 +787,6 @@ export default function App() {
       return (
         <View style={styles.placeholderScreen}>
           <Text style={styles.placeholderText}>
-            {/* This fallback only renders for the non-Ask tab. */}
             {/* @ts-expect-error The branch is intentionally unreachable for Resources. */}
             {tab === 'resources' ? 'Resources' : 'Saved'} screen — coming soon
           </Text>
