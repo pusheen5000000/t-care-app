@@ -177,7 +177,7 @@ const STUDENT_LIFE_RESOURCES: Record<string, QueryResult> = {
         { campus: 'utsc', name: 'Market Place', location: '1265 Military Trail, Scarborough, ON M1C 1A4', detail: 'On-campus food options and dining at UTSC.' },
       ],
       links: [
-        { group: 'U of T resources', title: 'U of T Food Services', description: 'Explore dining halls, cafés, meal plans, and where-to-eat guides across campus.', url: 'https://foodservices.utoronto.ca/where-to-eat/' },
+        { group: 'U of T resources', title: 'U of T Food Services', description: 'Explore dining halls, cafés, meal plans, and where-to-eat guides across campus.', url: 'https://www.scsu.ca/equity-centres#food' },
         { group: 'U of T resources', title: 'UTM food locations & hours', description: 'Find dining halls, cafés, and food locations at UTM.', url: 'https://www.utm.utoronto.ca/hospitality/Food' },
         { group: 'U of T resources', title: 'UTSC dining', description: 'Find food courts, cafés, and dining options at UTSC.', url: 'https://www.utsc.utoronto.ca/food/where-eat-campus' },
       ],

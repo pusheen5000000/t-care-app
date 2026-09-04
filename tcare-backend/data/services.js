@@ -74,7 +74,7 @@ module.exports = [
       primaryDestination: 'St. George Accessibility Services',
       campusLocations: [
         { name: 'St. George Accessibility Services', location: '455 Spadina Avenue, 4th Floor, Suite 400, Toronto, ON M5S 2G8', detail: 'Academic accommodations, adaptive technology, and exam support.', coordinates: { latitude: 43.6643, longitude: -79.4018 } },
-        { name: 'UTSC AccessAbility Services', location: 'Sam Ibrahim Building, IA5105, 1050 Military Trail, Scarborough, ON M1C 1A4', detail: 'Disability-related accommodations and accessible learning support.', coordinates: { latitude: 43.7846, longitude: -79.187 } },
+        { name: 'UTSC AccessAbility Services', location: 'Sam Ibrahim Building, IA5105, 1265 Military Trail, Scarborough, ON M1C 1A4', detail: 'Disability-related accommodations and accessible learning support.', coordinates: { latitude: 43.7846, longitude: -79.187 } },
         { name: 'UTM AccessABILITY Resource Centre', location: 'Davis Building, DV2240, 3359 Mississauga Road, Mississauga, ON L5L 1C6', detail: 'Academic accommodations and accessibility resources for UTM students.', coordinates: { latitude: 43.5483, longitude: -79.662 } },
       ],
       links: [
@@ -150,7 +150,7 @@ module.exports = [
     summary: 'Get support with immigration, permits, UHIP, transition, and community as an international student.', address: '', fee: 'Free', hours: 'Online resources',
     supportResources: { title: 'International student support', intro: 'Choose your campus to reach an international-student office for immigration, permits, UHIP, and transition support.', campusHeading: 'International student offices', campusLocations: [
       { name: 'St. George Centre for International Experience', location: '33 St. George Street, Toronto, ON M5S 2E8', detail: 'Immigration advising, permits, UHIP, transition, and global learning support.', coordinates: CAMPUS_COORDINATES.utsg },
-      { name: 'UTSC International Student Centre', location: 'Student Centre, Room SL157, 1265 Military Trail, Scarborough, ON M1C 1A4', detail: 'Immigration, UHIP, transition, and international student support.', coordinates: CAMPUS_COORDINATES.utsc },
+      { name: 'UTSC International Student Centre', location: 'Arts & Administration Building, Room AA142, 1265 Military Trail, Scarborough, ON M1C 1A4', detail: 'Immigration, UHIP, transition, and international student support.', coordinates: CAMPUS_COORDINATES.utsc },
       { name: 'UTM International Education Centre', location: 'Davis Building, Room DV2071, 3359 Mississauga Road, Mississauga, ON L5L 1C6', detail: 'International Student Immigration Advisor, immigration documents, and UHIP support.', coordinates: CAMPUS_COORDINATES.utm },
     ], links: [
       { group: 'U of T resources', title: 'Immigration & permit support', description: 'Connect with the Centre for International Experience for immigration advising.', url: 'https://start.studentlife.utoronto.ca/topic-category/learn-about-immigration-and-permits' },
@@ -257,7 +257,7 @@ module.exports = [
       { campus: 'utsc', name: 'Starbucks (Meeting Place)', location: 'Meeting Place, 1265 Military Trail, Scarborough, ON M1C 1A4', detail: 'Coffee and grab-and-go items in the UTSC Meeting Place.' },
       { campus: 'utsc', name: 'Market Place', location: '1265 Military Trail, Scarborough, ON M1C 1A4', detail: 'On-campus food options and dining at UTSC.' },
     ], links: [
-      { group: 'U of T resources', title: 'U of T Food Services', description: 'Explore dining halls, cafés, meal plans, and where-to-eat guides across campus.', url: 'https://foodservices.utoronto.ca/where-to-eat/' },
+      { group: 'U of T resources', title: 'U of T Food Services', description: 'Explore dining halls, cafés, meal plans, and where-to-eat guides across campus.', url: 'https://www.scsu.ca/equity-centres#food' },
       { group: 'U of T resources', title: 'UTM Food Locations & Hours', description: 'Find dining halls, cafés, and food locations at UTM.', url: 'https://www.utm.utoronto.ca/hospitality/Food' },
       { group: 'U of T resources', title: 'UTSC Dining', description: 'Find food courts, cafés, and dining options at UTSC.', url: 'https://www.utsc.utoronto.ca/food/where-eat-campus' },
     ] },
