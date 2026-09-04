@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
   Modal,
   Platform,
   Pressable,
+  Animated,
+  Easing,
 } from 'react-native';
 import { colors, spacing, fontSize, radius } from '../theme';
 import { MoodCheckIn } from '../components/MoodCheckIn';
@@ -54,11 +56,38 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
   const [text, setText] = useState('');
   const [activeMood, setActiveMood] = useState<'good' | 'okay' | 'struggling' | null>(null);
   const [campusPickerVisible, setCampusPickerVisible] = useState(false);
+  // Keep the modal mounted through its exit animation so the backdrop can fade out.
+  const [campusPickerMounted, setCampusPickerMounted] = useState(false);
+  const campusAnim = useRef(new Animated.Value(0)).current;
   const [isLayoutReady, setIsLayoutReady] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   // The query being disambiguated, held so "ask as typed" can still send it.
   const [pendingQuery, setPendingQuery] = useState<string | null>(null);
   const [disambiguation, setDisambiguation] = useState<DisambiguationPrompt | null>(null);
+
+  // Drive the campus picker in/out: the dark backdrop fades while the card
+  // eases up a short distance, instead of the whole overlay sliding from the bottom.
+  useEffect(() => {
+    if (campusPickerVisible) {
+      setCampusPickerMounted(true);
+      Animated.timing(campusAnim, {
+        toValue: 1,
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+      return;
+    }
+    if (!campusPickerMounted) return;
+    Animated.timing(campusAnim, {
+      toValue: 0,
+      duration: 180,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) setCampusPickerMounted(false);
+    });
+  }, [campusPickerVisible, campusPickerMounted, campusAnim]);
 
   useEffect(() => {
     let secondFrame: number | undefined;
@@ -218,20 +247,38 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
 
       <MoodCheckIn visible={activeMood !== null} mood={activeMood} onClose={() => setActiveMood(null)} onEmergencySupportPress={onEmergencySupportPress} />
 
-      <Modal visible={campusPickerVisible} transparent animationType="slide" onRequestClose={() => setCampusPickerVisible(false)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setCampusPickerVisible(false)}>
-          <Pressable style={styles.modalCard} onPress={() => undefined} accessibilityViewIsModal>
-            <Text style={styles.modalTitle}>Set your campus</Text>
-            <Text style={styles.modalBody}>Optional. T-Care saves this preference and uses it to make service results more relevant.</Text>
-            {CAMPUSES.map((option) => (
-              <TouchableOpacity key={option.id} style={[styles.campusOption, campus?.id === option.id && styles.campusOptionSelected]} onPress={() => { onCampusChange(option); setCampusPickerVisible(false); }} accessibilityRole="button" accessibilityLabel={option.label} accessibilityState={{ selected: campus?.id === option.id }}>
-                <Text style={styles.collegeOptionText}>{option.label}</Text>
-                {campus?.id === option.id && <Text style={styles.selectedMark}>Selected</Text>}
-              </TouchableOpacity>
-            ))}
-            <TouchableOpacity style={styles.skipCampusButton} onPress={() => { onCampusChange(null); setCampusPickerVisible(false); }} accessibilityRole="button" accessibilityLabel="Clear campus preference"><Text style={styles.skipCampusText}>I’ll choose later</Text></TouchableOpacity>
-          </Pressable>
-        </Pressable>
+      <Modal visible={campusPickerMounted} transparent animationType="none" onRequestClose={() => setCampusPickerVisible(false)}>
+        <Animated.View style={[styles.modalBackdrop, { opacity: campusAnim }]}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setCampusPickerVisible(false)} />
+          <Animated.View
+            style={[
+              styles.modalCard,
+              {
+                opacity: campusAnim,
+                transform: [
+                  {
+                    translateY: campusAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [24, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <Pressable onPress={() => undefined} accessibilityViewIsModal>
+              <Text style={styles.modalTitle}>Set your campus</Text>
+              <Text style={styles.modalBody}>Optional. T-Care saves this preference and uses it to make service results more relevant.</Text>
+              {CAMPUSES.map((option) => (
+                <TouchableOpacity key={option.id} style={[styles.campusOption, campus?.id === option.id && styles.campusOptionSelected]} onPress={() => { onCampusChange(option); setCampusPickerVisible(false); }} accessibilityRole="button" accessibilityLabel={option.label} accessibilityState={{ selected: campus?.id === option.id }}>
+                  <Text style={styles.collegeOptionText}>{option.label}</Text>
+                  {campus?.id === option.id && <Text style={styles.selectedMark}>Selected</Text>}
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity style={styles.skipCampusButton} onPress={() => { onCampusChange(null); setCampusPickerVisible(false); }} accessibilityRole="button" accessibilityLabel="Clear campus preference"><Text style={styles.skipCampusText}>I’ll choose later</Text></TouchableOpacity>
+            </Pressable>
+          </Animated.View>
+        </Animated.View>
       </Modal>
     </SafeAreaView>
   );

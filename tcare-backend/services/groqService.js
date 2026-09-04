@@ -59,6 +59,20 @@ function looksUnreadable(text) {
   return wordLikeCount === 0;
 }
 
+// A single, friendly "please rephrase" answer used whenever a prompt is
+// nonsensical, off-topic, or the AI is momentarily unavailable. It is a normal
+// info result (never an error), so the app shows guidance instead of a
+// request-error/recovery screen.
+function invalidPromptResult() {
+  return {
+    serviceId: null,
+    unclear: true,
+    title: 'Invalid prompt',
+    summary:
+      'That doesn\u2019t look like something I can help with. Please enter an appropriate, on-topic question about U of T student life \u2014 for example \u201cI lost my TCard\u201d, \u201cwhere can I eat on campus\u201d, \u201cI need someone to talk to\u201d, or \u201chelp with my courses.\u201d I can point you to TCards, wellbeing, accessibility, academics, money, housing, international support, safety, careers, libraries, and food.',
+  };
+}
+
 async function classifyQuery(query, services) {
   const normalizedQuery = query.trim();
   if (/^(?:hi|hello|hey|good (?:morning|afternoon|evening)|i need (?:some )?help|can you help(?: me)?|help me)[!,.?\s]*$/i.test(normalizedQuery)) {
@@ -74,13 +88,7 @@ async function classifyQuery(query, services) {
   // call on it. We answer with friendly guidance rather than an error so the
   // student sees what they can actually ask for.
   if (looksUnreadable(normalizedQuery)) {
-    return {
-      serviceId: null,
-      unclear: true,
-      title: "Hmm, I'm not sure what you're after",
-      summary:
-        'I\u2019m T-Care, your U of T campus helper, so I do best with a real question about student life. Try telling me what\u2019s going on in a few words \u2014 like \u201cI lost my TCard\u201d, \u201cwhere can I eat on campus\u201d, \u201cI need someone to talk to\u201d, or \u201chelp with my courses.\u201d I can point you to TCards, wellbeing, accessibility, academics, money, housing, international support, safety, careers, libraries, food, and more.',
-    };
+    return invalidPromptResult();
   }
 
   const queryForMatching = normalizedQuery.toLowerCase();
@@ -136,34 +144,63 @@ Response rules:
 Respond with ONLY valid JSON, no markdown or preamble, in this exact shape:
 {"serviceId": "<id or null>", "title": "<short, helpful title>", "summary": "<helpful answer>", "destination": "<address/place or null>"}`;
 
-  const response = await fetch(GROQ_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      temperature: 0.3,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: query },
-      ],
-    }),
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Groq API error (${response.status}): ${errText}`);
-  }
-
-  const data = await response.json();
-  const raw = data.choices?.[0]?.message?.content?.trim() ?? '{}';
-
   try {
-    return JSON.parse(raw);
+    const response = await fetch(GROQ_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        temperature: 0.3,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: query },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      // A 4xx here almost always means the prompt itself was rejected (for
+      // example flagged or unprocessable content). Guide the student to
+      // rephrase instead of surfacing a request error.
+      if (response.status >= 400 && response.status < 500) {
+        console.warn(`Groq rejected the prompt (${response.status}): ${errText}`);
+        return invalidPromptResult();
+      }
+      throw new Error(`Groq API error (${response.status}): ${errText}`);
+    }
+
+    const data = await response.json();
+    const raw = data.choices?.[0]?.message?.content?.trim() ?? '{}';
+
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (err) {
+      // The model returned something we can't read for this prompt. Rather than
+      // erroring out, ask the student to enter an appropriate, on-topic question.
+      console.warn(`Groq returned non-JSON content: ${raw}`);
+      return invalidPromptResult();
+    }
+
+    // Guard against an empty/blank AI answer so the app never shows a bare or
+    // confusing result for a nonsensical prompt.
+    if (!parsed || typeof parsed !== 'object' || (!parsed.serviceId && !String(parsed.summary ?? '').trim())) {
+      return invalidPromptResult();
+    }
+    return parsed;
   } catch (err) {
-    throw new Error(`Groq returned non-JSON content: ${raw}`);
+    // Network/transport failures against the AI should not become a request
+    // error for a nonsensical prompt; keep the app on friendly guidance. Only
+    // genuine connectivity errors (not our thrown API errors) reach here.
+    if (err instanceof Error && err.message.startsWith('Groq API error')) {
+      throw err;
+    }
+    console.warn('Groq request failed:', err.message);
+    return invalidPromptResult();
   }
 }
 

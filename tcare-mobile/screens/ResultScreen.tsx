@@ -618,7 +618,7 @@ function getResultHeaderTitle(result: QueryResult) {
 
   const context = `${result.query} ${result.title} ${result.summary}`.toLowerCase();
 
-  if (/not sure what you.re after|campus helper|do best with a real question/.test(context)) return 'Let’s narrow it down';
+  if (/not sure what you.re after|campus helper|do best with a real question|invalid prompt|appropriate, on-topic|does.?n.t look like something i can help/.test(context)) return 'Let’s narrow it down';
   if (/\b(?:hello|hi|hey|welcome)\b/.test(context)) return 'Welcome to T-Care';
   if (/\b(?:mental health|counselling|counseling|wellness)\b/.test(context)) return 'Wellbeing support';
   if (/\b(?:accessibility|accommodation|assistive)\b/.test(context)) return 'Accessibility support';
