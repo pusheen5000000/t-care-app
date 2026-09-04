@@ -57,8 +57,49 @@ async function createMapResult({ office, query, summary, location }) {
   };
 }
 
+// Trim a list-only service's locations to the student's selected campus.
+// Untagged entries always remain, and if nothing matches (or no campus is
+// selected) the full list is returned so a result is never empty.
+function filterListOnlyByCampus(supportResources, campus) {
+  const locations = supportResources?.campusLocations ?? [];
+  const hasCampusTags = locations.some((location) => location.campus);
+  if (!['utsg', 'utsc', 'utm'].includes(campus) || !hasCampusTags) return supportResources;
+
+  const filtered = locations.filter((location) => !location.campus || location.campus === campus);
+  if (filtered.length === 0) return supportResources;
+
+  const campusLabel = campus === 'utsg' ? 'St. George' : campus === 'utsc' ? 'UTSC' : 'UTM';
+  // When the resource carries links for other campuses, point students to them
+  // so they can still reach another campus's version of this amenity.
+  const hasCrossCampusLinks = (supportResources.links?.length ?? 0) > 1;
+  const intro = hasCrossCampusLinks
+    ? `Showing ${campusLabel} spots. Need another campus? Use the links below to reach its version.`
+    : `Showing options at your selected campus (${campusLabel}).`;
+  return {
+    ...supportResources,
+    intro,
+    campusLocations: filtered,
+  };
+}
+
 function createInfoResult({ service, query, title, summary, location, campus }) {
   const campusLocations = service.supportResources?.campusLocations ?? [];
+
+  // Casual list-only services (for example campus dining) present a curated set
+  // of places to go. They are not tri-campus offices, so never prompt for a
+  // campus. When entries are campus-tagged and the student has a selected
+  // campus, trim the list to that campus so amenities match where they are.
+  if (service.listOnly) {
+    return {
+      type: 'info',
+      serviceId: service.id,
+      query,
+      title: title || service.name,
+      summary: summary || service.summary,
+      supportResources: filterListOnlyByCampus(service.supportResources, campus),
+    };
+  }
+
   const confidentCampusLocation = findSelectedCampusLocation(campus, campusLocations)
     ?? findRequestedCampusLocation(query, campusLocations)
     ?? findNearbyCampusLocation(location, campusLocations);
@@ -76,6 +117,12 @@ function createInfoResult({ service, query, title, summary, location, campus }) 
 }
 
 async function createCampusAwareServiceResult({ service, query, title, summary, location, campus }) {
+  // List-only services (casual dining, etc.) are curated lists, not routable
+  // offices. Return the list directly rather than resolving a single map office.
+  if (service.listOnly) {
+    return createInfoResult({ service, query, title, summary, location, campus });
+  }
+
   // A UTSG college is a required second choice for these services. Never let a
   // UTSG mention or device location bypass that choice and open a map instead.
   const campusLocations = service.supportResources?.campusLocations ?? [];

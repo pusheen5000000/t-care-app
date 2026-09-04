@@ -17,6 +17,48 @@ const GROQ_MODEL = 'llama-3.3-70b-versatile';
  * @param {Array} services - the services list from data/services.js
  * @returns {Promise<{ serviceId: string|null, title: string, summary: string, destination?: string|null }>}
  */
+// A small, conservative gibberish detector. It only flags input that a person
+// almost certainly did not intend as a real question, so genuine (even
+// short or oddly phrased) queries still reach the AI.
+function looksUnreadable(text) {
+  const trimmed = text.trim();
+  if (!trimmed) return true;
+
+  // Strip everything except letters/spaces to judge the words themselves.
+  const letters = trimmed.replace(/[^a-zA-Z]/g, '');
+  const alphaRatio = trimmed.length ? letters.length / trimmed.replace(/\s/g, '').length : 0;
+
+  // Mostly symbols or digits with almost no letters (e.g. "?!?!", "123456").
+  if (letters.length === 0) return true;
+  if (trimmed.replace(/\s/g, '').length >= 4 && alphaRatio < 0.4) return true;
+
+  const words = trimmed.split(/\s+/).filter(Boolean);
+
+  // Common campus acronyms and terms that have no vowel or look "consonant
+  // heavy" but are perfectly valid searches.
+  const KNOWN_TERMS = new Set([
+    'ttc', 'utm', 'utsc', 'utsg', 'atm', 'atms', 'osap', 'uhip', 'gym', 'gyms',
+    'id', 'tcard', 'acorn', 'utorid', 'wifi', 'it', 'cv', 'faq',
+  ]);
+
+  // A word is "word-like" if it has a vowel and no long consonant run. Real
+  // English words almost always satisfy this; keyboard mashing rarely does.
+  const isWordLike = (word) => {
+    const w = word.replace(/[^a-zA-Z]/g, '').toLowerCase();
+    if (!w) return false;
+    if (KNOWN_TERMS.has(w)) return true;
+    if (w.length <= 2) return true; // short tokens like "i", "to", "of"
+    if (!/[aeiouy]/.test(w)) return false; // no vowel at all
+    if (/[^aeiouy]{5,}/.test(w)) return false; // 5+ consonants in a row
+    return true;
+  };
+
+  const wordLikeCount = words.filter(isWordLike).length;
+
+  // If nothing in the message reads like a word, treat it as unreadable.
+  return wordLikeCount === 0;
+}
+
 async function classifyQuery(query, services) {
   const normalizedQuery = query.trim();
   if (/^(?:hi|hello|hey|good (?:morning|afternoon|evening)|i need (?:some )?help|can you help(?: me)?|help me)[!,.?\s]*$/i.test(normalizedQuery)) {
@@ -25,6 +67,19 @@ async function classifyQuery(query, services) {
       title: 'Hi, how can I help?',
       summary:
         'Tell me what you need help with. I can connect you with a U of T resource for TCards, wellbeing, accessibility, academics, money, housing, international support, safety, careers, libraries, food, or sexual violence support.',
+    };
+  }
+
+  // Catch keyboard-mashing and other unreadable input before spending an AI
+  // call on it. We answer with friendly guidance rather than an error so the
+  // student sees what they can actually ask for.
+  if (looksUnreadable(normalizedQuery)) {
+    return {
+      serviceId: null,
+      unclear: true,
+      title: "Hmm, I'm not sure what you're after",
+      summary:
+        'I\u2019m T-Care, your U of T campus helper, so I do best with a real question about student life. Try telling me what\u2019s going on in a few words \u2014 like \u201cI lost my TCard\u201d, \u201cwhere can I eat on campus\u201d, \u201cI need someone to talk to\u201d, or \u201chelp with my courses.\u201d I can point you to TCards, wellbeing, accessibility, academics, money, housing, international support, safety, careers, libraries, food, and more.',
     };
   }
 
@@ -74,7 +129,8 @@ Response rules:
 - Accessibility Services and Health & Wellness have campus-specific in-person offices. Do not imply that the St. George office is the only option; the app will show either the nearby campus office or all three campus offices with addresses.
 - Use only the facts supplied above for service-specific claims. Do not invent a location, hours, fee, policy, or route.
 - When the student explicitly asks for directions, a route, a map, or how to get to a place, set "destination" to the location they want. Prefer the matching service's exact address when there is one. For another clearly named place, use that place name exactly as the student described it, adding "Toronto, ON" only when needed for clarity. Otherwise use null. Do not put a destination in a response that is not asking for directions.
-- If no service fits, do not call the question invalid. Give a brief, supportive response and offer the areas T-AI can help with.
+- If a real campus need has no matching service, do not call the question invalid. Give a brief, supportive response and offer the areas T-AI can help with. Use serviceId null.
+- If the message is off-topic for a U of T student helper (for example weather, sports scores, celebrities, general trivia, coding help, or math homework), do not answer it. Politely say that you focus on University of Toronto student life and campus services, then invite them to ask about something like TCards, wellbeing, academics, money, housing, food, safety, or getting around. Keep it warm and one or two sentences. Use serviceId null and destination null.
 - Keep the summary concise but useful: 2-4 short sentences, at most 90 words.
 
 Respond with ONLY valid JSON, no markdown or preamble, in this exact shape:

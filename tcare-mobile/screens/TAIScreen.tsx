@@ -20,6 +20,8 @@ import {
 import { colors, fontSize, radius, spacing } from '../theme';
 import type { SupportResources } from '../types';
 import { openGoogleMapsDirections } from '../utils/googleMaps';
+import { getDisambiguation } from '../utils/disambiguation';
+import type { DisambiguationOption } from '../utils/disambiguation';
 
 type Coordinate = { latitude: number; longitude: number };
 type RouteStep = { instruction: string; distance: string };
@@ -58,6 +60,9 @@ type Message = {
   supportResources?: SupportResources;
   facilityPicker?: 'campus' | 'college';
   retryQuery?: string;
+  // When set, this assistant message is a "did you mean" follow-up: the student
+  // picks one of these before T-AI answers.
+  disambiguation?: DisambiguationOption[];
 };
 
 type QueryResponse = {
@@ -364,7 +369,7 @@ function SupportResourceLinks({
   );
 }
 
-export function TAIScreen() {
+export function TAIScreen({ campus }: { campus?: 'utsg' | 'utsc' | 'utm' }) {
   const [messages, setMessages] = useState<Message[]>(INITIAL);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -382,6 +387,28 @@ export function TAIScreen() {
   const send = async (retryQuery?: string) => {
     const query = (retryQuery ?? input).trim();
     if (!query || isSending) return;
+
+    // For short, everyday needs typed straight into the chat ("i'm hungry"),
+    // the intended next step is ambiguous. Ask a quick follow-up with specific
+    // choices instead of guessing. Retries and option picks skip this — they
+    // already carry a concrete query.
+    if (!retryQuery) {
+      const prompt = getDisambiguation(query);
+      if (prompt) {
+        setMessages((prev) => [
+          ...prev,
+          { id: `${Date.now()}-user`, role: 'user', text: query },
+          {
+            id: `${Date.now()}-disambiguation`,
+            role: 'assistant',
+            text: `${prompt.question} A few things match “${prompt.trigger}”. Which do you need?`,
+            disambiguation: prompt.options,
+          },
+        ]);
+        setInput('');
+        return;
+      }
+    }
 
     if (!retryQuery) {
       setMessages((prev) => [
@@ -425,7 +452,7 @@ export function TAIScreen() {
       const response = await fetch(`${API_BASE_URL}/api/query`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, location }),
+        body: JSON.stringify({ query, location, campus }),
       });
       const payload: QueryResponse = await response.json();
 
@@ -465,10 +492,10 @@ export function TAIScreen() {
     } catch (error) {
       const message = error instanceof Error ? error.message.toLowerCase() : '';
       const recoveryText = message.includes('location') || message.includes('permission')
-        ? "I saved your question, but I couldn't use your location. Check location access in your phone settings, then try again."
+        ? "I couldn't use your location. Check location access in your phone settings, then try your question again."
         : message.includes('network') || message.includes('fetch') || message.includes('timeout')
-          ? "I saved your question, but I couldn't connect. Check your internet connection, then try again."
-          : "I saved your question, but T-AI is temporarily unavailable. Please try again in a moment.";
+          ? "I couldn't connect. Check your internet connection, then send your message again."
+          : "I couldn't answer just now. Please send your message again in a moment.";
       setMessages((prev) => [
         ...prev,
         {
@@ -487,7 +514,12 @@ export function TAIScreen() {
   const loadCampusLocation = async (messageId: string, serviceId: string, campusLocationName: string): Promise<boolean> => {
     setMapLoadingLocation(campusLocationName);
     try {
-      const permission = await Location.requestForegroundPermissionsAsync();
+      // Offer to use the student's location so we can draw a walking path. If
+      // they decline (or it is unavailable), we still pin the destination.
+      const shouldUseLocation = await confirmLocationUse();
+      const permission = shouldUseLocation
+        ? await Location.requestForegroundPermissionsAsync()
+        : { status: 'denied' as const };
       const position =
         permission.status === 'granted'
           ? await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
@@ -543,7 +575,10 @@ export function TAIScreen() {
     if (!selectedFacility) return;
     setIsSending(true);
     try {
-      const permission = await Location.requestForegroundPermissionsAsync();
+      const shouldUseLocation = await confirmLocationUse();
+      const permission = shouldUseLocation
+        ? await Location.requestForegroundPermissionsAsync()
+        : { status: 'denied' as const };
       const position = permission.status === 'granted'
         ? await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
         : undefined;
@@ -653,6 +688,9 @@ export function TAIScreen() {
               style={[
                 styles.bubble,
                 message.role === 'user' ? styles.bubbleUser : styles.bubbleAssistant,
+                // A "did you mean" menu needs room to breathe, so let it use the
+                // full conversation width instead of the narrow chat bubble.
+                message.disambiguation && styles.bubbleWide,
               ]}
             >
               <Text
@@ -672,6 +710,28 @@ export function TAIScreen() {
                 >
                   <Text style={styles.retryMessageButtonText}>Try again</Text>
                 </TouchableOpacity>
+              )}
+              {message.disambiguation && (
+                <View style={styles.disambiguationOptions}>
+                  {message.disambiguation.map((option) => (
+                    <TouchableOpacity
+                      key={option.label}
+                      style={styles.disambiguationOption}
+                      onPress={() => void send(option.query)}
+                      disabled={isSending}
+                      activeOpacity={0.75}
+                      accessibilityRole="button"
+                      accessibilityLabel={option.label}
+                      accessibilityHint={option.description}
+                    >
+                      <View style={styles.disambiguationCopy}>
+                        <Text style={styles.disambiguationLabel}>{option.label}</Text>
+                        <Text style={styles.disambiguationDescription}>{option.description}</Text>
+                      </View>
+                      <Text style={styles.disambiguationChevron} accessibilityElementsHidden>›</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               )}
               {message.supportResources && (
                 <SupportResourceLinks
@@ -823,6 +883,7 @@ const styles = StyleSheet.create({
   },
   avatarEmojiSmall: { fontSize: 13 },
   bubble: { maxWidth: '75%', padding: spacing.md, borderRadius: radius.lg },
+  bubbleWide: { maxWidth: '92%', backgroundColor: colors.infoBg },
   bubbleAssistant: { backgroundColor: colors.surface, borderColor: colors.border, borderTopLeftRadius: radius.sm, borderWidth: 1 },
   bubbleUser: { backgroundColor: colors.accent, borderTopRightRadius: radius.sm },
   bubbleTextAssistant: { color: colors.textSecondary, fontSize: fontSize.base, lineHeight: 20 },
@@ -837,6 +898,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   retryMessageButtonText: { color: colors.accentOn, fontSize: fontSize.sm, fontWeight: '700' },
+  disambiguationOptions: { gap: spacing.md, marginTop: spacing.md },
+  disambiguationOption: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.md,
+    minHeight: 64,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    // Lift each choice off the panel so the boxes read as separate, tappable
+    // cards rather than one glued-together list.
+    shadowColor: colors.uoftBlue,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  disambiguationCopy: { flex: 1, gap: 3 },
+  disambiguationLabel: { color: colors.textPrimary, fontSize: fontSize.md, fontWeight: '700' },
+  disambiguationDescription: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 18 },
+  disambiguationChevron: { color: colors.accent, fontSize: 24, fontWeight: '600' },
   routeCard: {
     marginTop: spacing.sm,
     overflow: 'hidden',
@@ -881,7 +966,15 @@ const styles = StyleSheet.create({
   chooseFacilityButton: { alignSelf: 'flex-start', backgroundColor: colors.accent, borderRadius: radius.md, minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.md },
   chooseFacilityButtonText: { color: colors.accentOn, fontSize: fontSize.sm, fontWeight: '700' },
   mentalHealthSubhead: { color: colors.textMuted, fontSize: fontSize.sm, fontWeight: '700', marginTop: 2 },
-  mentalHealthLocation: { gap: 2 },
+  mentalHealthLocation: {
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: 3,
+    marginTop: spacing.xs,
+    padding: spacing.sm,
+  },
   mentalHealthLocationName: { color: colors.textPrimary, fontSize: fontSize.sm, fontWeight: '700' },
   mentalHealthLocationAddress: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 17 },
   mentalHealthMapAction: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '700', marginTop: 2 },
@@ -926,8 +1019,10 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceMuted,
     color: colors.textPrimary,
+    borderColor: colors.border,
+    borderWidth: 1,
     borderRadius: radius.full,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,

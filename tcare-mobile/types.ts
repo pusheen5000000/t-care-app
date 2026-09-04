@@ -10,7 +10,7 @@ export type SupportResources = {
   intro?: string;
   campusHeading?: string;
   primaryDestination?: string;
-  campusLocations: { name: string; location: string; detail: string }[];
+  campusLocations: { name: string; location: string; detail: string; campus?: 'utsg' | 'utsc' | 'utm' }[];
   links: { group: string; title: string; description: string; url: string }[];
 };
 

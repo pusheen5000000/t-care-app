@@ -14,6 +14,9 @@ import {
 } from 'react-native';
 import { colors, spacing, fontSize, radius } from '../theme';
 import { MoodCheckIn } from '../components/MoodCheckIn';
+import { DidYouMeanSheet } from '../components/DidYouMeanSheet';
+import { getDisambiguation } from '../utils/disambiguation';
+import type { DisambiguationOption, DisambiguationPrompt } from '../utils/disambiguation';
 
 type Campus = { id: 'utsg' | 'utsc' | 'utm'; label: string };
 
@@ -22,6 +25,7 @@ type Props = {
   onTCardPress: () => void | Promise<void>;
   onTalkSupportPress: () => void | Promise<void>;
   onAccessibilityPress: () => void | Promise<void>;
+  onResolveDisambiguation: (option: DisambiguationOption) => void | Promise<void>;
   onEmergencySupportPress: () => void;
   campus: Campus | null;
   onCampusChange: (campus: Campus | null) => void;
@@ -46,12 +50,15 @@ const MOODS: { emoji: string; label: string; mood: 'good' | 'okay' | 'struggling
   { emoji: '😔', label: 'Struggling', mood: 'struggling' },
 ];
 
-export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccessibilityPress, onEmergencySupportPress, campus, onCampusChange }: Props) {
+export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccessibilityPress, onResolveDisambiguation, onEmergencySupportPress, campus, onCampusChange }: Props) {
   const [text, setText] = useState('');
   const [activeMood, setActiveMood] = useState<'good' | 'okay' | 'struggling' | null>(null);
   const [campusPickerVisible, setCampusPickerVisible] = useState(false);
   const [isLayoutReady, setIsLayoutReady] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // The query being disambiguated, held so "ask as typed" can still send it.
+  const [pendingQuery, setPendingQuery] = useState<string | null>(null);
+  const [disambiguation, setDisambiguation] = useState<DisambiguationPrompt | null>(null);
 
   useEffect(() => {
     let secondFrame: number | undefined;
@@ -77,8 +84,39 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
   const handleSend = () => {
     const query = text.trim();
     if (!query) return;
+
+    // For short, everyday needs the exact next step can be ambiguous
+    // ("i'm hungry" -> food bank or campus dining?). Offer a quick follow-up
+    // with specific choices before sending a vague question.
+    const prompt = getDisambiguation(query);
+    if (prompt) {
+      setPendingQuery(query);
+      setDisambiguation(prompt);
+      return;
+    }
+
     void submit(() => onSubmit(query));
     setText('');
+  };
+
+  const dismissDisambiguation = () => {
+    setDisambiguation(null);
+    setPendingQuery(null);
+  };
+
+  const handleDisambiguationSelect = (option: DisambiguationOption) => {
+    setDisambiguation(null);
+    setPendingQuery(null);
+    setText('');
+    void submit(() => onResolveDisambiguation(option));
+  };
+
+  const handleAskAnyway = () => {
+    const query = pendingQuery;
+    dismissDisambiguation();
+    if (!query) return;
+    setText('');
+    void submit(() => onSubmit(query));
   };
 
   const askSuggestion = (suggestion: typeof SUGGESTIONS[number]) => {
@@ -170,6 +208,13 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <DidYouMeanSheet
+        prompt={disambiguation}
+        onSelect={handleDisambiguationSelect}
+        onAskAnyway={handleAskAnyway}
+        onClose={dismissDisambiguation}
+      />
 
       <MoodCheckIn visible={activeMood !== null} mood={activeMood} onClose={() => setActiveMood(null)} onEmergencySupportPress={onEmergencySupportPress} />
 

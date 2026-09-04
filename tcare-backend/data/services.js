@@ -184,7 +184,8 @@ module.exports = [
       { name: 'UTM Campus Safety', location: 'Davis Building, Room DV3116, 3359 Mississauga Road, Mississauga, ON L5L 1C6', detail: 'Campus Safety reports, WalkSafer, and personal safety support.', coordinates: CAMPUS_COORDINATES.utm },
     ], links: [
       { group: 'U of T resources', title: 'U of T Safety & Support', description: 'Tri-campus emergency contacts, safety resources, and the Campus Safety app.', url: 'https://safety.utoronto.ca/' },
-      { group: 'U of T resources', title: 'Personal safety & TravelSafer', description: 'Safety planning, Community Safety Office, and campus escort contacts.', url: 'https://safety.utoronto.ca/personal-safety/' },
+      { group: 'U of T resources', title: 'TravelSafer escort service', description: 'Request a free 24/7 walking escort to and from campus and nearby TTC stations.', url: 'https://www.campussafety.utoronto.ca/travel-safer' },
+      { group: 'U of T resources', title: 'Community Safety Office', description: 'Short-term support for personal-safety concerns like harassment, stalking, or threats.', url: 'https://www.communitysafety.utoronto.ca/' },
     ] },
   },
   {
@@ -226,8 +227,128 @@ module.exports = [
     ], links: [
       { group: 'U of T resources', title: 'UTSU Food Bank', description: 'Free food-bank support for U of T students, including students with families.', url: 'https://www.utsu.ca/food-bank/' },
       { group: 'U of T resources', title: 'UTSU Food Programming', description: 'Food-bank support and other student food programs.', url: 'https://www.utsu.ca/food-programming/' },
-      { group: 'U of T resources', title: 'SCSU Food Centre (UTSC)', description: 'Food-access support and current details for UTSC students.', url: 'https://scsu.ca/foodcentre' },
+      { group: 'U of T resources', title: 'SCSU Food Centre (UTSC)', description: 'Food-access support and current details for UTSC students.', url: 'https://www.scsu.ca/' },
       { group: 'U of T resources', title: 'UTMSU Food Centre (UTM)', description: 'Food-access support and current pickup details for UTM students.', url: 'https://utmsu.ca/service/food-centre/' },
+    ] },
+  },
+  {
+    id: 'campus-dining', name: 'Where to eat on campus',
+    // Casual dining keywords are intentionally specific so genuine food-bank
+    // needs ("food bank", "hungry", "food insecurity") still match Food & Basic
+    // Needs, while "where to eat", "dining hall", "coffee", etc. land here.
+    keywords: ['where to eat', 'place to eat', 'places to eat', 'campus food', 'food on campus', 'food hall', 'food court', 'dining hall', 'dining commons', 'dining', 'cafeteria', 'cafe', 'café', 'coffee', 'starbucks', 'meal plan', 'grab a bite', 'restaurant', 'restaurants', 'lunch', 'breakfast', 'somewhere to eat'],
+    summary: 'Grab a bite at a campus food hall, café, or residence dining commons. Tap a spot for directions, or check U of T Food Services for full hours.',
+    address: '', fee: 'Varies', hours: 'Varies by location',
+    listOnly: true,
+    supportResources: { title: 'Casual places to eat', intro: 'Popular food halls, cafés, and dining commons on campus. Hours vary by location and term — check U of T Food Services for the latest.', campusHeading: 'Food halls & cafés', campusLocations: [
+      { campus: 'utsg', name: 'Robarts Food Hall', location: '2nd Floor, Robarts Library, 130 St. George Street, Toronto, ON M5S 1A5', detail: 'Food court with a rotating line-up of quick-service vendors in the heart of campus.' },
+      { campus: 'utsg', name: 'Starbucks at Robarts Library', location: 'Robarts Library, 130 St. George Street, Toronto, ON M5S 1A5', detail: 'Coffee, espresso drinks, and grab-and-go snacks inside Robarts.' },
+      { campus: 'utsg', name: "Sid's Food Hall", location: 'Sidney Smith Hall, 100 St. George Street, Toronto, ON M5S 3G3', detail: 'Busy food hall with several vendors, popular with Arts & Science students.' },
+      { campus: 'utsg', name: 'Medical Sciences Building Food Hall', location: 'Medical Sciences Building, 1 King’s College Circle, Toronto, ON M5S 1A8', detail: 'Cafeteria-style food hall near the science and medical buildings.' },
+      { campus: 'utsg', name: 'Howard Ferguson Dining Hall', location: 'Morrison Hall (1st Floor), 75 St. George Street, Toronto, ON M5S 2E5', detail: 'University College all-you-care-to-eat dining hall, open to meal-plan holders and pay-as-you-go diners.' },
+      { campus: 'utsg', name: 'New College Dining Commons', location: 'Wilson Hall, New College, 40 Willcocks Street, Toronto, ON M5S 1C6', detail: 'All-you-care-to-eat residence dining commons open to the campus community.' },
+      { campus: 'utsg', name: 'Chestnut Residence Dining Commons', location: 'Chestnut Residence, 89 Chestnut Street, Toronto, ON M5G 1R1', detail: 'All-you-care-to-eat dining commons near the hospital district.' },
+      { campus: 'utm', name: 'William G. Davis Building food court', location: 'William G. Davis Building, 3359 Mississauga Road, Mississauga, ON L5L 1C6', detail: 'UTM’s main food court with quick-service brands and in-house options like Tex Mex and FUSION8.' },
+      { campus: 'utm', name: 'Colman Commons (Oscar Peterson Hall)', location: 'Oscar Peterson Hall, 3359 Mississauga Road, Mississauga, ON L5L 1C6', detail: 'UTM residence dining room with chef specials, a grab-and-go fridge, and a warm place to eat or study.' },
+      { campus: 'utm', name: 'Deerfield Hall café', location: 'Deerfield Hall, 3359 Mississauga Road, Mississauga, ON L5L 1C6', detail: 'Italian-inspired café with pizzas, soups, baked goods, and an Italian soda bar.' },
+      { campus: 'utm', name: 'Maanjiwe nendamowinan Fair Trade Café', location: 'Maanjiwe nendamowinan, 3359 Mississauga Road, Mississauga, ON L5L 1C6', detail: 'Fair Trade coffee and tea, fresh salads, sandwiches, and grab-and-go options.' },
+      { campus: 'utsc', name: 'Student Centre food court', location: 'Student Centre, 1265 Military Trail, Scarborough, ON M1C 1A4', detail: 'UTSC food court with a wide range of vendors, plus Halal, Kosher, vegetarian, and gluten-free options.' },
+      { campus: 'utsc', name: 'Bistro 1265', location: 'Student Centre, 1265 Military Trail, Scarborough, ON M1C 1A4', detail: 'SCSU-run restaurant in the Student Centre.' },
+      { campus: 'utsc', name: 'Starbucks (Meeting Place)', location: 'Meeting Place, 1265 Military Trail, Scarborough, ON M1C 1A4', detail: 'Coffee and grab-and-go items in the UTSC Meeting Place.' },
+      { campus: 'utsc', name: 'Market Place', location: '1265 Military Trail, Scarborough, ON M1C 1A4', detail: 'On-campus food options and dining at UTSC.' },
+    ], links: [
+      { group: 'U of T resources', title: 'U of T Food Services', description: 'Explore dining halls, cafés, meal plans, and where-to-eat guides across campus.', url: 'https://foodservices.utoronto.ca/where-to-eat/' },
+      { group: 'U of T resources', title: 'UTM Food Locations & Hours', description: 'Find dining halls, cafés, and food locations at UTM.', url: 'https://www.utm.utoronto.ca/hospitality/Food' },
+      { group: 'U of T resources', title: 'UTSC Dining', description: 'Find food courts, cafés, and dining options at UTSC.', url: 'https://www.utsc.utoronto.ca/food/where-eat-campus' },
+    ] },
+  },
+  {
+    id: 'printing', name: 'Printing & tech help',
+    keywords: ['print', 'printer', 'printing', 'wireless printing', 'photocopy', 'scan', 'scanner'],
+    summary: 'Print wirelessly from your laptop to campus release stations with your TCard, or get help from an IT help desk.',
+    address: '', fee: 'Varies', hours: 'Varies by location', listOnly: true,
+    supportResources: { title: 'Printing & tech help', intro: 'Set up wireless printing or find IT support across campus.', campusLocations: [], links: [
+      { group: 'U of T resources', title: 'Wireless printing', description: 'Set up wireless printing to release stations across campus using your TCard.', url: 'https://printhere.utoronto.ca/' },
+      { group: 'U of T resources', title: 'Information Technology Services', description: 'Find student help-desk contacts and IT support across all three campuses.', url: 'https://its.utoronto.ca/contact/' },
+    ] },
+  },
+  {
+    id: 'multi-faith', name: 'Multi-faith & prayer spaces',
+    keywords: ['prayer', 'prayer space', 'pray', 'worship', 'meditation', 'meditate', 'multi-faith', 'multifaith', 'reflection space', 'quiet reflection', 'religious space'],
+    summary: 'Find prayer, meditation, and reflection spaces open to all faiths across campus.',
+    address: '', fee: 'Free', hours: 'Varies by location', listOnly: true,
+    supportResources: { title: 'Multi-faith & prayer spaces', intro: 'Prayer, meditation, and reflection spaces open to all faiths.', campusLocations: [], links: [
+      { group: 'U of T resources', title: 'Multi-Faith Centre', description: 'Bookable rooms for prayer, worship, and spiritual practice at 569 Spadina Ave.', url: 'https://studentlife.utoronto.ca/department/multi-faith-centre/' },
+      { group: 'U of T resources', title: 'Find worship space on campus', description: 'See additional prayer and reflection spaces across St. George buildings.', url: 'https://www.studentlife.utoronto.ca/task/find-worship-space-on-campus/' },
+    ] },
+  },
+  {
+    id: 'campus-atms', name: 'ATMs & banking',
+    keywords: ['atm', 'atms', 'bank machine', 'cash machine', 'where can i get cash', 'bank branch', 'banking', 'withdraw cash'],
+    summary: 'Most student centres and hubs have an ATM close by. Tap a spot for directions, or use the interactive campus map to find the nearest one at any campus.',
+    address: '', fee: 'Varies', hours: 'Varies by location', listOnly: true,
+    supportResources: { title: 'ATMs & banking', intro: 'Common on-campus spots to find an ATM. Exact machines vary — use the interactive map to confirm the closest one.', campusHeading: 'Where to find an ATM', campusLocations: [
+      { campus: 'utsg', name: 'Student Commons', location: '230 College Street, Toronto, ON M5T 1R2', detail: 'Student hub near the St. George core with nearby banking and ATMs.' },
+      { campus: 'utsg', name: 'Hart House', location: '7 Hart House Circle, Toronto, ON M5S 3H3', detail: 'Central St. George building with ATM access nearby.' },
+      { campus: 'utm', name: 'UTM Student Centre', location: '3359 Mississauga Road, Mississauga, ON L5L 1C6', detail: 'UTM student hub with ATMs on site.' },
+      { campus: 'utsc', name: 'UTSC Student Centre', location: '1265 Military Trail, Scarborough, ON M1C 1A4', detail: 'UTSC student hub with ATMs on site.' },
+    ], links: [
+      { group: 'U of T resources', title: 'Interactive campus map', description: 'Search any campus by building or service to find the nearest ATM or bank.', url: 'https://map.utoronto.ca/' },
+    ] },
+  },
+  {
+    id: 'campus-recreation', name: 'Gyms & recreation',
+    keywords: ['gym', 'gyms', 'workout', 'work out', 'recreation', 'athletic centre', 'athletic center', 'sport and rec', 'fitness', 'pool', 'swim', 'weight room', 'rawc', 'tpasc', 'goldring', 'varsity'],
+    summary: 'Your student athletic fees include access to your campus gym and pools. Tap your campus facility for directions, or use the links to reach another campus’s facilities.',
+    address: '', fee: 'Included with athletic fees', hours: 'Varies by facility', listOnly: true,
+    supportResources: { title: 'Gyms & recreation', intro: 'Sport & rec facilities are included with your student athletic fees. Tap a spot for directions.', campusHeading: 'Athletic & recreation facilities', campusLocations: [
+      { campus: 'utsg', name: 'Athletic Centre', location: '55 Harbord Street, Toronto, ON M5S 2W6', detail: 'St. George gym, pools, weight rooms, and indoor courts.' },
+      { campus: 'utsg', name: 'Goldring Centre for High Performance Sport', location: '100 Devonshire Place, Toronto, ON M5S 2C9', detail: 'Strength & conditioning centre, field house, and fitness space.' },
+      { campus: 'utsg', name: 'Varsity Centre', location: '299 Bloor Street West, Toronto, ON M5S 0A7', detail: 'Field house, stadium, and arena on the St. George campus.' },
+      { campus: 'utm', name: 'Recreation, Athletics & Wellness Centre (RAWC)', location: '3359 Mississauga Road, Mississauga, ON L5L 1C6', detail: 'UTM gym, pool, courts, and fitness facilities.' },
+      { campus: 'utsc', name: 'Toronto Pan Am Sports Centre (TPASC)', location: '875 Morningside Avenue, Scarborough, ON M1C 0C7', detail: 'UTSC’s world-class facility with pools, courts, and fitness spaces.' },
+    ], links: [
+      { group: 'U of T resources', title: 'St. George Sport & Rec', description: 'Facilities, drop-in hours, and memberships at the St. George campus.', url: 'https://kpe.utoronto.ca/facilities-memberships' },
+      { group: 'U of T resources', title: 'UTM Recreation, Athletics & Wellness', description: 'Facilities, drop-in hours, and programs at UTM.', url: 'https://www.utm.utoronto.ca/athletics/' },
+      { group: 'U of T resources', title: 'UTSC Athletics & Recreation', description: 'Get started with athletics and recreation at UTSC and TPASC.', url: 'https://www.utsc.utoronto.ca/athletics/get-started-athletics-recreation' },
+    ] },
+  },
+  {
+    id: 'campus-transit-parking', name: 'Transit & parking',
+    keywords: ['parking', 'park my car', 'parking permit', 'parking office', 'transit', 'shuttle', 'ttc', 'bus', 'subway', 'commute', 'drive to campus'],
+    summary: 'Find your campus’s parking office for rates and permits, or plan your route with the TTC. Tap a campus office for directions, or use the links to reach another campus’s parking service.',
+    address: '', fee: 'Varies', hours: 'Varies by campus', listOnly: true,
+    supportResources: { title: 'Transit & parking', intro: 'Each campus runs its own parking service. Tap a parking office or lot for directions.', campusHeading: 'Parking offices & lots', campusLocations: [
+      { campus: 'utsg', name: 'St. George Transportation Services', location: '563 Spadina Crescent, Toronto, ON M5S 2J7', detail: 'Parking permits, rates, EV charging, and regulations for the St. George campus.' },
+      { campus: 'utsg', name: 'Parking — 107 St. George (Rotman garage)', location: '107 St. George Street, Toronto, ON M5S 3E6', detail: 'Gated public garage under Rotman; daily max $20, EV charging on P1.' },
+      { campus: 'utsg', name: 'Parking — Lot C (Bahen Centre)', location: '40 St. George Street, Toronto, ON M5S 2E4', detail: 'Open-air lot at the Bahen Centre; current student permit location.' },
+      { campus: 'utsg', name: 'Parking — Landmark Garage (King’s College Circle)', location: '27 King’s College Circle, Toronto, ON M5S 1A1', detail: 'Underground garage beneath King’s College Circle with EV charging.' },
+      { campus: 'utsg', name: 'Parking — Lot I (OISE Garage)', location: '252 Bloor Street West, Toronto, ON M5S 1V6', detail: 'Open-air garage at OISE near the Bloor/St. George area.' },
+      { campus: 'utm', name: 'UTM Parking & Transportation Services', location: '3359 Mississauga Road, Mississauga, ON L5L 1C6', detail: 'Parking permits, rates, and shuttle information for UTM.' },
+      { campus: 'utm', name: 'UTM Parking — Lot 4', location: 'Lot 4, 3359 Mississauga Road, Mississauga, ON L5L 1C6', detail: 'Pay & Display visitor lot; recommended for visitors and tours.' },
+      { campus: 'utm', name: 'UTM Parking — Lot 8', location: 'Lot 8, 3359 Mississauga Road, Mississauga, ON L5L 1C6', detail: 'Pay & Display visitor lot; recommended for visitors and tours.' },
+      { campus: 'utm', name: 'UTM Parking — Lot 9', location: 'Lot 9, 3359 Mississauga Road, Mississauga, ON L5L 1C6', detail: 'Alternative visitor lot with Pay & Display machines.' },
+      { campus: 'utsc', name: 'UTSC Parking Services', location: 'Room IC 40 (basement), 1265 Military Trail, Scarborough, ON M1C 1A4', detail: 'Parking permits, visitor rates, and prox cards for UTSC.' },
+      { campus: 'utsc', name: 'UTSC Parking — Lot A', location: 'Lot A, 1265 Military Trail, Scarborough, ON M1C 1A4', detail: 'Short-term Pay & Display lot beside the transit bus loop.' },
+      { campus: 'utsc', name: 'UTSC Parking — Lot G', location: 'Lot G, Pan Am Drive, Scarborough, ON M1C 1A4', detail: 'Student permit and daily flat-rate lot on Pan Am Drive.' },
+      { campus: 'utsc', name: 'UTSC Parking — Lot H', location: 'Lot H, 1265 Military Trail, Scarborough, ON M1C 1A4', detail: 'Short-term Pay & Display lot behind the Sam Ibrahim Building.' },
+      { campus: 'utsc', name: 'UTSC Parking — East Lot (TPASC)', location: '875 Morningside Avenue, Scarborough, ON M1C 0C7', detail: 'Interim East Lot near TPASC with two hours complimentary parking.' },
+    ], links: [
+      { group: 'U of T resources', title: 'St. George Transportation Services', description: 'Parking rates, permits, EV charging, and regulations at the St. George campus.', url: 'https://transportation.utoronto.ca/' },
+      { group: 'U of T resources', title: 'UTM Parking & Transportation', description: 'Parking permits, rates, and shuttle information at UTM.', url: 'https://www.utm.utoronto.ca/parking/' },
+      { group: 'U of T resources', title: 'UTSC Parking Services', description: 'Permits, visitor rates, and parking information at UTSC.', url: 'https://www.utsc.utoronto.ca/parking/' },
+      { group: 'Government support', title: 'TTC route planner', description: 'Plan subway, streetcar, and bus routes around Toronto.', url: 'https://www.ttc.ca/' },
+    ] },
+  },
+  {
+    id: 'learning-support', name: 'Study skills & learning support',
+    keywords: ['studying', 'study skills', 'academic skills', 'learning strategist', 'learning support', 'exam prep', 'exam preparation', 'time management', 'procrastination', 'note taking', 'writing help', 'essay help', 'assignment help'],
+    summary: 'Build study, writing, time-management, and exam-preparation strategies with U of T learning strategists.',
+    address: '', fee: 'Free', hours: 'By appointment', listOnly: true,
+    supportResources: { title: 'Study skills & learning support', intro: 'Practical strategies for studying, writing, time management, and exams.', campusLocations: [], links: [
+      { group: 'U of T resources', title: 'Learning strategist appointments', description: 'Book one-on-one support for study habits, exam preparation, and assignment planning.', url: 'https://studentlife.utoronto.ca/service/learning-strategist-appointments/' },
+      { group: 'U of T resources', title: 'Centre for Learning Strategy Support', description: 'Academic-skills workshops, peer mentoring, and learning resources.', url: 'https://studentlife.utoronto.ca/department/centre-for-learning-strategy-support/' },
+      { group: 'U of T resources', title: 'Writing support', description: 'Writing centres, programs, and resources for writing effectively at U of T.', url: 'https://studentlife.utoronto.ca/task/write-effectively/' },
     ] },
   },
   {
@@ -240,7 +361,7 @@ module.exports = [
       { name: 'UTM Sexual Violence Prevention & Support Centre', location: 'Davis Building, Room DV3094G, 3359 Mississauga Road, Mississauga, ON L5L 1C6', detail: 'Confidential support, options, referrals, and accommodations.', coordinates: CAMPUS_COORDINATES.utm },
     ], links: [
       { group: 'U of T resources', title: 'Sexual Violence Prevention & Support Centre', description: 'Confidential support, options, referrals, accommodations, and prevention resources.', url: 'https://svpscentre.utoronto.ca/' },
-      { group: 'U of T resources', title: 'Sexual violence & sexual harassment support', description: 'Tri-campus support options and immediate-help information.', url: 'https://safety.utoronto.ca/sexual-violence-sexual-harassment/' },
+      { group: 'U of T resources', title: 'Help for sexual assault', description: 'Immediate-help information and support options for anyone affected by sexual assault.', url: 'https://www.studentlife.utoronto.ca/task/help-for-sexual-assault/' },
     ] },
   },
 ];

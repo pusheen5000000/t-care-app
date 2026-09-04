@@ -471,10 +471,10 @@ function SupportResourcesSection({
           <Text style={styles.locationName}>{location.name}</Text>
           <Text style={styles.locationAddress}>{location.location}</Text>
           <Text style={styles.locationDetail}>{location.detail}</Text>
-          {serviceId && <TouchableOpacity
+          <TouchableOpacity
             style={styles.locationActionButton}
             onPress={() => {
-              if (opensCollegePicker) {
+              if (opensCollegePicker && serviceId) {
                 setCollegePickerService(serviceId as CollegeServiceId);
                 setCollegeSearch('');
                 return;
@@ -483,6 +483,8 @@ function SupportResourcesSection({
                 onCampusLocationPress(serviceId, location.name);
                 return;
               }
+              // Curated lists without a backend service (for example casual
+              // dining spots) still route to Google Maps by address.
               void openGoogleMapsDirections(location.name, location.location);
             }}
             accessibilityRole="button"
@@ -490,7 +492,7 @@ function SupportResourcesSection({
             accessibilityHint={opensCollegePicker ? 'Opens a list of UTSG colleges' : usesInAppDirections ? 'Opens this office as the T-Care map destination' : 'Opens turn-by-turn directions in Google Maps'}
           >
             <Text style={styles.locationAction}>{actionLabel}</Text>
-          </TouchableOpacity>}
+          </TouchableOpacity>
         </View>
         );
       })}
@@ -616,10 +618,26 @@ function getResultHeaderTitle(result: QueryResult) {
 
   const context = `${result.query} ${result.title} ${result.summary}`.toLowerCase();
 
+  if (/not sure what you.re after|campus helper|do best with a real question/.test(context)) return 'Let’s narrow it down';
   if (/\b(?:hello|hi|hey|welcome)\b/.test(context)) return 'Welcome to T-Care';
   if (/\b(?:mental health|counselling|counseling|wellness)\b/.test(context)) return 'Wellbeing support';
   if (/\b(?:accessibility|accommodation|assistive)\b/.test(context)) return 'Accessibility support';
   if (/\b(?:financial aid|award|scholarship|osap|funding)\b/.test(context)) return 'Funding support';
+  // Casual dining must be checked before housing: dining-hall entries mention
+  // "residence", which would otherwise be read as a housing result.
+  if (/\b(?:dining|food hall|food court|café|cafe|coffee|eat on campus|places to eat|meal plan)\b/.test(context)) return 'Where to eat';
+  if (/\b(?:food bank|basic needs|food insecurity)\b/.test(context)) return 'Basic-needs support';
+  // Casual campus-life categories, matched before the broader support buckets
+  // so the header reflects the specific thing the student picked.
+  if (/\b(?:study spot|study spots|quiet place|quiet space)\b/.test(context)) return 'Study spots';
+  if (/\b(?:atm|atms|banking|bank branch)\b/.test(context)) return 'ATMs & banking';
+  if (/\b(?:gym|gyms|recreation|athletic|sport & rec|workout|work out)\b/.test(context)) return 'Gyms & recreation';
+  if (/\b(?:club|clubs|student group|student groups|student organization)\b/.test(context)) return 'Clubs & groups';
+  if (/\b(?:transit|parking|ttc|shuttle|permit)\b/.test(context)) return 'Transit & parking';
+  if (/\b(?:print|printing|printer)\b/.test(context)) return 'Printing & tech help';
+  if (/\b(?:lost and found|lost & found|lost item|lost something|lost-found)\b/.test(context)) return 'Lost & found';
+  if (/\b(?:prayer|meditation|multi-faith|multifaith|worship|reflection)\b/.test(context)) return 'Multi-faith spaces';
+  if (/\b(?:event|events|social|what'?s happening|activities)\b/.test(context)) return 'Events & activities';
   if (/\b(?:housing|residence)\b/.test(context)) return 'Housing support';
   if (/\b(?:immigration|international)\b/.test(context)) return 'International student support';
   if (/\b(?:registrar|enrolment|acorn|tuition|fee|deadline)\b/.test(context)) return 'Enrolment support';
@@ -752,6 +770,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: 1,
     gap: spacing.sm,
+    marginTop: spacing.xl,
     marginBottom: spacing.lg,
     padding: spacing.lg,
   },
@@ -951,12 +970,20 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   locationRow: {
-    backgroundColor: colors.surface,
+    // A tinted card that stands out against the white screen so each place
+    // reads as its own separated box, not one continuous list.
+    backgroundColor: colors.surfaceMuted,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    gap: 2,
+    gap: 3,
+    marginBottom: spacing.sm,
     padding: spacing.md,
+    shadowColor: colors.uoftBlue,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+    elevation: 1,
   },
   locationName: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '700' },
   locationAddress: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '600', lineHeight: 18 },
@@ -992,7 +1019,7 @@ const styles = StyleSheet.create({
   unknownCollegeText: { color: colors.accent, fontSize: fontSize.base, fontWeight: '700' },
   cancelButton: { alignItems: 'center', justifyContent: 'center', minHeight: 44 },
   cancelButtonText: { color: colors.textSecondary, fontSize: fontSize.base, fontWeight: '600' },
-  nextStepSection: { borderTopColor: colors.border, borderTopWidth: 1, gap: spacing.sm, marginTop: spacing.lg, paddingTop: spacing.lg },
+  nextStepSection: { borderTopColor: colors.border, borderTopWidth: 1, gap: spacing.md, marginTop: spacing.xl, paddingTop: spacing.xl },
   locationNextStepSection: { marginBottom: spacing.md },
   nextStepPrompt: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '700' },
   nextStepButton: { alignItems: 'center', backgroundColor: colors.accent, borderRadius: radius.lg, justifyContent: 'center', minHeight: 48, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },

@@ -11,6 +11,7 @@ import { TabBar, TabKey } from './components/TabBar';
 import { EmergencySupportSheet } from './components/EmergencySupportSheet';
 import { colors, fontSize } from './theme';
 import type { LocationResult, QueryResult, RecoveryKind, SupportResources, TravelMode } from './types';
+import type { DisambiguationOption } from './utils/disambiguation';
 
 const TCARD_QUERY = 'I lost my TCard, what do I do?';
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
@@ -87,7 +88,8 @@ const STUDENT_LIFE_RESOURCES: Record<string, QueryResult> = {
     summary: 'For immediate danger call 911, then Campus Safety. Find non-emergency, personal-safety, and escort options here.',
     supportResources: { campusLocations: [], links: [
       { group: 'U of T resources', title: 'U of T Safety & Support', description: 'Tri-campus emergency contacts, safety resources, and the Campus Safety app.', url: 'https://safety.utoronto.ca/' },
-      { group: 'U of T resources', title: 'Personal safety & TravelSafer', description: 'Find safety planning, Community Safety Office, and campus escort contacts.', url: 'https://safety.utoronto.ca/personal-safety/' },
+      { group: 'U of T resources', title: 'TravelSafer escort service', description: 'Request a free 24/7 walking escort to and from campus and nearby TTC stations.', url: 'https://www.campussafety.utoronto.ca/travel-safer' },
+      { group: 'U of T resources', title: 'Community Safety Office', description: 'Short-term support for personal-safety concerns like harassment, stalking, or threats.', url: 'https://www.communitysafety.utoronto.ca/' },
     ] },
   },
   career: {
@@ -147,17 +149,39 @@ const STUDENT_LIFE_RESOURCES: Record<string, QueryResult> = {
     summary: 'Confidential, non-judgmental support is available for U of T community members affected by sexual violence or harassment.',
     supportResources: { campusLocations: [], links: [
       { group: 'U of T resources', title: 'Sexual Violence Prevention & Support Centre', description: 'Confidential support, options, referrals, accommodations, and prevention resources.', url: 'https://svpscentre.utoronto.ca/' },
-      { group: 'U of T resources', title: 'Sexual violence & sexual harassment support', description: 'Find tri-campus support options and immediate-help information.', url: 'https://safety.utoronto.ca/sexual-violence-sexual-harassment/' },
+      { group: 'U of T resources', title: 'Help for sexual assault', description: 'Immediate-help information and support options for anyone affected by sexual assault.', url: 'https://www.studentlife.utoronto.ca/task/help-for-sexual-assault/' },
     ] },
   },
   'campus-dining': {
-    type: 'info', query: 'Campus food and dining', title: 'Campus food & dining',
-    summary: 'Find dining halls, food courts, cafés, and meal-plan options across all three campuses.',
-    supportResources: { campusLocations: [], links: [
-      { group: 'U of T resources', title: 'U of T Food Services', description: 'Explore dining halls, cafés, meal plans, and where-to-eat guides across campus.', url: 'https://foodservices.utoronto.ca/' },
-      { group: 'U of T resources', title: 'UEat food ordering', description: 'Order ahead from campus dining locations and food halls.', url: 'https://ueat.utoronto.ca/' },
-      { group: 'U of T resources', title: 'UTM food locations & hours', description: 'Check dining hall, food court, and vending hours at UTM.', url: 'https://www.utm.utoronto.ca/hospitality/FoodLocationsAndHours' },
-    ] },
+    type: 'info', query: 'Campus food and dining', title: 'Where to eat on campus',
+    summary: 'Grab a bite at a St. George food hall, café, or residence dining commons. Tap any spot for directions, or check U of T Food Services for full hours.',
+    supportResources: {
+      title: 'Casual places to eat',
+      intro: 'Popular food halls, cafés, and dining commons on campus. Hours vary by location and term — check U of T Food Services for the latest.',
+      campusHeading: 'Food halls & cafés',
+      campusLocations: [
+        { campus: 'utsg', name: 'Robarts Food Hall', location: '2nd Floor, Robarts Library, 130 St. George Street, Toronto, ON M5S 1A5', detail: 'Food court with a rotating line-up of quick-service vendors in the heart of campus.' },
+        { campus: 'utsg', name: 'Starbucks at Robarts Library', location: 'Robarts Library, 130 St. George Street, Toronto, ON M5S 1A5', detail: 'Coffee, espresso drinks, and grab-and-go snacks inside Robarts.' },
+        { campus: 'utsg', name: "Sid's Food Hall", location: 'Sidney Smith Hall, 100 St. George Street, Toronto, ON M5S 3G3', detail: 'Busy food hall with several vendors, popular with Arts & Science students.' },
+        { campus: 'utsg', name: 'Medical Sciences Building Food Hall', location: 'Medical Sciences Building, 1 King’s College Circle, Toronto, ON M5S 1A8', detail: 'Cafeteria-style food hall near the science and medical buildings.' },
+        { campus: 'utsg', name: 'Howard Ferguson Dining Hall', location: 'Morrison Hall (1st Floor), 75 St. George Street, Toronto, ON M5S 2E5', detail: 'University College all-you-care-to-eat dining hall, open to meal-plan holders and pay-as-you-go diners.' },
+        { campus: 'utsg', name: 'New College Dining Commons', location: 'Wilson Hall, New College, 40 Willcocks Street, Toronto, ON M5S 1C6', detail: 'All-you-care-to-eat residence dining commons open to the campus community.' },
+        { campus: 'utsg', name: 'Chestnut Residence Dining Commons', location: 'Chestnut Residence, 89 Chestnut Street, Toronto, ON M5G 1R1', detail: 'All-you-care-to-eat dining commons near the hospital district.' },
+        { campus: 'utm', name: 'William G. Davis Building food court', location: 'William G. Davis Building, 3359 Mississauga Road, Mississauga, ON L5L 1C6', detail: 'UTM’s main food court with quick-service brands and in-house options like Tex Mex and FUSION8.' },
+        { campus: 'utm', name: 'Colman Commons (Oscar Peterson Hall)', location: 'Oscar Peterson Hall, 3359 Mississauga Road, Mississauga, ON L5L 1C6', detail: 'UTM residence dining room with chef specials, a grab-and-go fridge, and a warm place to eat or study.' },
+        { campus: 'utm', name: 'Deerfield Hall café', location: 'Deerfield Hall, 3359 Mississauga Road, Mississauga, ON L5L 1C6', detail: 'Italian-inspired café with pizzas, soups, baked goods, and an Italian soda bar.' },
+        { campus: 'utm', name: 'Maanjiwe nendamowinan Fair Trade Café', location: 'Maanjiwe nendamowinan, 3359 Mississauga Road, Mississauga, ON L5L 1C6', detail: 'Fair Trade coffee and tea, fresh salads, sandwiches, and grab-and-go options.' },
+        { campus: 'utsc', name: 'Student Centre food court', location: 'Student Centre, 1265 Military Trail, Scarborough, ON M1C 1A4', detail: 'UTSC food court with a wide range of vendors, plus Halal, Kosher, vegetarian, and gluten-free options.' },
+        { campus: 'utsc', name: 'Bistro 1265', location: 'Student Centre, 1265 Military Trail, Scarborough, ON M1C 1A4', detail: 'SCSU-run restaurant in the Student Centre.' },
+        { campus: 'utsc', name: 'Starbucks (Meeting Place)', location: 'Meeting Place, 1265 Military Trail, Scarborough, ON M1C 1A4', detail: 'Coffee and grab-and-go items in the UTSC Meeting Place.' },
+        { campus: 'utsc', name: 'Market Place', location: '1265 Military Trail, Scarborough, ON M1C 1A4', detail: 'On-campus food options and dining at UTSC.' },
+      ],
+      links: [
+        { group: 'U of T resources', title: 'U of T Food Services', description: 'Explore dining halls, cafés, meal plans, and where-to-eat guides across campus.', url: 'https://foodservices.utoronto.ca/where-to-eat/' },
+        { group: 'U of T resources', title: 'UTM food locations & hours', description: 'Find dining halls, cafés, and food locations at UTM.', url: 'https://www.utm.utoronto.ca/hospitality/Food' },
+        { group: 'U of T resources', title: 'UTSC dining', description: 'Find food courts, cafés, and dining options at UTSC.', url: 'https://www.utsc.utoronto.ca/food/where-eat-campus' },
+      ],
+    },
   },
   'study-spots': {
     type: 'info', query: 'Quiet places to study', title: 'Study spots',
@@ -171,24 +195,48 @@ const STUDENT_LIFE_RESOURCES: Record<string, QueryResult> = {
     type: 'info', query: "What's happening on campus", title: 'Events & activities',
     summary: 'See what clubs, talks, socials, and student-group events are happening on campus this week.',
     supportResources: { campusLocations: [], links: [
-      { group: 'U of T resources', title: 'Student Life events calendar', description: 'Browse upcoming workshops, socials, and events from Student Life departments.', url: 'https://events.studentlife.utoronto.ca/Calendar' },
-      { group: 'U of T resources', title: 'Ulife', description: 'Discover student clubs and campus groups and their upcoming events.', url: 'https://www.ulife.utoronto.ca/events' },
+      { group: 'U of T resources', title: 'Ulife events', description: 'Discover student clubs, campus groups, and their upcoming events.', url: 'https://ulife.utoronto.ca/events' },
+      { group: 'U of T resources', title: 'Student Life', description: 'Browse workshops, socials, and programs from Student Life departments.', url: 'https://studentlife.utoronto.ca/' },
     ] },
   },
   atms: {
     type: 'info', query: 'Where can I find an ATM on campus', title: 'ATMs & banking',
-    summary: 'Use the interactive campus map to find the nearest ATM or bank branch — most student centres and residences have one close by.',
-    supportResources: { campusLocations: [], links: [
-      { group: 'U of T resources', title: 'Interactive campus map', description: 'Search by building or service, including banking and student-space layers.', url: 'https://map.utoronto.ca/' },
-    ] },
+    summary: 'Most student centres and hubs have an ATM close by. Tap a spot for directions, or use the interactive campus map to find the nearest one at any campus.',
+    supportResources: {
+      title: 'ATMs & banking',
+      intro: 'Common on-campus spots to find an ATM. Exact machines vary — use the interactive map to confirm the closest one.',
+      campusHeading: 'Where to find an ATM',
+      campusLocations: [
+        { campus: 'utsg', name: 'Student Commons', location: '230 College Street, Toronto, ON M5T 1R2', detail: 'Student hub near the St. George core with nearby banking and ATMs.' },
+        { campus: 'utsg', name: 'Hart House', location: '7 Hart House Circle, Toronto, ON M5S 3H3', detail: 'Central St. George building with ATM access nearby.' },
+        { campus: 'utm', name: 'UTM Student Centre', location: '3359 Mississauga Road, Mississauga, ON L5L 1C6', detail: 'UTM student hub with ATMs on site.' },
+        { campus: 'utsc', name: 'UTSC Student Centre', location: '1265 Military Trail, Scarborough, ON M1C 1A4', detail: 'UTSC student hub with ATMs on site.' },
+      ],
+      links: [
+        { group: 'U of T resources', title: 'Interactive campus map', description: 'Search any campus by building or service to find the nearest ATM or bank.', url: 'https://map.utoronto.ca/' },
+      ],
+    },
   },
   recreation: {
     type: 'info', query: 'Gyms and recreation on campus', title: 'Gyms & recreation',
-    summary: 'Membership to the Athletic Centre and other Sport & Rec facilities is included in your tuition — find drop-in hours, pools, and courts.',
-    supportResources: { campusLocations: [], links: [
-      { group: 'U of T resources', title: 'Athletic Centre', description: 'St. George campus gym, pools, courts, and fitness facilities included in tuition.', url: 'https://kpe.utoronto.ca/facility/athletic-centre' },
-      { group: 'U of T resources', title: 'Sport & Rec membership', description: 'See what your student membership includes and how to access facilities.', url: 'https://kpe.utoronto.ca/facilities-memberships/join-sport-rec-community' },
-    ] },
+    summary: 'Your student athletic fees include access to your campus gym and pools. Tap your campus facility for directions, or use the links to reach another campus’s facilities.',
+    supportResources: {
+      title: 'Gyms & recreation',
+      intro: 'Sport & rec facilities are included with your student athletic fees. Tap a spot for directions.',
+      campusHeading: 'Athletic & recreation facilities',
+      campusLocations: [
+        { campus: 'utsg', name: 'Athletic Centre', location: '55 Harbord Street, Toronto, ON M5S 2W6', detail: 'St. George gym, pools, weight rooms, and indoor courts.' },
+        { campus: 'utsg', name: 'Goldring Centre for High Performance Sport', location: '100 Devonshire Place, Toronto, ON M5S 2C9', detail: 'Strength & conditioning centre, field house, and fitness space.' },
+        { campus: 'utsg', name: 'Varsity Centre', location: '299 Bloor Street West, Toronto, ON M5S 0A7', detail: 'Field house, stadium, and arena on the St. George campus.' },
+        { campus: 'utm', name: 'Recreation, Athletics & Wellness Centre (RAWC)', location: '3359 Mississauga Road, Mississauga, ON L5L 1C6', detail: 'UTM gym, pool, courts, and fitness facilities.' },
+        { campus: 'utsc', name: 'Toronto Pan Am Sports Centre (TPASC)', location: '875 Morningside Avenue, Scarborough, ON M1C 0C7', detail: 'UTSC’s world-class facility with pools, courts, and fitness spaces.' },
+      ],
+      links: [
+        { group: 'U of T resources', title: 'St. George Sport & Rec', description: 'Facilities, drop-in hours, and memberships at the St. George campus.', url: 'https://kpe.utoronto.ca/facilities-memberships' },
+        { group: 'U of T resources', title: 'UTM Recreation, Athletics & Wellness', description: 'Facilities, drop-in hours, and programs at UTM.', url: 'https://www.utm.utoronto.ca/athletics/' },
+        { group: 'U of T resources', title: 'UTSC Athletics & Recreation', description: 'Get started with athletics and recreation at UTSC and TPASC.', url: 'https://www.utsc.utoronto.ca/athletics/get-started-athletics-recreation' },
+      ],
+    },
   },
   clubs: {
     type: 'info', query: 'How do I join a club', title: 'Clubs & student groups',
@@ -200,11 +248,34 @@ const STUDENT_LIFE_RESOURCES: Record<string, QueryResult> = {
   },
   'transit-parking': {
     type: 'info', query: 'Transit and parking on campus', title: 'Transit & parking',
-    summary: 'Find campus parking rates and permits, or plan your route with the TTC.',
-    supportResources: { campusLocations: [], links: [
-      { group: 'U of T resources', title: 'Transportation Services', description: 'Parking rates, permits, EV charging, and regulations across campus.', url: 'https://transportation.utoronto.ca/' },
-      { group: 'Government support', title: 'TTC route planner', description: 'Plan subway, streetcar, and bus routes around Toronto.', url: 'https://www.ttc.ca/' },
-    ] },
+    summary: 'Find your campus’s parking office for rates and permits, or plan your route with the TTC. Tap a campus office for directions, or use the links to reach another campus’s parking service.',
+    supportResources: {
+      title: 'Transit & parking',
+      intro: 'Each campus runs its own parking service. Tap your campus office for directions.',
+      campusHeading: 'Parking offices & lots',
+      campusLocations: [
+        { campus: 'utsg', name: 'St. George Transportation Services', location: '563 Spadina Crescent, Toronto, ON M5S 2J7', detail: 'Parking permits, rates, EV charging, and regulations for the St. George campus.' },
+        { campus: 'utsg', name: 'Parking — 107 St. George (Rotman garage)', location: '107 St. George Street, Toronto, ON M5S 3E6', detail: 'Gated public garage under Rotman; daily max $20, EV charging on P1.' },
+        { campus: 'utsg', name: 'Parking — Lot C (Bahen Centre)', location: '40 St. George Street, Toronto, ON M5S 2E4', detail: 'Open-air lot at the Bahen Centre; current student permit location.' },
+        { campus: 'utsg', name: 'Parking — Landmark Garage (King’s College Circle)', location: '27 King’s College Circle, Toronto, ON M5S 1A1', detail: 'Underground garage beneath King’s College Circle with EV charging.' },
+        { campus: 'utsg', name: 'Parking — Lot I (OISE Garage)', location: '252 Bloor Street West, Toronto, ON M5S 1V6', detail: 'Open-air garage at OISE near the Bloor/St. George area.' },
+        { campus: 'utm', name: 'UTM Parking & Transportation Services', location: '3359 Mississauga Road, Mississauga, ON L5L 1C6', detail: 'Parking permits, rates, and shuttle information for UTM.' },
+        { campus: 'utm', name: 'UTM Parking — Lot 4', location: 'Lot 4, 3359 Mississauga Road, Mississauga, ON L5L 1C6', detail: 'Pay & Display visitor lot; recommended for visitors and tours.' },
+        { campus: 'utm', name: 'UTM Parking — Lot 8', location: 'Lot 8, 3359 Mississauga Road, Mississauga, ON L5L 1C6', detail: 'Pay & Display visitor lot; recommended for visitors and tours.' },
+        { campus: 'utm', name: 'UTM Parking — Lot 9', location: 'Lot 9, 3359 Mississauga Road, Mississauga, ON L5L 1C6', detail: 'Alternative visitor lot with Pay & Display machines.' },
+        { campus: 'utsc', name: 'UTSC Parking Services', location: 'Room IC 40 (basement), 1265 Military Trail, Scarborough, ON M1C 1A4', detail: 'Parking permits, visitor rates, and prox cards for UTSC.' },
+        { campus: 'utsc', name: 'UTSC Parking — Lot A', location: 'Lot A, 1265 Military Trail, Scarborough, ON M1C 1A4', detail: 'Short-term Pay & Display lot beside the transit bus loop.' },
+        { campus: 'utsc', name: 'UTSC Parking — Lot G', location: 'Lot G, Pan Am Drive, Scarborough, ON M1C 1A4', detail: 'Student permit and daily flat-rate lot on Pan Am Drive.' },
+        { campus: 'utsc', name: 'UTSC Parking — Lot H', location: 'Lot H, 1265 Military Trail, Scarborough, ON M1C 1A4', detail: 'Short-term Pay & Display lot behind the Sam Ibrahim Building.' },
+        { campus: 'utsc', name: 'UTSC Parking — East Lot (TPASC)', location: '875 Morningside Avenue, Scarborough, ON M1C 0C7', detail: 'Interim East Lot near TPASC with two hours complimentary parking.' },
+      ],
+      links: [
+        { group: 'U of T resources', title: 'St. George Transportation Services', description: 'Parking rates, permits, EV charging, and regulations at the St. George campus.', url: 'https://transportation.utoronto.ca/' },
+        { group: 'U of T resources', title: 'UTM Parking & Transportation', description: 'Parking permits, rates, and shuttle information at UTM.', url: 'https://www.utm.utoronto.ca/parking/' },
+        { group: 'U of T resources', title: 'UTSC Parking Services', description: 'Permits, visitor rates, and parking information at UTSC.', url: 'https://www.utsc.utoronto.ca/parking/' },
+        { group: 'Government support', title: 'TTC route planner', description: 'Plan subway, streetcar, and bus routes around Toronto.', url: 'https://www.ttc.ca/' },
+      ],
+    },
   },
   printing: {
     type: 'info', query: 'Where can I print on campus', title: 'Printing & tech help',
@@ -255,6 +326,63 @@ const STUDENT_LIFE_RESOURCE_QUERIES: Record<string, string> = {
   'lost-found': 'Where do I report a lost item?',
   'multi-faith': 'Where can I find a prayer or meditation space?',
 };
+
+// Resource ids that are fully answered by curated content and have no matching
+// backend service. These render their STUDENT_LIFE_RESOURCES entry directly
+// instead of routing through /api/query, which would misclassify casual needs
+// (for example sending "where to eat" to the food bank).
+const LOCAL_ONLY_RESOURCES = new Set<string>([
+  'campus-dining',
+  'study-spots',
+  'events',
+  'atms',
+  'recreation',
+  'clubs',
+  'transit-parking',
+  'printing',
+  'lost-found',
+  'multi-faith',
+  'indigenous-support',
+  'tenant-rights',
+  'sexual-violence',
+  // Curated learning-support links; the backend "academic-success" service is a
+  // college-picker office flow, so keep this list-style resource local instead.
+  'learning-strategies',
+]);
+
+// Trim a curated resource's location list to the student's selected campus.
+// Only locations tagged with a campus are filtered; untagged entries always
+// stay. If the student hasn't chosen a campus, or nothing matches, the full
+// list is returned so the result is never empty.
+function withCampusFilteredLocations(
+  resource: QueryResult,
+  campusId?: 'utsg' | 'utsc' | 'utm',
+): QueryResult {
+  if (resource.type === 'recovery') return resource;
+  const resources = resource.supportResources;
+  const locations = resources?.campusLocations ?? [];
+  const hasCampusTags = locations.some((location) => location.campus);
+  if (!campusId || !hasCampusTags) return resource;
+
+  const filtered = locations.filter((location) => !location.campus || location.campus === campusId);
+  if (filtered.length === 0) return resource;
+
+  const campusLabel = campusId === 'utsg' ? 'St. George' : campusId === 'utsc' ? 'UTSC' : 'UTM';
+  // If the resource carries links for other campuses, point students to them so
+  // they can still reach another campus's version of this amenity.
+  const hasCrossCampusLinks = (resources?.links.length ?? 0) > 1;
+  const intro = hasCrossCampusLinks
+    ? `Showing ${campusLabel} spots. Need another campus? Use the links below to reach its version.`
+    : `Showing options at your selected campus (${campusLabel}). Change your campus on the Ask screen to see another campus.`;
+  return {
+    ...resource,
+    supportResources: {
+      ...resources!,
+      intro,
+      campusLocations: filtered,
+    },
+  };
+}
 const TCARD_OFFICE_FALLBACK: QueryResult = {
   type: 'location',
   query: TCARD_QUERY,
@@ -447,10 +575,10 @@ function createRecoveryResult(query: string, error: unknown): QueryResult {
       : requestKind === 'invalid-response'
         ? 'T-Care received an incomplete answer. Please try your question again.'
         : recoveryKind === 'connection'
-    ? 'We saved your question, but T-Care could not connect. Check your internet connection, then try again.'
+    ? 'T-Care could not connect. Check your internet connection, then try your question again.'
     : recoveryKind === 'location'
-      ? 'We saved your question, but T-Care could not get your location. Check location access in your phone settings, then try again.'
-      : 'We saved your question, but T-Care is temporarily unavailable. Please try again in a moment.';
+      ? 'T-Care could not get your location. Check location access in your phone settings, then try again.'
+      : 'T-Care could not answer just now. Please try your question again in a moment.';
 
   return {
     type: 'recovery',
@@ -566,10 +694,21 @@ export default function App() {
     setResultSource(source);
     setShowResourceMap(source !== 'resources' || Boolean(campus) || requestRoute);
     setShowLocationPaths(false);
+
+    // When the student explicitly asked to be routed somewhere (a "show on map"
+    // / directions action), offer to use their location so we can draw a path.
+    // Declining still pins the destination — the backend geocodes the address.
+    let location: DeviceLocation | undefined;
+    if (requestRoute) {
+      try {
+        location = await getCurrentLocation();
+      } catch {
+        location = undefined;
+      }
+    }
+
     setLoading(true);
     try {
-      const location = undefined;
-      setShowLocationPaths(false);
       const apiUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
 
       if (!apiUrl) throw new Error('Missing EXPO_PUBLIC_API_URL');
@@ -582,6 +721,7 @@ export default function App() {
 
       if (!response.ok) throw new Error(`Map request failed (${response.status})`);
       if (currentRequestId === requestId.current) {
+        setShowLocationPaths(Boolean(location));
         setResult((await response.json()) as QueryResult);
       }
     } catch (error) {
@@ -625,15 +765,42 @@ export default function App() {
           : 'We could not load your college registrar’s office. Please try again shortly.',
     }, source, undefined, serviceId, requestRoute);
 
-  const handleStudentLifeResource = async (resourceId: string) => {
+  const handleResolveDisambiguation = (option: DisambiguationOption) => {
+    switch (option.action.kind) {
+      case 'mental-health':
+        return handleTalkSupport('ask');
+      case 'accessibility':
+        return handleAccessibilityServices('ask');
+      case 'resource':
+        // The disambiguation prompt lives on the Ask tab, so the result must
+        // render there — not on the Resources tab.
+        return handleStudentLifeResource(option.action.resourceId, 'ask');
+    }
+  };
+
+  const handleStudentLifeResource = async (resourceId: string, source: TabKey = 'resources') => {
     const resource = STUDENT_LIFE_RESOURCES[resourceId];
     const query = STUDENT_LIFE_RESOURCE_QUERIES[resourceId];
     if (!resource || !query) return;
     const currentRequestId = ++requestId.current;
-    setResultSource('resources');
+    setResultSource(source);
     setShowResourceMap(Boolean(campus));
     setShowLocationPaths(false);
     setLoading(true);
+
+    // Casual, everyday resources (where to eat, study spots, ATMs, clubs, …)
+    // have no dedicated backend service. Sending them through /api/query lets
+    // the classifier misfire — "where can I get food on campus" matches the
+    // food-bank keyword and buries the dining list. Show the curated content
+    // directly so these options always render a valid, useful list.
+    if (LOCAL_ONLY_RESOURCES.has(resourceId)) {
+      if (currentRequestId === requestId.current) {
+        setResult(withCampusFilteredLocations(resource, campus?.id));
+        setLoading(false);
+      }
+      return;
+    }
+
     try {
       setShowLocationPaths(false);
       const response = await resolveQuery(query, undefined, campus?.id);
@@ -649,19 +816,29 @@ export default function App() {
   const handleCampusLocationPress = async (serviceId: string, campusLocationName: string) => {
     const currentRequestId = ++requestId.current;
     setShowLocationPaths(false);
+
+    // Offer to use the student's location so we can draw a walking path. If they
+    // decline (or it is unavailable), we still pin the destination on the map.
+    let location: DeviceLocation | undefined;
+    try {
+      location = await getCurrentLocation();
+    } catch {
+      location = undefined;
+    }
+
     setLoading(true);
     try {
-      setShowLocationPaths(false);
       if (!API_BASE_URL) throw new Error('Missing EXPO_PUBLIC_API_URL');
 
       const response = await fetch(`${API_BASE_URL}/api/campus-location`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ serviceId, campusLocationName, location: undefined }),
+        body: JSON.stringify({ serviceId, campusLocationName, location }),
       });
       if (!response.ok) throw new Error(`Campus map request failed (${response.status})`);
       if (currentRequestId === requestId.current) {
         setShowResourceMap(true);
+        setShowLocationPaths(Boolean(location));
         setResult((await response.json()) as QueryResult);
       }
     } catch (error) {
@@ -825,6 +1002,7 @@ export default function App() {
         onTCardPress={handleLostTCard}
         onTalkSupportPress={handleTalkSupport}
         onAccessibilityPress={handleAccessibilityServices}
+        onResolveDisambiguation={handleResolveDisambiguation}
         onEmergencySupportPress={() => setEmergencyVisible(true)}
         campus={campus}
         onCampusChange={handleCampusChange}
@@ -836,7 +1014,7 @@ export default function App() {
     <View style={styles.root}>
       <View style={styles.body}>
         <View style={tab === 'tai' ? styles.taiScreen : styles.hiddenTaiScreen}>
-          <TAIScreen />
+          <TAIScreen campus={campus?.id} />
         </View>
         {tab !== 'tai' && renderNonTaiBody()}
       </View>
