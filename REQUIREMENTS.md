@@ -27,9 +27,10 @@ cp .env.example .env
 Open the new `.env` file and fill in:
 
 ```
-GROQ_API_KEY=<ask [your name] for the key, or make your own free one at console.groq.com>
-GOOGLE_MAPS_API_KEY=<ask [your name] for the key>
 PORT=3000
+GROQ_API_KEY=<ask [your name] for the key, or make your own free one at console.groq.com>
+GEOAPIFY_API_KEY=<ask [your name] for the key, or make your own free one at geoapify.com>
+GMAIL_APP_PASSWORD=<ask [your name] for the app password for inquiries.tcare@gmail.com>
 ```
 
 Start it:
@@ -70,12 +71,16 @@ is a separate device and can't reach `localhost` on your computer):
   Terminal
 - **Linux:** run `ip addr` or `hostname -I`
 
-Open `App.tsx`, find the `resolveQuery()` function, and make sure it's
-pointed at your IP:
+The app reads the backend address from an `EXPO_PUBLIC_API_URL`
+environment variable. Create a `.env` file in `tcare-mobile` and add
+your IP (keep the `http://` and the `:3000` port):
 
-```ts
-const res = await fetch('http://YOUR_IP_HERE:3000/api/query', { ... });
 ```
+EXPO_PUBLIC_API_URL=http://YOUR_IP_HERE:3000
+```
+
+Restart the Expo dev server after changing `.env` so the new value is
+picked up.
 
 ## 6. Run it
 
@@ -101,15 +106,21 @@ app should load on your phone.
 ## Troubleshooting
 
 - **"Network request failed" in the app** → your phone and computer
-  probably aren't on the same WiFi, or you typed the wrong IP in
-  `App.tsx`
-- **Backend crashes on startup** → double check both API keys are
+  probably aren't on the same WiFi, or you set the wrong IP in
+  `EXPO_PUBLIC_API_URL` in `tcare-mobile/.env`
+- **"Missing EXPO_PUBLIC_API_URL" in the app** → the `.env` file in
+  `tcare-mobile` is missing the variable, or you didn't restart
+  `npx expo start` after adding it
+- **Backend crashes on startup** → double check the API keys are
   actually pasted into `.env` with no extra quotes or spaces
 - **Groq error in terminal** → check your Groq key is active at
   console.groq.com
-- **Google Maps error** → this one needs billing enabled on the
-  Google Cloud project even though it's within the free tier — check
-  with [your name] if you don't have a key yet
+- **Geoapify / map error** → check your `GEOAPIFY_API_KEY` is set and
+  active at geoapify.com — check with [your name] if you don't have a
+  key yet
+- **Contact form email fails** → confirm `GMAIL_APP_PASSWORD` is set
+  in the backend `.env` (a Google App Password for
+  inquiries.tcare@gmail.com)
 
 ## Questions / feedback
 
