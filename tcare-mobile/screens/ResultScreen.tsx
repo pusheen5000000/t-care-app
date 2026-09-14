@@ -429,8 +429,8 @@ function SupportResourcesSection({
 }) {
   const [collegePickerService, setCollegePickerService] = useState<CollegeServiceId | null>(null);
   const [collegeSearch, setCollegeSearch] = useState('');
-  const governmentLinks = resources.links.filter((link) => link.group === 'Government support');
-  const universityLinks = resources.links.filter((link) => link.group === 'U of T resources');
+  const governmentLinks = resources.links.filter((link) => link.group.toLowerCase() === 'government support');
+  const universityLinks = resources.links.filter((link) => link.group.toLowerCase() === 'u of t resources');
 
   const isCollegeService = (candidate?: string): candidate is CollegeServiceId =>
     Boolean(candidate) && COLLEGE_SERVICE_IDS.has(candidate as CollegeServiceId);
@@ -450,11 +450,11 @@ function SupportResourcesSection({
   return (
     <>
       <View style={styles.resourcesSection}>
-      <Text style={styles.resourcesTitle}>{resources.title ?? 'Mental health support'}</Text>
+      <Text style={styles.resourcesTitle}>{resources.title ?? 'Mental Health Support'}</Text>
       <Text style={styles.resourcesIntro}>{resources.intro ?? 'Choose the support that feels right for you. The map above routes to St. George Health & Wellness.'}</Text>
 
       {resources.campusLocations.length > 0 && (
-        <Text style={styles.resourceHeading}>{resources.campusHeading ?? 'On-campus support'}</Text>
+        <Text style={styles.resourceHeading}>{resources.campusHeading ?? 'On-Campus Support'}</Text>
       )}
       {resources.campusLocations.map((location) => {
         const opensCollegePicker = isCollegeService(serviceId) && isUtsgLocation(location.name);
@@ -497,8 +497,8 @@ function SupportResourcesSection({
         );
       })}
 
-      <ResourceLinks title="Government-approved support" links={governmentLinks} query={query} contextTitle={resultTitle} onOpen={openLink} />
-      <ResourceLinks title="U of T resources" links={universityLinks} query={query} contextTitle={resultTitle} onOpen={openLink} />
+      <ResourceLinks title="Government-Approved Support" links={governmentLinks} query={query} contextTitle={resultTitle} onOpen={openLink} />
+      <ResourceLinks title="U of T Resources" links={universityLinks} query={query} contextTitle={resultTitle} onOpen={openLink} />
       </View>
 
       <Modal visible={collegePickerService !== null} transparent animationType="fade" onRequestClose={() => setCollegePickerService(null)}>

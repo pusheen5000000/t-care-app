@@ -301,7 +301,7 @@ function SupportResourceLinks({
 
   return (
     <View style={styles.mentalHealthCard}>
-      <Text style={styles.mentalHealthTitle}>{resources.title ?? 'Mental health support'}</Text>
+      <Text style={styles.mentalHealthTitle}>{resources.title ?? 'Mental Health Support'}</Text>
       {resources.intro && <Text style={styles.mentalHealthIntro}>{resources.intro}</Text>}
       {facilityPicker && (
         <TouchableOpacity style={styles.chooseFacilityButton} onPress={onChooseFacility} accessibilityRole="button" accessibilityLabel={facilityPicker === 'college' ? 'Choose your college or campus' : 'Choose your campus'}>

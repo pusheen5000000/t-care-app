@@ -17,18 +17,18 @@ type Props = {
 };
 
 const STUDENT_LIFE_RESOURCES = [
-  { id: 'financial-aid', label: 'Financial aid & awards', description: 'Explore awards, UTAPS, OSAP, grants, and funding support.', icon: '$', tone: 'financialIcon' },
-  { id: 'housing', label: 'Housing & residence', description: 'Apply for residence or get help finding a place to live.', icon: 'H', tone: 'housingIcon' },
-  { id: 'international', label: 'International student support', description: 'Get help with immigration, permits, UHIP, and settling in.', icon: 'INT', tone: 'internationalIcon' },
-  { id: 'registrar', label: 'Registrar & enrolment', description: 'Manage courses, records, fees, and university deadlines.', icon: 'REG', tone: 'registrarIcon' },
-  { id: 'safety', label: 'Campus safety', description: 'Find emergency contacts, safety planning, and escort services.', icon: 'SAFE', tone: 'safetyIcon' },
-  { id: 'career', label: 'Career support', description: 'Book advising, explore careers, and find job-search support.', icon: 'CAR', tone: 'careerIcon' },
+  { id: 'financial-aid', label: 'Financial Aid & Awards', description: 'Explore awards, UTAPS, OSAP, grants, and funding support.', icon: '$', tone: 'financialIcon' },
+  { id: 'housing', label: 'Housing & Residence', description: 'Apply for residence or get help finding a place to live.', icon: 'H', tone: 'housingIcon' },
+  { id: 'international', label: 'International Student Support', description: 'Get help with immigration, permits, UHIP, and settling in.', icon: 'INT', tone: 'internationalIcon' },
+  { id: 'registrar', label: 'Registrar & Enrolment', description: 'Manage courses, records, fees, and university deadlines.', icon: 'REG', tone: 'registrarIcon' },
+  { id: 'safety', label: 'Campus Safety', description: 'Find emergency contacts, safety planning, and escort services.', icon: 'SAFE', tone: 'safetyIcon' },
+  { id: 'career', label: 'Career Support', description: 'Book advising, explore careers, and find job-search support.', icon: 'CAR', tone: 'careerIcon' },
   { id: 'libraries-it', label: 'Libraries & IT', description: 'Access study spaces, research tools, Wi-Fi, and tech help.', icon: 'LIB', tone: 'librariesIcon' },
-  { id: 'learning-strategies', label: 'Study skills & learning support', description: 'Build study, writing, time-management, and exam-preparation strategies.', icon: 'STDY', tone: 'learningIcon' },
-  { id: 'indigenous-support', label: 'Indigenous student support', description: 'Connect with culturally relevant academic, wellness, financial, and community support.', icon: 'INDI', tone: 'indigenousIcon' },
-  { id: 'food', label: 'Food & basic needs', description: 'Find food-bank support and other community resources.', icon: 'FOOD', tone: 'foodIcon' },
-  { id: 'tenant-rights', label: 'Tenant rights & legal help', description: 'Get guidance for off-campus housing concerns and tenant-rights questions.', icon: 'LAW', tone: 'legalIcon' },
-  { id: 'sexual-violence', label: 'Sexual violence support', description: 'Access confidential, non-judgmental support and options.', icon: 'SV', tone: 'sexualViolenceIcon' },
+  { id: 'learning-strategies', label: 'Study Skills & Learning Support', description: 'Build study, writing, time-management, and exam-preparation strategies.', icon: 'STDY', tone: 'learningIcon' },
+  { id: 'indigenous-support', label: 'Indigenous Student Support', description: 'Connect with culturally relevant academic, wellness, financial, and community support.', icon: 'INDI', tone: 'indigenousIcon' },
+  { id: 'food', label: 'Food & Basic Needs', description: 'Find food-bank support and other community resources.', icon: 'FOOD', tone: 'foodIcon' },
+  { id: 'tenant-rights', label: 'Tenant Rights & Legal Help', description: 'Get guidance for off-campus housing concerns and tenant-rights questions.', icon: 'LAW', tone: 'legalIcon' },
+  { id: 'sexual-violence', label: 'Sexual Violence Support', description: 'Access confidential, non-judgmental support and options.', icon: 'SV', tone: 'sexualViolenceIcon' },
 ] as const;
 
 export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onStudentLifePress }: Props) {
@@ -82,18 +82,18 @@ export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onS
         />
 
         <View style={styles.list}>
-          <Text style={styles.sectionTitle}>Wellbeing & academics</Text>
+          <Text style={styles.sectionTitle}>Wellbeing & Academics</Text>
           <TouchableOpacity
             style={styles.card}
             onPress={onMentalHealthPress}
             activeOpacity={0.75}
             accessibilityRole="button"
-            accessibilityLabel="Mental health support"
+            accessibilityLabel="Mental Health Support"
             accessibilityHint="Opens Health and Wellness support information"
           >
             <View style={[styles.icon, styles.mentalHealthIcon]}><Text style={styles.iconText}>MH</Text></View>
             <View style={styles.cardCopy}>
-              <Text style={styles.cardTitle}>Mental health support</Text>
+              <Text style={styles.cardTitle}>Mental Health Support</Text>
               <Text style={styles.cardDescription}>Connect with Health & Wellness for counselling and care.</Text>
             </View>
             <View style={styles.chevronBadge}><Text style={styles.chevron}>›</Text></View>
@@ -109,7 +109,7 @@ export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onS
           >
             <View style={[styles.icon, styles.accessibilityIcon]}><Text style={styles.iconText}>AS</Text></View>
             <View style={styles.cardCopy}>
-              <Text style={styles.cardTitle}>Accessibility services</Text>
+              <Text style={styles.cardTitle}>Accessibility Services</Text>
               <Text style={styles.cardDescription}>Learn about accommodations, assistive technology, and exams.</Text>
             </View>
             <View style={styles.chevronBadge}><Text style={styles.chevron}>›</Text></View>
@@ -120,12 +120,12 @@ export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onS
             onPress={() => onStudentLifePress('registrar')}
             activeOpacity={0.75}
             accessibilityRole="button"
-            accessibilityLabel="Courses and Academic Support"
+            accessibilityLabel="Courses & Academic Support"
             accessibilityHint="Choose your college or campus to find its registrar"
           >
             <View style={[styles.icon, styles.academicsIcon]}><Text style={styles.iconText}>AC</Text></View>
             <View style={styles.cardCopy}>
-              <Text style={styles.cardTitle}>Courses & academic support</Text>
+              <Text style={styles.cardTitle}>Courses & Academic Support</Text>
               <Text style={styles.cardDescription}>Choose your college or campus to find its registrar.</Text>
             </View>
             <View style={styles.chevronBadge}><Text style={styles.chevron}>›</Text></View>
@@ -133,7 +133,7 @@ export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onS
 
           {!normalizedSearch && (
             <>
-              <Text style={styles.sectionTitle}>Popular right now</Text>
+              <Text style={styles.sectionTitle}>Popular Right Now</Text>
               {popularResources.map((resource) => (
                 <TouchableOpacity
                   key={`popular-${resource.id}`}
@@ -157,7 +157,7 @@ export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onS
             </>
           )}
 
-          <Text style={styles.sectionTitle}>{normalizedSearch ? 'Matching services' : 'Browse more student services'}</Text>
+          <Text style={styles.sectionTitle}>{normalizedSearch ? 'Matching Services' : 'Browse More Student Services'}</Text>
           {browseResources.map((resource) => (
             <TouchableOpacity
               key={resource.id}
@@ -180,7 +180,7 @@ export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onS
           ))}
           {browseResources.length === 0 && (
             <View style={styles.emptyState} accessibilityRole="text">
-              <Text style={styles.emptyTitle}>No matching services yet</Text>
+              <Text style={styles.emptyTitle}>No Matching Services Yet</Text>
               <Text style={styles.emptyText}>Try a broader term, or use Ask for help with a specific situation.</Text>
             </View>
           )}
