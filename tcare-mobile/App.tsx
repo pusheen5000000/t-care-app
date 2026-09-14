@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, View, StyleSheet, ActivityIndicator, Text, TouchableOpacity, SafeAreaView } from 'react-native';
+import { Alert, BackHandler, View, StyleSheet, ActivityIndicator, Text, TouchableOpacity, SafeAreaView } from 'react-native';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AskScreen } from './screens/AskScreen';
@@ -638,6 +638,37 @@ export default function App() {
       .catch(() => undefined)
       .finally(() => setCampusPreferenceLoaded(true));
   }, []);
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (emergencyVisible) {
+        setEmergencyVisible(false);
+        return true;
+      }
+
+      if (loading) {
+        requestId.current += 1;
+        setLoading(false);
+        return true;
+      }
+
+      if (result && resultSource === tab) {
+        setResult(null);
+        setShowResourceMap(false);
+        setShowLocationPaths(false);
+        return true;
+      }
+
+      if (tab !== 'ask') {
+        setTab('ask');
+        return true;
+      }
+
+      return false;
+    });
+
+    return () => subscription.remove();
+  }, [emergencyVisible, loading, result, resultSource, tab]);
 
   const handleCampusChange = (nextCampus: { id: 'utsg' | 'utsc' | 'utm'; label: string } | null) => {
     setCampus(nextCampus);
