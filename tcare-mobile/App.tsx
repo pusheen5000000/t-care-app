@@ -18,16 +18,16 @@ const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
 const CAMPUS_PREFERENCE_KEY = '@tcare/campus-preference';
 const REQUEST_TIMEOUT_MS = 15_000;
 const RECOVERY_RESOURCES: SupportResources = {
-  title: 'Official U of T support',
+  title: 'Official U of T Support',
   intro: 'While T-Care reconnects, these official sites can help you find the next step.',
   campusLocations: [],
   links: [
-    { group: 'U of T resources', title: 'U of T Student Life', description: 'Find student services, support, and campus resources.', url: 'https://studentlife.utoronto.ca/' },
-    { group: 'U of T resources', title: 'University Registrar', description: 'Official information about registration, records, fees, and academic services.', url: 'https://www.registrar.utoronto.ca/' },
+    { group: 'U of T Resources', title: 'U of T Student Life', description: 'Find student services, support, and campus resources.', url: 'https://studentlife.utoronto.ca/' },
+    { group: 'U of T Resources', title: 'University Registrar', description: 'Official information about registration, records, fees, and academic services.', url: 'https://www.registrar.utoronto.ca/' },
   ],
 };
 const ACCESSIBILITY_SUPPORT_RESOURCES: SupportResources = {
-  title: 'Accessibility support',
+  title: 'Accessibility Support',
   intro: 'Find academic accommodations, assistive technology, and support that works for you. The map above routes to St. George Accessibility Services.',
   campusHeading: 'U of T accessibility offices',
   primaryDestination: 'St. George Accessibility Services',
@@ -37,16 +37,16 @@ const ACCESSIBILITY_SUPPORT_RESOURCES: SupportResources = {
     { name: 'UTM AccessABILITY Resource Centre', location: 'Davis Building, DV2240, 3359 Mississauga Road, Mississauga, ON L5L 1C6', detail: 'Academic accommodations and accessibility resources for UTM students.' },
   ],
   links: [
-    { group: 'Government support', title: 'Accessibility in Ontario', description: 'Ontario accessibility information, rights, and community-support directory.', url: 'https://www.ontario.ca/page/accessibility-ontario-what-you-need-to-know' },
-    { group: 'Government support', title: 'Canada grants for disability services and equipment', description: 'Federal funding information for eligible students who need education-related services or equipment.', url: 'https://www.canada.ca/en/services/benefits/education/student-aid/grants-loans/disabilities-service-equipment.html' },
-    { group: 'U of T resources', title: 'U of T Accessibility Services', description: 'Register for accommodations and connect with St. George Accessibility Services.', url: 'https://studentlife.utoronto.ca/department/accessibility-services/' },
-    { group: 'U of T resources', title: 'Accessibility advisor support', description: 'Learn how to meet with an accessibility advisor and manage your accommodations.', url: 'https://studentlife.utoronto.ca/service/accessibility-advisor-support/' },
+    { group: 'Government Support', title: 'Accessibility in Ontario', description: 'Ontario accessibility information, rights, and community-support directory.', url: 'https://www.ontario.ca/page/accessibility-ontario-what-you-need-to-know' },
+    { group: 'Government Support', title: 'Canada Grants for Disability Services and Equipment', description: 'Federal funding information for eligible students who need education-related services or equipment.', url: 'https://www.canada.ca/en/services/benefits/education/student-aid/grants-loans/disabilities-service-equipment.html' },
+    { group: 'U of T Resources', title: 'U of T Accessibility Services', description: 'Register for accommodations and connect with St. George Accessibility Services.', url: 'https://studentlife.utoronto.ca/department/accessibility-services/' },
+    { group: 'U of T Resources', title: 'Accessibility Advisor Support', description: 'Learn how to meet with an accessibility advisor and manage your accommodations.', url: 'https://studentlife.utoronto.ca/service/accessibility-advisor-support/' },
   ],
 };
 
 const STUDENT_LIFE_RESOURCES: Record<string, QueryResult> = {
   'financial-aid': {
-    type: 'info', query: 'Financial aid and awards', title: 'Financial aid & awards',
+    type: 'info', query: 'Financial aid and awards', title: 'Financial Aid & Awards',
     summary: 'Explore scholarships, awards, grants, OSAP, UTAPS, and other funding options for your studies.',
     supportResources: { campusLocations: [], links: [
       { group: 'U of T resources', title: 'Financial Aid & Awards', description: 'U of T Registrar information for awards, scholarships, grants, UTAPS, and student aid.', url: 'https://www.registrar.utoronto.ca/financial-aid-awards/' },
@@ -56,7 +56,7 @@ const STUDENT_LIFE_RESOURCES: Record<string, QueryResult> = {
     ] },
   },
   housing: {
-    type: 'info', query: 'Housing and residence', title: 'Housing & residence',
+    type: 'info', query: 'Housing and residence', title: 'Housing & Residence',
     summary: 'Start with the residence portal for on-campus residence, family housing, off-campus listings, and housing help.',
     supportResources: { campusLocations: [], links: [
       { group: 'U of T resources', title: 'U of T Residence Portal', description: 'Apply for residence or family housing, and access off-campus housing resources.', url: 'https://studentlife.utoronto.ca/service/u-of-t-residence-portal/' },
@@ -64,7 +64,7 @@ const STUDENT_LIFE_RESOURCES: Record<string, QueryResult> = {
     ] },
   },
   international: {
-    type: 'info', query: 'International student support', title: 'International student support',
+    type: 'info', query: 'International student support', title: 'International Student Support',
     summary: 'Find immigration, permit, transition, and community support for international students.',
     supportResources: { campusLocations: [], links: [
       { group: 'U of T resources', title: 'Immigration & permit support', description: 'Connect with the Centre for International Experience for immigration resources and advising.', url: 'https://start.studentlife.utoronto.ca/topic-category/learn-about-immigration-and-permits' },
@@ -73,7 +73,7 @@ const STUDENT_LIFE_RESOURCES: Record<string, QueryResult> = {
     ] },
   },
   registrar: {
-    type: 'info', query: 'Registrar and enrolment', title: 'Registrar & enrolment',
+    type: 'info', query: 'Registrar and enrolment', title: 'Registrar & Enrolment',
     summary: 'Manage your course enrolment, academic record, fees, deadlines, and other registrarial tasks.',
     supportResources: { campusLocations: [], links: [
       { group: 'U of T resources', title: 'University Registrar', description: 'Official source for registration, records, examinations, fees, and academic information.', url: 'https://www.registrar.utoronto.ca/' },
@@ -84,7 +84,7 @@ const STUDENT_LIFE_RESOURCES: Record<string, QueryResult> = {
     ] },
   },
   safety: {
-    type: 'info', query: 'Campus safety', title: 'Campus safety',
+    type: 'info', query: 'Campus safety', title: 'Campus Safety',
     summary: 'For immediate danger call 911, then Campus Safety. Find non-emergency, personal-safety, and escort options here.',
     supportResources: { campusLocations: [], links: [
       { group: 'U of T resources', title: 'U of T Safety & Support', description: 'Tri-campus emergency contacts, safety resources, and the Campus Safety app.', url: 'https://safety.utoronto.ca/' },
@@ -93,7 +93,7 @@ const STUDENT_LIFE_RESOURCES: Record<string, QueryResult> = {
     ] },
   },
   career: {
-    type: 'info', query: 'Career support', title: 'Career support',
+    type: 'info', query: 'Career support', title: 'Career Support',
     summary: 'Explore careers, job search strategies, further education, advising, workshops, and U of T job boards.',
     supportResources: { campusLocations: [], links: [
       { group: 'U of T resources', title: 'Career Exploration & Education', description: 'Career programs, advising, workshops, job-search support, and resources.', url: 'https://studentlife.utoronto.ca/department/career-exploration-education/' },
@@ -111,7 +111,7 @@ const STUDENT_LIFE_RESOURCES: Record<string, QueryResult> = {
     ] },
   },
   'learning-strategies': {
-    type: 'info', query: 'Study skills and learning support', title: 'Study skills & learning support',
+    type: 'info', query: 'Study skills and learning support', title: 'Study Skills & Learning Support',
     summary: 'Build practical strategies for studying, writing, time management, exam preparation, and navigating academic challenges.',
     supportResources: { campusLocations: [], links: [
       { group: 'U of T resources', title: 'Learning strategist appointments', description: 'Book one-on-one support for study habits, exam preparation, academic stress, and assignment planning.', url: 'https://studentlife.utoronto.ca/service/learning-strategist-appointments/' },
@@ -120,7 +120,7 @@ const STUDENT_LIFE_RESOURCES: Record<string, QueryResult> = {
     ] },
   },
   'indigenous-support': {
-    type: 'info', query: 'Indigenous student support', title: 'Indigenous student support',
+    type: 'info', query: 'Indigenous student support', title: 'Indigenous Student Support',
     summary: 'Find culturally relevant academic, wellness, financial, career, and community support for Indigenous students.',
     supportResources: { campusLocations: [], links: [
       { group: 'U of T resources', title: 'First Nations House', description: 'Connect with Indigenous Student Services for academic support, financial planning, wellness, and cultural programs.', url: 'https://studentlife.utoronto.ca/department/first-nations-house/' },
@@ -129,7 +129,7 @@ const STUDENT_LIFE_RESOURCES: Record<string, QueryResult> = {
     ] },
   },
   food: {
-    type: 'info', query: 'Food and basic needs', title: 'Food & basic needs',
+    type: 'info', query: 'Food and basic needs', title: 'Food & Basic Needs',
     summary: 'Connect with food-bank support and basic-needs resources. Services and eligibility may vary by campus.',
     supportResources: { campusLocations: [], links: [
       { group: 'U of T resources', title: 'UTSU Food Bank', description: 'Free, year-round food-bank support for U of T students, including students with families.', url: 'https://www.utsu.ca/food-bank/' },
@@ -137,7 +137,7 @@ const STUDENT_LIFE_RESOURCES: Record<string, QueryResult> = {
     ] },
   },
   'tenant-rights': {
-    type: 'info', query: 'Tenant rights and legal help', title: 'Tenant rights & legal help',
+    type: 'info', query: 'Tenant rights and legal help', title: 'Tenant Rights & Legal Help',
     summary: 'Get guidance for off-campus housing concerns, including tenant rights, landlord issues, and referrals for legal support.',
     supportResources: { campusLocations: [], links: [
       { group: 'U of T resources', title: 'Tenant rights', description: 'Learn about tenant rights, off-campus housing support, and where to get legal advice.', url: 'https://studentlife.utoronto.ca/task/tenant-rights/' },
@@ -145,7 +145,7 @@ const STUDENT_LIFE_RESOURCES: Record<string, QueryResult> = {
     ] },
   },
   'sexual-violence': {
-    type: 'info', query: 'Sexual violence support', title: 'Sexual violence support',
+    type: 'info', query: 'Sexual violence support', title: 'Sexual Violence Support',
     summary: 'Confidential, non-judgmental support is available for U of T community members affected by sexual violence or harassment.',
     supportResources: { campusLocations: [], links: [
       { group: 'U of T resources', title: 'Sexual Violence Prevention & Support Centre', description: 'Confidential support, options, referrals, accommodations, and prevention resources.', url: 'https://svpscentre.utoronto.ca/' },
@@ -153,10 +153,10 @@ const STUDENT_LIFE_RESOURCES: Record<string, QueryResult> = {
     ] },
   },
   'campus-dining': {
-    type: 'info', query: 'Campus food and dining', title: 'Where to eat on campus',
+    type: 'info', query: 'Campus food and dining', title: 'Where to Eat on Campus',
     summary: 'Grab a bite at a St. George food hall, café, or residence dining commons. Tap any spot for directions, or check U of T Food Services for full hours.',
     supportResources: {
-      title: 'Casual places to eat',
+      title: 'Casual Places to Eat',
       intro: 'Popular food halls, cafés, and dining commons on campus. Hours vary by location and term — check U of T Food Services for the latest.',
       campusHeading: 'Food halls & cafés',
       campusLocations: [
@@ -184,7 +184,7 @@ const STUDENT_LIFE_RESOURCES: Record<string, QueryResult> = {
     },
   },
   'study-spots': {
-    type: 'info', query: 'Quiet places to study', title: 'Study spots',
+    type: 'info', query: 'Quiet places to study',     title: 'Study Spots',
     summary: 'Find libraries, quiet rooms, and study spaces open across campus, with current hours.',
     supportResources: { campusLocations: [], links: [
       { group: 'U of T resources', title: 'Libraries & hours', description: 'Find an open U of T library, current hours, and available study spaces.', url: 'https://library.utoronto.ca/libraries' },
@@ -192,7 +192,7 @@ const STUDENT_LIFE_RESOURCES: Record<string, QueryResult> = {
     ] },
   },
   events: {
-    type: 'info', query: "What's happening on campus", title: 'Events & activities',
+    type: 'info', query: "What's happening on campus",     title: 'Events & Activities',
     summary: 'See what clubs, talks, socials, and student-group events are happening on campus this week.',
     supportResources: { campusLocations: [], links: [
       { group: 'U of T resources', title: 'Ulife events', description: 'Discover student clubs, campus groups, and their upcoming events.', url: 'https://ulife.utoronto.ca/events' },
@@ -200,10 +200,10 @@ const STUDENT_LIFE_RESOURCES: Record<string, QueryResult> = {
     ] },
   },
   atms: {
-    type: 'info', query: 'Where can I find an ATM on campus', title: 'ATMs & banking',
+    type: 'info', query: 'Where can I find an ATM on campus', title: 'ATMs & Banking',
     summary: 'Most student centres and hubs have an ATM close by. Tap a spot for directions, or use the interactive campus map to find the nearest one at any campus.',
     supportResources: {
-      title: 'ATMs & banking',
+      title: 'ATMs & Banking',
       intro: 'Common on-campus spots to find an ATM. Exact machines vary — use the interactive map to confirm the closest one.',
       campusHeading: 'Where to find an ATM',
       campusLocations: [
@@ -218,10 +218,10 @@ const STUDENT_LIFE_RESOURCES: Record<string, QueryResult> = {
     },
   },
   recreation: {
-    type: 'info', query: 'Gyms and recreation on campus', title: 'Gyms & recreation',
+    type: 'info', query: 'Gyms and recreation on campus', title: 'Gyms & Recreation',
     summary: 'Your student athletic fees include access to your campus gym and pools. Tap your campus facility for directions, or use the links to reach another campus’s facilities.',
     supportResources: {
-      title: 'Gyms & recreation',
+      title: 'Gyms & Recreation',
       intro: 'Sport & rec facilities are included with your student athletic fees. Tap a spot for directions.',
       campusHeading: 'Athletic & recreation facilities',
       campusLocations: [
@@ -239,7 +239,7 @@ const STUDENT_LIFE_RESOURCES: Record<string, QueryResult> = {
     },
   },
   clubs: {
-    type: 'info', query: 'How do I join a club', title: 'Clubs & student groups',
+    type: 'info', query: 'How do I join a club', title: 'Clubs & Student Groups',
     summary: 'Browse hundreds of recognized clubs — from cultural and academic groups to Hart House clubs like chess and archery.',
     supportResources: { campusLocations: [], links: [
       { group: 'U of T resources', title: 'Student Organization Portal', description: 'Search the directory of all recognized student clubs and groups.', url: 'https://sop.utoronto.ca/' },
@@ -247,10 +247,10 @@ const STUDENT_LIFE_RESOURCES: Record<string, QueryResult> = {
     ] },
   },
   'transit-parking': {
-    type: 'info', query: 'Transit and parking on campus', title: 'Transit & parking',
+    type: 'info', query: 'Transit and parking on campus', title: 'Transit & Parking',
     summary: 'Find your campus’s parking office for rates and permits, or plan your route with the TTC. Tap a campus office for directions, or use the links to reach another campus’s parking service.',
     supportResources: {
-      title: 'Transit & parking',
+      title: 'Transit & Parking',
       intro: 'Each campus runs its own parking service. Tap your campus office for directions.',
       campusHeading: 'Parking offices & lots',
       campusLocations: [
@@ -278,7 +278,7 @@ const STUDENT_LIFE_RESOURCES: Record<string, QueryResult> = {
     },
   },
   printing: {
-    type: 'info', query: 'Where can I print on campus', title: 'Printing & tech help',
+    type: 'info', query: 'Where can I print on campus', title: 'Printing & Tech Help',
     summary: 'Print wirelessly from your laptop to campus printers, or get help from an IT help desk.',
     supportResources: { campusLocations: [], links: [
       { group: 'U of T resources', title: 'Wireless printing', description: 'Set up wireless printing to release stations across campus using your TCard.', url: 'https://printhere.utoronto.ca/' },
@@ -286,14 +286,14 @@ const STUDENT_LIFE_RESOURCES: Record<string, QueryResult> = {
     ] },
   },
   'lost-found': {
-    type: 'info', query: 'I lost something on campus', title: 'Lost & found',
+    type: 'info', query: 'I lost something on campus', title: 'Lost & Found',
     summary: 'Report a lost item or find out where to check first — most buildings also keep their own lost-and-found.',
     supportResources: { campusLocations: [], links: [
       { group: 'U of T resources', title: 'Lost and found (St. George)', description: 'Submit a lost-item report or find drop-off details for found items.', url: 'https://www.fs.utoronto.ca/services/lost-found/' },
     ] },
   },
   'multi-faith': {
-    type: 'info', query: 'Is there a prayer or meditation space on campus', title: 'Multi-faith & prayer spaces',
+    type: 'info', query: 'Is there a prayer or meditation space on campus', title: 'Multi-Faith & Prayer Spaces',
     summary: 'Find prayer, meditation, and reflection spaces open to all faiths across campus.',
     supportResources: { campusLocations: [], links: [
       { group: 'U of T resources', title: 'Multi-Faith Centre', description: 'Bookable rooms for prayer, worship, and spiritual practice at 569 Spadina Ave.', url: 'https://studentlife.utoronto.ca/department/multi-faith-centre/' },
@@ -472,10 +472,10 @@ const HEALTH_WELLNESS_FALLBACK: QueryResult = {
       { name: 'UTM Health & Counselling Centre', location: 'Davis Building, DV1152, 3359 Mississauga Road, Mississauga, ON L5L 1C6', detail: 'Personal and group counselling, psychiatric care, and health support.' },
     ],
     links: [
-      { group: 'Government support', title: 'Ontario mental health support', description: 'Ontario’s directory for confidential mental health and crisis supports.', url: 'https://www.ontario.ca/page/find-mental-health-support' },
-      { group: 'Government support', title: 'Canada mental health support', description: 'Federal guidance and Canada-wide mental health supports.', url: 'https://www.canada.ca/en/public-health/campaigns/get-help-here.html' },
-      { group: 'U of T resources', title: 'Student Mental Health Resource', description: 'Tri-campus U of T supports and tools for students.', url: 'https://mentalhealth.utoronto.ca/' },
-      { group: 'U of T resources', title: 'U of T mental health supports', description: 'Ways to access counselling, same-day care, and other Health & Wellness supports.', url: 'https://studentlife.utoronto.ca/service/mental-health-supports/' },
+      { group: 'Government Support', title: 'Ontario Mental Health Support', description: 'Ontario’s directory for confidential mental health and crisis supports.', url: 'https://www.ontario.ca/page/find-mental-health-support' },
+      { group: 'Government Support', title: 'Canada Mental Health Support', description: 'Federal guidance and Canada-wide mental health supports.', url: 'https://www.canada.ca/en/public-health/campaigns/get-help-here.html' },
+      { group: 'U of T Resources', title: 'Student Mental Health Resource', description: 'Tri-campus U of T supports and tools for students.', url: 'https://mentalhealth.utoronto.ca/' },
+      { group: 'U of T Resources', title: 'U of T Mental Health Supports', description: 'Ways to access counselling, same-day care, and other Health & Wellness supports.', url: 'https://studentlife.utoronto.ca/service/mental-health-supports/' },
     ],
   },
   serviceId: 'health-wellness',
