@@ -625,6 +625,9 @@ export default function App() {
   const [campus, setCampus] = useState<{ id: 'utsg' | 'utsc' | 'utm'; label: string } | null>(null);
   const [campusPreferenceLoaded, setCampusPreferenceLoaded] = useState(false);
   const requestId = useRef(0);
+  // Preserve the Resources list scroll position across the ResultScreen swap so
+  // pressing "back" returns the student to exactly where they were, not the top.
+  const resourcesScrollOffset = useRef(0);
 
   useEffect(() => {
     void AsyncStorage.getItem(CAMPUS_PREFERENCE_KEY)
@@ -819,6 +822,19 @@ export default function App() {
     setShowLocationPaths(false);
     setLoading(true);
 
+    // The result screen header should read the Resources-tab card the student
+    // tapped, even when the backend resolves the answer to a building or campus
+    // office (e.g. "Where is student IT support?" can resolve to "Student
+    // Centre"). Stamp the card's own label onto whatever result we render so
+    // the header stays consistent with the page they opened. Most cards match
+    // resource.title; the registrar card is shown as "Courses & academic
+    // support" on the Resources tab, so map it explicitly.
+    const resourcesTabLabel = resourceId === 'registrar'
+      ? 'Courses & academic support'
+      : resource.title;
+    const withResourcesTabLabel = (value: QueryResult): QueryResult =>
+      value.type === 'recovery' ? value : { ...value, resourcesTabLabel };
+
     // Casual, everyday resources (where to eat, study spots, ATMs, clubs, …)
     // have no dedicated backend service. Sending them through /api/query lets
     // the classifier misfire — "where can I get food on campus" matches the
@@ -826,7 +842,7 @@ export default function App() {
     // directly so these options always render a valid, useful list.
     if (LOCAL_ONLY_RESOURCES.has(resourceId)) {
       if (currentRequestId === requestId.current) {
-        setResult(withCampusFilteredLocations(resource, campus?.id));
+        setResult(withResourcesTabLabel(withCampusFilteredLocations(resource, campus?.id)));
         setLoading(false);
       }
       return;
@@ -835,10 +851,10 @@ export default function App() {
     try {
       setShowLocationPaths(false);
       const response = await resolveQuery(query, undefined, campus?.id);
-      if (currentRequestId === requestId.current) setResult(response);
+      if (currentRequestId === requestId.current) setResult(withResourcesTabLabel(response));
     } catch (error) {
       console.warn('Could not load campus resource locations:', error);
-      if (currentRequestId === requestId.current) setResult(resource);
+      if (currentRequestId === requestId.current) setResult(withResourcesTabLabel(resource));
     } finally {
       if (currentRequestId === requestId.current) setLoading(false);
     }
@@ -987,6 +1003,10 @@ export default function App() {
           onMentalHealthPress={() => handleTalkSupport('resources')}
           onAccessibilityPress={() => handleAccessibilityServices('resources')}
           onStudentLifePress={handleStudentLifeResource}
+          initialScrollOffset={resourcesScrollOffset.current}
+          onScrollOffsetChange={(offset) => {
+            resourcesScrollOffset.current = offset;
+          }}
         />
       );
     }

@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -14,6 +16,10 @@ type Props = {
   onMentalHealthPress: () => void;
   onAccessibilityPress: () => void;
   onStudentLifePress: (resourceId: string) => void;
+  /** Scroll offset (in px) to restore when the screen mounts. */
+  initialScrollOffset?: number;
+  /** Reports the latest scroll offset so it can be restored after navigating away. */
+  onScrollOffsetChange?: (offset: number) => void;
 };
 
 const STUDENT_LIFE_RESOURCES = [
@@ -31,8 +37,16 @@ const STUDENT_LIFE_RESOURCES = [
   { id: 'sexual-violence', label: 'Sexual Violence Support', description: 'Access confidential, non-judgmental support and options.', icon: 'SV', tone: 'sexualViolenceIcon' },
 ] as const;
 
-export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onStudentLifePress }: Props) {
+export function ResourcesScreen({
+  onMentalHealthPress,
+  onAccessibilityPress,
+  onStudentLifePress,
+  initialScrollOffset = 0,
+  onScrollOffsetChange,
+}: Props) {
   const [isLayoutReady, setIsLayoutReady] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const scrollOffset = useRef(initialScrollOffset);
   const [search, setSearch] = useState('');
   const normalizedSearch = search.trim().toLowerCase();
   const matchingResources = STUDENT_LIFE_RESOURCES.filter((resource) =>
@@ -49,23 +63,43 @@ export function ResourcesScreen({ onMentalHealthPress, onAccessibilityPress, onS
   useEffect(() => {
     // On web, the viewport can settle one frame after this screen mounts. Keep
     // the screen hidden until then so it never flashes at a transient offset.
+    // We also use these frames to restore the previous scroll position before
+    // revealing the screen, so returning here lands exactly where the student
+    // left off instead of snapping back to the top.
     let secondFrame: number | undefined;
     const firstFrame = requestAnimationFrame(() => {
-      secondFrame = requestAnimationFrame(() => setIsLayoutReady(true));
+      secondFrame = requestAnimationFrame(() => {
+        if (initialScrollOffset > 0) {
+          scrollRef.current?.scrollTo({ y: initialScrollOffset, animated: false });
+        }
+        setIsLayoutReady(true);
+      });
     });
 
     return () => {
       cancelAnimationFrame(firstFrame);
       if (secondFrame !== undefined) cancelAnimationFrame(secondFrame);
     };
+    // Restore only on mount; the offset ref is seeded from initialScrollOffset.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    scrollOffset.current = event.nativeEvent.contentOffset.y;
+    onScrollOffsetChange?.(scrollOffset.current);
+  };
 
   return (
     <SafeAreaView
       style={[styles.container, !isLayoutReady && styles.pendingLayout]}
       pointerEvents={isLayoutReady ? 'auto' : 'none'}
     >
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={styles.content}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+      >
         <View style={styles.intro}>
           <Text style={styles.title}>Resources</Text>
           <Text style={styles.subtitle}>Find trusted U of T support for your wellbeing, studies, and student life.</Text>
@@ -208,7 +242,6 @@ const styles = StyleSheet.create({
   financialIcon: { backgroundColor: colors.yellow },
   housingIcon: { backgroundColor: colors.resourcePurple },
   internationalIcon: { backgroundColor: colors.resourceBlue },
-  registrarIcon: { backgroundColor: colors.resourceTeal },
   safetyIcon: { backgroundColor: colors.red },
   careerIcon: { backgroundColor: colors.resourceOrange },
   librariesIcon: { backgroundColor: colors.resourceIndigo },
