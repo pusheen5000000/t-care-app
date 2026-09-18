@@ -616,7 +616,7 @@ async function resolveQuery(
 
 export default function App() {
   const [tab, setTab] = useState<TabKey>('ask');
-  const [result, setResult] = useState<QueryResult | null>(null);
+  const [resultsByTab, setResultsByTab] = useState<Partial<Record<TabKey, QueryResult>>>({});
   const [resultSource, setResultSource] = useState<TabKey>('ask');
   const [showResourceMap, setShowResourceMap] = useState(false);
   const [showLocationPaths, setShowLocationPaths] = useState(false);
@@ -625,6 +625,7 @@ export default function App() {
   const [campus, setCampus] = useState<{ id: 'utsg' | 'utsc' | 'utm'; label: string } | null>(null);
   const [campusPreferenceLoaded, setCampusPreferenceLoaded] = useState(false);
   const requestId = useRef(0);
+  const result = resultsByTab[resultSource] ?? null;
 
   useEffect(() => {
     void AsyncStorage.getItem(CAMPUS_PREFERENCE_KEY)
@@ -653,7 +654,11 @@ export default function App() {
       }
 
       if (result && resultSource === tab) {
-        setResult(null);
+        setResultsByTab((current) => {
+          const next = { ...current };
+          delete next[resultSource];
+          return next;
+        });
         setShowResourceMap(false);
         setShowLocationPaths(false);
         return true;
@@ -693,11 +698,13 @@ export default function App() {
     setLoading(true);
     try {
       const r = await resolveQuery(query, undefined, campus?.id);
-      if (currentRequestId === requestId.current) setResult(r);
+      if (currentRequestId === requestId.current) {
+        setResultsByTab((current) => ({ ...current, ask: r }));
+      }
     } catch (err) {
       console.error(err);
       if (currentRequestId === requestId.current) {
-        setResult(createRecoveryResult(query, err));
+        setResultsByTab((current) => ({ ...current, ask: createRecoveryResult(query, err) }));
       }
     } finally {
       if (currentRequestId === requestId.current) setLoading(false);
@@ -705,7 +712,11 @@ export default function App() {
   };
 
   const handleAskAnother = () => {
-    setResult(null);
+    setResultsByTab((current) => {
+      const next = { ...current };
+      delete next[resultSource];
+      return next;
+    });
     setTab(resultSource);
   };
 
@@ -752,12 +763,15 @@ export default function App() {
 
       if (!response.ok) throw new Error(`Map request failed (${response.status})`);
       if (currentRequestId === requestId.current) {
+        const nextResult = (await response.json()) as QueryResult;
         setShowLocationPaths(Boolean(location));
-        setResult((await response.json()) as QueryResult);
+        setResultsByTab((current) => ({ ...current, [source]: nextResult }));
       }
     } catch (error) {
       console.warn('Could not load map destination:', error);
-      if (currentRequestId === requestId.current) setResult(fallback);
+      if (currentRequestId === requestId.current) {
+        setResultsByTab((current) => ({ ...current, [source]: fallback }));
+      }
     } finally {
       if (currentRequestId === requestId.current) setLoading(false);
     }
@@ -826,7 +840,7 @@ export default function App() {
     // directly so these options always render a valid, useful list.
     if (LOCAL_ONLY_RESOURCES.has(resourceId)) {
       if (currentRequestId === requestId.current) {
-        setResult(withCampusFilteredLocations(resource, campus?.id));
+        setResultsByTab((current) => ({ ...current, [source]: withCampusFilteredLocations(resource, campus?.id) }));
         setLoading(false);
       }
       return;
@@ -835,10 +849,14 @@ export default function App() {
     try {
       setShowLocationPaths(false);
       const response = await resolveQuery(query, undefined, campus?.id);
-      if (currentRequestId === requestId.current) setResult(response);
+      if (currentRequestId === requestId.current) {
+        setResultsByTab((current) => ({ ...current, [source]: response }));
+      }
     } catch (error) {
       console.warn('Could not load campus resource locations:', error);
-      if (currentRequestId === requestId.current) setResult(resource);
+      if (currentRequestId === requestId.current) {
+        setResultsByTab((current) => ({ ...current, [source]: resource }));
+      }
     } finally {
       if (currentRequestId === requestId.current) setLoading(false);
     }
@@ -846,6 +864,7 @@ export default function App() {
 
   const handleCampusLocationPress = async (serviceId: string, campusLocationName: string) => {
     const currentRequestId = ++requestId.current;
+    const source = resultSource;
     setShowLocationPaths(false);
 
     // Offer to use the student's location so we can draw a walking path. If they
@@ -868,9 +887,10 @@ export default function App() {
       });
       if (!response.ok) throw new Error(`Campus map request failed (${response.status})`);
       if (currentRequestId === requestId.current) {
+        const nextResult = (await response.json()) as QueryResult;
         setShowResourceMap(true);
         setShowLocationPaths(Boolean(location));
-        setResult((await response.json()) as QueryResult);
+        setResultsByTab((current) => ({ ...current, [source]: nextResult }));
       }
     } catch (error) {
       console.warn('Could not load selected campus map:', error);
@@ -909,9 +929,14 @@ export default function App() {
 
       const route = await response.json() as Pick<LocationResult, 'travelMinutes' | 'polyline'>;
       if (currentRequestId === requestId.current) {
-        setResult((current) => current?.type === 'location'
-          ? { ...current, travelMinutes: route.travelMinutes, polyline: route.polyline }
-          : current);
+        setResultsByTab((current) => {
+          const sourceResult = current[resultSource];
+          if (sourceResult?.type !== 'location') return current;
+          return {
+            ...current,
+            [resultSource]: { ...sourceResult, travelMinutes: route.travelMinutes, polyline: route.polyline },
+          };
+        });
       }
       return true;
     } catch (error) {
@@ -940,9 +965,19 @@ export default function App() {
       });
       if (!response.ok) throw new Error(`Route request failed (${response.status})`);
       const route = await response.json() as Pick<LocationResult, 'travelMinutes' | 'polyline'>;
-      setResult((current) => current?.type === 'location'
-        ? { ...current, origin: { latitude: location.lat, longitude: location.lng }, travelMinutes: route.travelMinutes, polyline: route.polyline }
-        : current);
+      setResultsByTab((current) => {
+        const sourceResult = current[resultSource];
+        if (sourceResult?.type !== 'location') return current;
+        return {
+          ...current,
+          [resultSource]: {
+            ...sourceResult,
+            origin: { latitude: location.lat, longitude: location.lng },
+            travelMinutes: route.travelMinutes,
+            polyline: route.polyline,
+          },
+        };
+      });
       setShowLocationPaths(true);
       return true;
     } catch (error) {
