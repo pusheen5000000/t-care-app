@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, BackHandler, View, StyleSheet, ActivityIndicator, Text, TouchableOpacity, SafeAreaView } from 'react-native';
+import { Alert, BackHandler, View, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AskScreen } from './screens/AskScreen';
@@ -9,6 +9,7 @@ import { ContactScreen } from './screens/ContactScreen';
 import { ResourcesScreen } from './screens/ResourcesScreen';
 import { TabBar, TabKey } from './components/TabBar';
 import { EmergencySupportSheet } from './components/EmergencySupportSheet';
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fontSize } from './theme';
 import type { LocationResult, QueryResult, RecoveryKind, SupportResources, TravelMode } from './types';
 import type { DisambiguationOption } from './utils/disambiguation';
@@ -615,6 +616,14 @@ async function resolveQuery(
 }
 
 export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AppContent />
+    </SafeAreaProvider>
+  );
+}
+
+function AppContent() {
   const [tab, setTab] = useState<TabKey>('ask');
   const [resultsByTab, setResultsByTab] = useState<Partial<Record<TabKey, QueryResult>>>({});
   const [resultSource, setResultSource] = useState<TabKey>('ask');
@@ -625,6 +634,7 @@ export default function App() {
   const [campus, setCampus] = useState<{ id: 'utsg' | 'utsc' | 'utm'; label: string } | null>(null);
   const [campusPreferenceLoaded, setCampusPreferenceLoaded] = useState(false);
   const requestId = useRef(0);
+  const insets = useSafeAreaInsets();
   const result = resultsByTab[resultSource] ?? null;
 
   useEffect(() => {
@@ -721,7 +731,30 @@ export default function App() {
   };
 
   const handleRetry = () => {
-    if (result?.type === 'recovery') void handleSubmit(result.query);
+    if (result?.type !== 'recovery') return;
+    const source = resultSource;
+    if (source === 'ask') {
+      void handleSubmit(result.query);
+      return;
+    }
+
+    const currentRequestId = ++requestId.current;
+    setLoading(true);
+    void resolveQuery(result.query, undefined, campus?.id)
+      .then((nextResult) => {
+        if (currentRequestId === requestId.current) {
+          setResultsByTab((current) => ({ ...current, [source]: nextResult }));
+        }
+      })
+      .catch((error) => {
+        console.warn('Could not retry campus resource:', error);
+        if (currentRequestId === requestId.current) {
+          setResultsByTab((current) => ({ ...current, [source]: createRecoveryResult(result.query, error) }));
+        }
+      })
+      .finally(() => {
+        if (currentRequestId === requestId.current) setLoading(false);
+      });
   };
 
   const loadMapDestination = async (
@@ -1084,7 +1117,7 @@ export default function App() {
         </View>
         {tab !== 'tai' && renderNonTaiBody()}
       </View>
-      <SafeAreaView style={styles.footer}>
+      <SafeAreaView style={[styles.footer, { paddingBottom: insets.bottom }]} edges={['bottom']}>
         <TouchableOpacity
           style={styles.urgentSupportButton}
           onPress={() => setEmergencyVisible(true)}

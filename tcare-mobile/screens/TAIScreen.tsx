@@ -17,6 +17,7 @@ import {
   Modal,
   Pressable,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, fontSize, radius, spacing } from '../theme';
 import type { SupportResources } from '../types';
 import { openGoogleMapsDirections } from '../utils/googleMaps';
@@ -646,10 +647,11 @@ export function TAIScreen({ campus }: { campus?: 'utsg' | 'utsc' | 'utm' }) {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.root}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        style={styles.root}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       <View style={styles.header}>
         <View style={styles.avatar}>
           <Text style={styles.avatarEmoji}>🤖</Text>
@@ -837,11 +839,13 @@ export function TAIScreen({ campus }: { campus?: 'utsg' | 'utsc' | 'utm' }) {
           </View>
         </View>
       )}
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: colors.background },
   root: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: 'row',
