@@ -53,7 +53,7 @@ logs/
 # --- Misc ---
 coverage/
 .cache/
-
+.kiro/
 .codex/
 .agents/
 PRODUCT.md

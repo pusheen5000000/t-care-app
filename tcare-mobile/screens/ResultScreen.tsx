@@ -463,37 +463,46 @@ function SupportResourcesSection({
           : usesInAppDirections
             ? 'Show in T-Care'
             : 'Get directions in Google Maps';
+        // The arrow (↗) means "this leaves T-Care" and matches the external
+        // resource links below. In-app actions instead show a pin, so tapping
+        // a card that relocates the native map reads differently from one that
+        // hands you off to Google Maps or the browser.
+        const leavesApp = !opensCollegePicker && !usesInAppDirections;
         return (
-        <View
+        <TouchableOpacity
           key={location.name}
           style={styles.locationRow}
+          onPress={() => {
+            if (opensCollegePicker && serviceId) {
+              setCollegePickerService(serviceId as CollegeServiceId);
+              setCollegeSearch('');
+              return;
+            }
+            if (usesInAppDirections && serviceId) {
+              onCampusLocationPress(serviceId, location.name);
+              return;
+            }
+            // Curated lists without a backend service (for example casual
+            // dining spots) still route to Google Maps by address.
+            void openGoogleMapsDirections(location.name, location.location);
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={opensCollegePicker ? `Choose a college for ${location.name}` : `${actionLabel} to ${location.name}`}
+          accessibilityHint={opensCollegePicker ? 'Opens a list of UTSG colleges' : usesInAppDirections ? 'Opens this office as the T-Care map destination' : 'Opens turn-by-turn directions in Google Maps'}
         >
-          <Text style={styles.locationName}>{location.name}</Text>
-          <Text style={styles.locationAddress}>{location.location}</Text>
-          <Text style={styles.locationDetail}>{location.detail}</Text>
-          <TouchableOpacity
-            style={styles.locationActionButton}
-            onPress={() => {
-              if (opensCollegePicker && serviceId) {
-                setCollegePickerService(serviceId as CollegeServiceId);
-                setCollegeSearch('');
-                return;
-              }
-              if (usesInAppDirections && serviceId) {
-                onCampusLocationPress(serviceId, location.name);
-                return;
-              }
-              // Curated lists without a backend service (for example casual
-              // dining spots) still route to Google Maps by address.
-              void openGoogleMapsDirections(location.name, location.location);
-            }}
-            accessibilityRole="button"
-            accessibilityLabel={opensCollegePicker ? `Choose a college for ${location.name}` : `${actionLabel} to ${location.name}`}
-            accessibilityHint={opensCollegePicker ? 'Opens a list of UTSG colleges' : usesInAppDirections ? 'Opens this office as the T-Care map destination' : 'Opens turn-by-turn directions in Google Maps'}
-          >
+          <View style={styles.locationRowCopy}>
+            <Text style={styles.locationName}>{location.name}</Text>
+            <Text style={styles.locationAddress}>{location.location}</Text>
+            <Text style={styles.locationDetail}>{location.detail}</Text>
             <Text style={styles.locationAction}>{actionLabel}</Text>
-          </TouchableOpacity>
-        </View>
+          </View>
+          <Text
+            style={leavesApp ? styles.locationRowArrow : styles.locationRowStayGlyph}
+            accessibilityElementsHidden
+          >
+            {leavesApp ? '↗' : '📍'}
+          </Text>
+        </TouchableOpacity>
         );
       })}
 
@@ -618,37 +627,69 @@ function getResultHeaderTitle(result: QueryResult) {
 
   const context = `${result.query} ${result.title} ${result.summary}`.toLowerCase();
 
+  // Conversational states that aren't a real resource page keep their own
+  // friendly header rather than echoing the placeholder answer title.
   if (/not sure what you.re after|campus helper|do best with a real question|invalid prompt|appropriate, on-topic|does.?n.t look like something i can help/.test(context)) return 'Let’s narrow it down';
   if (/\b(?:hello|hi|hey|welcome)\b/.test(context)) return 'Welcome to T-Care';
-  if (/\b(?:mental health|counselling|counseling|wellness)\b/.test(context)) return 'Wellbeing support';
-  if (/\b(?:accessibility|accommodation|assistive)\b/.test(context)) return 'Accessibility support';
-  if (/\b(?:financial aid|award|scholarship|osap|funding)\b/.test(context)) return 'Funding support';
-  // Casual dining must be checked before housing: dining-hall entries mention
-  // "residence", which would otherwise be read as a housing result.
-  if (/\b(?:dining|food hall|food court|café|cafe|coffee|eat on campus|places to eat|meal plan)\b/.test(context)) return 'Where to eat';
-  if (/\b(?:food bank|basic needs|food insecurity)\b/.test(context)) return 'Basic-needs support';
-  // Casual campus-life categories, matched before the broader support buckets
-  // so the header reflects the specific thing the student picked.
-  if (/\b(?:study spot|study spots|quiet place|quiet space)\b/.test(context)) return 'Study spots';
-  if (/\b(?:atm|atms|banking|bank branch)\b/.test(context)) return 'ATMs & banking';
-  if (/\b(?:gym|gyms|recreation|athletic|sport & rec|workout|work out)\b/.test(context)) return 'Gyms & recreation';
-  if (/\b(?:club|clubs|student group|student groups|student organization)\b/.test(context)) return 'Clubs & groups';
-  if (/\b(?:transit|parking|ttc|shuttle|permit)\b/.test(context)) return 'Transit & parking';
-  if (/\b(?:print|printing|printer)\b/.test(context)) return 'Printing & tech help';
-  if (/\b(?:lost and found|lost & found|lost item|lost something|lost-found)\b/.test(context)) return 'Lost & found';
-  if (/\b(?:prayer|meditation|multi-faith|multifaith|worship|reflection)\b/.test(context)) return 'Multi-faith spaces';
-  if (/\b(?:event|events|social|what'?s happening|activities)\b/.test(context)) return 'Events & activities';
-  if (/\b(?:housing|residence)\b/.test(context)) return 'Housing support';
-  if (/\b(?:immigration|international)\b/.test(context)) return 'International student support';
-  if (/\b(?:registrar|enrolment|acorn|tuition|fee|deadline)\b/.test(context)) return 'Enrolment support';
-  if (/\b(?:career|job|work study)\b/.test(context)) return 'Career support';
-  if (/\b(?:library|study space|research|technology|wi-fi|utorid)\b/.test(context)) return 'Study resources';
-  if (/\b(?:food|basic needs)\b/.test(context)) return 'Basic-needs support';
-  if (/\b(?:sexual violence|harassment)\b/.test(context)) return 'Support options';
-  if (/\b(?:safety|travelsafer|escort)\b/.test(context)) return 'Campus safety';
+
+  // The header next to the Back button should match the label of the card the
+  // student tapped on the Resources tab. For most pages result.title already
+  // equals that label ("Mental health support", "Financial aid & awards",
+  // "Housing & residence", …). A couple of pages carry a slightly different
+  // answer-card title, so map those back to the exact Resources-tab label.
+  const resourcesTabLabel = getResourcesTabLabel(result);
+  if (resourcesTabLabel) return resourcesTabLabel;
+
+  if (result.title) return result.title;
+
   if (result.type === 'location') return 'Getting there';
 
   return 'Campus support';
+}
+
+// Maps a backend service to the exact label shown on its Resources-tab card.
+// Many pages resolve to a campus office, so result.title becomes the office
+// name (e.g. "St. George Health & Wellness Centre"). Keying on the stable
+// serviceId lets the header still read the resource name the student tapped
+// (e.g. "Mental health support").
+const RESOURCES_TAB_LABEL_BY_SERVICE_ID: Record<string, string> = {
+  'health-wellness': 'Mental health support',
+  'accessibility-services': 'Accessibility services',
+  'registrar-enrolment': 'Courses & academic support',
+  'academic-success': 'Courses & academic support',
+  'financial-aid': 'Financial aid & awards',
+  housing: 'Housing & residence',
+  'international-support': 'International student support',
+  'campus-safety': 'Campus safety',
+  'career-support': 'Career support',
+  'libraries-it': 'Libraries & IT',
+  'food-basic-needs': 'Food & basic needs',
+  'learning-support': 'Study skills & learning support',
+  'sexual-violence-support': 'Sexual violence support',
+  'campus-dining': 'Where to eat on campus',
+  printing: 'Printing & tech help',
+  'multi-faith': 'Multi-faith & prayer spaces',
+  'campus-atms': 'ATMs & banking',
+  'campus-recreation': 'Gyms & recreation',
+  'campus-transit-parking': 'Transit & parking',
+};
+
+function getResourcesTabLabel(result: QueryResult): string | undefined {
+  if (result.type === 'recovery') return undefined;
+
+  // Authoritative: when a page is opened from a Resources-tab card, App stamps
+  // that card's label onto the result. This holds even when the backend
+  // resolves the query to a building/office title (e.g. "Student Centre").
+  if (result.resourcesTabLabel) return result.resourcesTabLabel;
+
+  // Fallback for flows that don't stamp a label (mental-health and
+  // accessibility map destinations, or Ask-tab answers): map the stable
+  // backend serviceId to the resource's Resources-tab label.
+  const serviceId = result.serviceId;
+  if (serviceId && RESOURCES_TAB_LABEL_BY_SERVICE_ID[serviceId]) {
+    return RESOURCES_TAB_LABEL_BY_SERVICE_ID[serviceId];
+  }
+  return undefined;
 }
 
 function getActionLabel(
@@ -971,12 +1012,16 @@ const styles = StyleSheet.create({
   },
   locationRow: {
     // A tinted card that stands out against the white screen so each place
-    // reads as its own separated box, not one continuous list.
+    // reads as its own separated box, not one continuous list. The whole
+    // card is the tappable button, so the copy and the affordance arrow sit
+    // side by side like the resource links.
+    alignItems: 'center',
     backgroundColor: colors.surfaceMuted,
     borderColor: colors.border,
     borderRadius: radius.lg,
     borderWidth: 1,
-    gap: 3,
+    flexDirection: 'row',
+    gap: spacing.sm,
     marginBottom: spacing.sm,
     padding: spacing.md,
     shadowColor: colors.uoftBlue,
@@ -985,11 +1030,16 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1,
   },
+  locationRowCopy: { flex: 1, gap: 3 },
+  // ↗ signals the card hands you off to another app (Google Maps / browser).
+  locationRowArrow: { color: colors.accent, fontSize: fontSize.lg, fontWeight: '700' },
+  // 📍 signals the card keeps you inside T-Care (relocates the in-app map or
+  // opens an in-app picker), so it reads differently from the exit arrow.
+  locationRowStayGlyph: { fontSize: fontSize.lg },
   locationName: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '700' },
   locationAddress: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '600', lineHeight: 18 },
   locationDetail: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 18 },
-  locationActionButton: { alignSelf: 'flex-start', justifyContent: 'center', marginTop: spacing.xs, minHeight: 24, paddingRight: spacing.md },
-  locationAction: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '700' },
+  locationAction: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '700', marginTop: spacing.xs },
   linkGroup: { gap: spacing.sm, marginTop: spacing.sm },
   resourceLink: {
     alignItems: 'center',

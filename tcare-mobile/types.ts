@@ -14,11 +14,18 @@ export type SupportResources = {
   links: { group: string; title: string; description: string; url: string }[];
 };
 
+// When a result is opened from a Resources-tab card, this holds that card's
+// exact label so the result screen header can show the resource name the
+// student tapped, even if the backend resolves the answer to a building or
+// campus-office title (e.g. "Student Centre").
+export type ResourcesTabLabel = string;
+
 export type LocationResult = {
   type: 'location';
   query: string;
   title: string;
   summary: string;
+  resourcesTabLabel?: ResourcesTabLabel;
   placeName: string;
   placeSubtitle: string;
   walkMinutes: number;
@@ -47,6 +54,7 @@ export type InfoResult = {
   query: string;
   title: string;
   summary: string;
+  resourcesTabLabel?: ResourcesTabLabel;
   supportResources?: SupportResources;
   serviceId?: string;
 };
