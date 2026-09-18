@@ -8,10 +8,10 @@ import {
   TextInput,
   ScrollView,
   StyleSheet,
-  SafeAreaView,
   Linking,
   useWindowDimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import { colors, spacing, fontSize, radius } from '../theme';
 import type { QueryResult, LocationResult, RecoveryResult, SupportResources, TravelMode } from '../types';

@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  SafeAreaView,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -14,6 +13,7 @@ import {
   Animated,
   Easing,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, fontSize, radius } from '../theme';
 import { MoodCheckIn } from '../components/MoodCheckIn';
 import { DidYouMeanSheet } from '../components/DidYouMeanSheet';
@@ -275,7 +275,17 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
                   {campus?.id === option.id && <Text style={styles.selectedMark}>Selected</Text>}
                 </TouchableOpacity>
               ))}
-              <TouchableOpacity style={styles.skipCampusButton} onPress={() => { onCampusChange(null); setCampusPickerVisible(false); }} accessibilityRole="button" accessibilityLabel="Clear campus preference"><Text style={styles.skipCampusText}>I’ll choose later</Text></TouchableOpacity>
+              <TouchableOpacity
+                style={styles.skipCampusButton}
+                onPress={() => {
+                  if (campus) onCampusChange(null);
+                  setCampusPickerVisible(false);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={campus ? 'Remove campus preference' : 'Choose a campus later'}
+              >
+                <Text style={styles.skipCampusText}>{campus ? 'Remove my selection' : 'I’ll choose later'}</Text>
+              </TouchableOpacity>
             </Pressable>
           </Animated.View>
         </Animated.View>
