@@ -1133,6 +1133,8 @@ function AppContent() {
             if (key === tab) return;
             requestId.current += 1;
             setTab(key);
+            setResultSource(key);
+            setShowLocationPaths(false);
             setLoading(false);
           }}
         />
