@@ -222,7 +222,7 @@ function RouteCard({ route, onMapReady }: { route: Route; onMapReady?: () => voi
         onMapReady={() => setIsMapReady(true)}
       >
         {route.origin && <Marker coordinate={route.origin} title="You" pinColor={colors.accent} />}
-        <Marker coordinate={route.destination} title={route.placeName} />
+        {route.destination && <Marker coordinate={route.destination} title={route.placeName} />}
         {coordinates.length > 0 && (
           <Polyline
             coordinates={coordinates}
@@ -383,7 +383,7 @@ export function TAIScreen({ campus }: { campus?: 'utsg' | 'utsc' | 'utm' }) {
     requiresCollege: boolean;
     campusLocations: SupportResources['campusLocations'];
   } | null>(null);
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
 
   const send = async (retryQuery?: string) => {
     const query = (retryQuery ?? input).trim();
@@ -591,13 +591,14 @@ export function TAIScreen({ campus }: { campus?: 'utsg' | 'utsc' | 'utm' }) {
       });
       const payload: QueryResponse = await response.json();
       if (!response.ok || !payload.placeName || !payload.placeSubtitle) throw new Error(payload.error || 'Could not load this college service.');
+      const { placeName, placeSubtitle } = payload;
       setMessages((previous) => [...previous, {
         id: `${Date.now()}-assistant`,
         role: 'assistant',
         text: [payload.title, payload.summary].filter(Boolean).join('\n\n'),
         route: {
-          placeName: payload.placeName,
-          placeSubtitle: payload.placeSubtitle,
+          placeName,
+          placeSubtitle,
           walkMinutes: payload.walkMinutes ?? 0,
           distanceText: payload.distanceText,
           steps: payload.steps ?? [],
@@ -1044,7 +1045,7 @@ const styles = StyleSheet.create({
   sendBtnDisabled: { opacity: 0.55 },
   sendBtnText: { color: colors.white, fontSize: fontSize.md },
   modalBackdrop: { backgroundColor: 'rgba(0, 0, 0, 0.45)', flex: 1, justifyContent: 'center', padding: spacing.xl },
-  modalDismissArea: { ...StyleSheet.absoluteFillObject },
+  modalDismissArea: { ...StyleSheet.absoluteFill },
   modalCard: { backgroundColor: colors.surface, borderRadius: radius.lg, gap: spacing.sm, maxHeight: '82%', padding: spacing.lg },
   modalTitle: { color: colors.textPrimary, fontSize: fontSize.lg, fontWeight: '700' },
   modalBody: { color: colors.textSecondary, fontSize: fontSize.base, lineHeight: 20, marginBottom: spacing.xs },
@@ -1054,7 +1055,7 @@ const styles = StyleSheet.create({
   collegeOption: { borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, marginBottom: spacing.sm, minHeight: 44, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, justifyContent: 'center' },
   collegeOptionText: { color: colors.accent, fontSize: fontSize.base, fontWeight: '600' },
   mapLoadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     backgroundColor: 'rgba(11, 31, 58, 0.82)',
     justifyContent: 'center',
