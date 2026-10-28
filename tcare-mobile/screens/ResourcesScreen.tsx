@@ -45,7 +45,7 @@ export function ResourcesScreen({
   onScrollOffsetChange,
 }: Props) {
   const [isLayoutReady, setIsLayoutReady] = useState(false);
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const scrollOffset = useRef(initialScrollOffset);
   const [search, setSearch] = useState('');
   const normalizedSearch = search.trim().toLowerCase();
@@ -242,6 +242,7 @@ const styles = StyleSheet.create({
   financialIcon: { backgroundColor: colors.yellow },
   housingIcon: { backgroundColor: colors.resourcePurple },
   internationalIcon: { backgroundColor: colors.resourceBlue },
+  registrarIcon: { backgroundColor: colors.resourceBlue },
   safetyIcon: { backgroundColor: colors.red },
   careerIcon: { backgroundColor: colors.resourceOrange },
   librariesIcon: { backgroundColor: colors.resourceIndigo },

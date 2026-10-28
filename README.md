@@ -88,50 +88,52 @@ map `polyline`.
 
 ## Quick start
 
-You need Node.js 18+, the Expo Go app on your phone, and your phone and computer
-on the same WiFi network.
+Use **Node.js 22.13+ (Node 24 LTS recommended)** and an **Expo Go build
+that supports SDK 58** on your iPhone or Android phone. Start from this
+repository; do not generate a new Expo project.
 
-**1. Backend**
+1. In a terminal at the repository root, set up the backend:
 
-```bash
-cd tcare-backend
-npm install
-cp .env.example .env   # then fill in the keys below
-npm start              # -> T-Care backend running on http://localhost:3000
-```
+   ```bash
+   cd tcare-backend
+   npm ci
+   cp .env.example .env
+   ```
 
-Required backend environment variables (`tcare-backend/.env`):
+   In PowerShell, use `Copy-Item .env.example .env` instead of `cp`.
+   If `.env` already exists, keep it. Fill in `GROQ_API_KEY` and
+   `GEOAPIFY_API_KEY`; contact email also needs `GMAIL_APP_PASSWORD`.
+   Run `npm start` and leave this terminal open.
 
-```
-PORT=3000
-GROQ_API_KEY=<from console.groq.com>
-GEOAPIFY_API_KEY=<from geoapify.com>
-GMAIL_APP_PASSWORD=<Google App Password for [insert email address here]>
-```
+2. Find your computer's Wi-Fi IPv4 address (`ipconfig` on Windows,
+   Wi-Fi settings on macOS, or `ip addr` on Linux). On your phone, open
+   `http://YOUR_COMPUTER_IP:3000/health` in a browser. It must return
+   `{"ok":true}`. Both devices must be on the same network; allow Node.js
+   through your computer's firewall on the private network if needed.
 
-**2. Mobile app**
+3. Open a **second terminal at the repository root**:
 
-```bash
-cd tcare-mobile
-npm install
-```
+   ```bash
+   cd tcare-mobile
+   npm ci
+   cp .env.example .env
+   ```
 
-Point the app at your computer's local IP (not `localhost`, since your phone is
-a separate device). Create `tcare-mobile/.env`:
+   Use `Copy-Item .env.example .env` in PowerShell. Keep an existing `.env`.
+   Set `EXPO_PUBLIC_API_URL=http://YOUR_COMPUTER_IP:3000` in this file.
+   This address must be reachable from the phone; `localhost` points to
+   the phone itself. Values prefixed `EXPO_PUBLIC_` are public: never put
+   API keys in the mobile environment.
 
-```
-EXPO_PUBLIC_API_URL=http://YOUR_IP_HERE:3000
-```
+4. Run `npm start`, then scan the QR code using the iPhone Camera or
+   Expo Go on Android. Keep both terminals running. Grant location access
+   when prompted to test walking routes.
 
-Find your IP with `ipconfig` (Windows), `ifconfig` (macOS), or `ip addr`
-(Linux). Then start Expo and scan the QR code with Expo Go:
-
-```bash
-npx expo start
-```
-
-For the full setup walkthrough, testing checklist, and troubleshooting, see
-[`REQUIREMENTS.md`](./REQUIREMENTS.md).
+If the phone reports an incompatible SDK, check its Expo Go version against
+[Expo's download page](https://expo.dev/go). SDK 58 store rollout may vary;
+if a compatible Expo Go build is unavailable, use a development build.
+See [the setup guide](./REQUIREMENTS.md) for networking alternatives,
+verification, and troubleshooting. Bash setup automation is deferred.
 
 ## Testing
 

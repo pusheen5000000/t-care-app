@@ -1,129 +1,66 @@
-# T-Care — Setup Guide (for testing)
+# T-Care setup and phone testing
 
-This covers everything you need to get both the backend and the mobile
-app running on your own machine so you can test T-Care.
+Follow the [quick start](README.md#quick-start) first. It covers Node,
+backend credentials, both terminals, and the phone's backend address.
+Use the committed lockfiles with `npm ci` for reproducible installations.
 
-## 1. What you need installed
+## Check before opening the app
 
-- **Node.js** (v18 or newer) — https://nodejs.org
-- **Expo Go** app on your phone — search "Expo Go" in the App Store /
-  Play Store
-- A code editor (VS Code recommended, but anything works)
-- Your phone and your computer **on the same WiFi network**
+1. Update Expo Go and confirm it supports SDK 58 at https://expo.dev/go.
+   Expo Go supports a specific SDK; an older store build cannot load SDK 58.
+   If SDK 58 is unavailable for your device, use an SDK 58 development build:
+   https://docs.expo.dev/develop/development-builds/create-a-build/.
+2. Start the backend with `npm start` inside `tcare-backend`.
+3. Open `http://YOUR_COMPUTER_IP:3000/health` from the phone's browser.
+   Expect `{"ok":true}`. This confirms networking, not API credentials.
+4. Set the same base URL (without `/health`) in `tcare-mobile/.env`.
+5. Run `npm run start:clear` inside `tcare-mobile` after upgrading or
+   changing environment settings. Scan the QR code to open the app.
 
-## 2. Get the project files
+## If Wi-Fi does not work
 
-Pull/copy the `T-CARE-APP` folder so you have both `tcare-backend` and
-`tcare-mobile` side by side.
+- Use your Wi-Fi adapter's IPv4 address, not a VPN, virtual adapter, or
+  `localhost`. Keep port 3000 unless you changed backend `PORT`.
+- Allow Node.js through the private-network firewall. Guest/campus Wi-Fi
+  may isolate devices; try a trusted network or personal hotspot.
+- `npm run start:tunnel` can expose the Expo development server. It does
+  **not** expose the backend: use a separately hosted HTTPS API or a
+  separate backend tunnel, then set `EXPO_PUBLIC_API_URL` to that address.
+  Restart Expo after changing it. Do not expose backend secrets in the app.
+- If Expo offers a development-build QR code, press `s` to switch to Expo Go.
 
-## 3. Set up the backend
+## Verification
 
-```bash
-cd tcare-backend
-npm install
-cp .env.example .env
-```
-
-Open the new `.env` file and fill in:
-
-```
-PORT=3000
-GROQ_API_KEY=<ask [your name] for the key, or make your own free one at console.groq.com>
-GEOAPIFY_API_KEY=<ask [your name] for the key, or make your own free one at geoapify.com>
-GMAIL_APP_PASSWORD=<ask [your name] for the app password for inquiries.tcare@gmail.com>
-```
-
-Start it:
+From `tcare-mobile`:
 
 ```bash
-npm start
+npm run typecheck
+npx expo install --check
+npx expo-doctor@latest
 ```
 
-You should see: `T-Care backend running on http://localhost:3000`
+From `tcare-backend`, run `npm test`.
 
-**Test it's working** before moving on:
+On a physical iPhone and Android phone:
 
-```bash
-curl -X POST http://localhost:3000/api/query \
-  -H "Content-Type: application/json" \
-  -d '{"query": "I lost my TCard, what do I do?", "location": {"lat": 43.6629, "lng": -79.3957}}'
-```
-
-You should get back a JSON response with a `title` and `summary`. If
-this doesn't work, stop here and fix it before touching the app —
-the mobile app depends on this running correctly.
-
-## 4. Set up the mobile app
-
-```bash
-cd tcare-mobile
-npm install
-```
-
-## 5. Point the app at YOUR backend
-
-Find your computer's local IP address (not `localhost` — your phone
-is a separate device and can't reach `localhost` on your computer):
-
-- **Windows:** open Command Prompt, run `ipconfig`, look for "IPv4
-  Address" (something like `192.168.x.x`)
-- **Mac:** System Settings → WiFi → Details, or run `ifconfig` in
-  Terminal
-- **Linux:** run `ip addr` or `hostname -I`
-
-The app reads the backend address from an `EXPO_PUBLIC_API_URL`
-environment variable. Create a `.env` file in `tcare-mobile` and add
-your IP (keep the `http://` and the `:3000` port):
-
-```
-EXPO_PUBLIC_API_URL=http://YOUR_IP_HERE:3000
-```
-
-Restart the Expo dev server after changing `.env` so the new value is
-picked up.
-
-## 6. Run it
-
-```bash
-npx expo start
-```
-
-A QR code will appear in your terminal. Open the **Expo Go** app on
-your phone and scan it (or use your phone's camera app on iOS). The
-app should load on your phone.
-
-## 7. Testing checklist
-
-- [ ] Backend starts with no errors (`npm start` in `tcare-backend`)
-- [ ] `curl` test above returns a valid response
-- [ ] Expo app loads on your phone via Expo Go
-- [ ] Tapping a suggestion chip on the Ask screen shows a loading
-      state, then a result
-- [ ] Try all 4 example queries (TCard, overwhelmed, accessibility,
-      study help) and note anything that looks wrong
-- [ ] Try typing your own custom question in the input bar
+- Load the app through Expo Go with no SDK mismatch.
+- Grant location permission, submit a question, and check the destination,
+  map, and walking route. Also check behavior with permission denied.
+- Try TCard, accessibility, health/wellness, and study-help suggestions.
+- Submit a custom question and check campus/college selection when offered.
+- Test the contact form with configured Gmail credentials.
 
 ## Troubleshooting
 
-- **"Network request failed" in the app** → your phone and computer
-  probably aren't on the same WiFi, or you set the wrong IP in
-  `EXPO_PUBLIC_API_URL` in `tcare-mobile/.env`
-- **"Missing EXPO_PUBLIC_API_URL" in the app** → the `.env` file in
-  `tcare-mobile` is missing the variable, or you didn't restart
-  `npx expo start` after adding it
-- **Backend crashes on startup** → double check the API keys are
-  actually pasted into `.env` with no extra quotes or spaces
-- **Groq error in terminal** → check your Groq key is active at
-  console.groq.com
-- **Geoapify / map error** → check your `GEOAPIFY_API_KEY` is set and
-  active at geoapify.com — check with [your name] if you don't have a
-  key yet
-- **Contact form email fails** → confirm `GMAIL_APP_PASSWORD` is set
-  in the backend `.env` (a Google App Password for
-  inquiries.tcare@gmail.com)
+- **Network request failed:** repeat the phone browser health check and
+  verify `EXPO_PUBLIC_API_URL`. An Expo tunnel alone cannot fix API access.
+- **Missing EXPO_PUBLIC_API_URL:** copy the mobile `.env.example`, set the
+  URL, and restart Expo.
+- **SDK mismatch:** verify Expo Go supports SDK 58. `--clear` cannot fix a
+  native SDK mismatch. Development builds must be rebuilt after an upgrade.
+- **Groq or routing errors:** verify backend `GROQ_API_KEY` and
+  `GEOAPIFY_API_KEY`. The health endpoint does not validate these keys.
+- **Contact email fails:** configure a Google App Password for
+  inquiries.tcare@gmail.com in backend `GMAIL_APP_PASSWORD`.
 
-## Questions / feedback
-
-Note anything that feels off — wrong colors, weird spacing, slow
-responses, wrong service matched to a question — and send it back so
-we can fix it before showing this to the dean.
+Setup remains manual for now; Bash automation can be added later.
