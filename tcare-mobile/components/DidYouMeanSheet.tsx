@@ -83,5 +83,5 @@ const styles = StyleSheet.create({
   optionDescription: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 18 },
   optionChevron: { color: colors.accent, fontSize: 24 },
   askAnyway: { alignItems: 'center', justifyContent: 'center', marginTop: spacing.lg, minHeight: 44 },
-  askAnywayText: { color: colors.accent, fontSize: fontSize.base, fontWeight: '700' },
+  askAnywayText: { includeFontPadding: false, textAlignVertical: 'center', color: colors.accent, fontSize: fontSize.base, fontWeight: '700' },
 });

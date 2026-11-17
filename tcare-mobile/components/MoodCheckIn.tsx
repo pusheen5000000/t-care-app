@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
     width: 44,
     zIndex: 1,
   },
-  closeButtonText: {
+  closeButtonText: { includeFontPadding: false, textAlignVertical: 'center',
     color: colors.textMuted,
     fontSize: fontSize.md,
   },
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.danger,
     borderColor: colors.danger,
   },
-  answerYesText: {
+  answerYesText: { includeFontPadding: false, textAlignVertical: 'center',
     color: colors.white,
     fontWeight: '600',
     fontSize: fontSize.base,
@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
     minHeight: 48,
     justifyContent: 'center',
   },
-  primaryButtonText: {
+  primaryButtonText: { includeFontPadding: false, textAlignVertical: 'center',
     color: colors.accentOn,
     fontWeight: '600',
     fontSize: fontSize.base,

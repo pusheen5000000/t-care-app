@@ -24,7 +24,7 @@ export function TabBar({ active, onChange }: Props) {
         return (
           <TouchableOpacity
             key={tab.key}
-            style={styles.tab}
+            style={[styles.tab, isActive && styles.activeTab]}
             onPress={() => onChange(tab.key)}
             activeOpacity={0.7}
             accessibilityRole="tab"
@@ -67,6 +67,11 @@ const styles = StyleSheet.create({
     gap: 4,
     justifyContent: 'center',
     minHeight: Platform.OS === 'ios' ? 44 : 48,
+      paddingHorizontal: 4,
+      paddingVertical: 8,
+    },
+    activeTab: {
+      backgroundColor: colors.surfaceMuted,
   },
   indicator: {
     width: 18,
@@ -74,8 +79,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     // square — no borderRadius
   },
-  label: {
-    fontSize: fontSize.sm,
-    color: colors.textMuted,
+  label: { includeFontPadding: false, textAlignVertical: 'center',
+      fontSize: fontSize.base,
+      textAlign: 'center',
+    flexShrink: 1,
+    color: colors.textSecondary,
   },
 });

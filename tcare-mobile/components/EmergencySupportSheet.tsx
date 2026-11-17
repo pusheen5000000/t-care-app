@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
   sheet: { backgroundColor: colors.surface, borderColor: colors.danger, borderRadius: radius.xl, borderWidth: 1, maxHeight: '86%', padding: spacing.xl },
   content: { gap: spacing.sm, paddingTop: spacing.sm },
   closeButton: { alignItems: 'center', height: 44, justifyContent: 'center', position: 'absolute', right: spacing.sm, top: spacing.sm, width: 44, zIndex: 1 },
-  closeButtonText: { color: colors.textSecondary, fontSize: 28, lineHeight: 30 },
+  closeButtonText: { includeFontPadding: false, textAlignVertical: 'center', color: colors.textSecondary, fontSize: 28, lineHeight: 30 },
   eyebrow: { color: colors.danger, fontSize: fontSize.sm, fontWeight: '700', letterSpacing: 0.5, marginRight: 36 },
   title: { color: colors.textPrimary, fontSize: fontSize.lg, fontWeight: '700', lineHeight: 24, marginRight: 28 },
   body: { color: colors.textSecondary, fontSize: fontSize.base, lineHeight: 20, marginBottom: spacing.sm },
@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
   supportDetail: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 18 },
   openPhoneButton: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: colors.accent, borderRadius: radius.md, justifyContent: 'center', marginTop: spacing.xs, minHeight: 44, paddingHorizontal: spacing.md },
   emergencyButton: { backgroundColor: colors.danger },
-  openPhoneText: { color: colors.accentOn, fontSize: fontSize.base, fontWeight: '700' },
+  openPhoneText: { includeFontPadding: false, textAlignVertical: 'center', color: colors.accentOn, fontSize: fontSize.base, fontWeight: '700' },
   emergencyButtonText: { color: colors.white },
   note: { color: colors.textMuted, fontSize: fontSize.sm, lineHeight: 18, marginTop: spacing.sm },
 });

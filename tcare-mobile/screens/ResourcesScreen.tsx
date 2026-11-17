@@ -1,3 +1,4 @@
+import { useWindowDimensions } from 'react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   NativeScrollEvent,
@@ -46,6 +47,8 @@ export function ResourcesScreen({
   initialScrollOffset = 0,
   onScrollOffsetChange,
 }: Props) {
+  const { fontScale } = useWindowDimensions();
+  const singleLineInputHeight = Math.max(48, Math.ceil(20 * fontScale) + 16);
   const [isLayoutReady, setIsLayoutReady] = useState(false);
   const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const scrollOffset = useRef(initialScrollOffset);
@@ -108,7 +111,7 @@ export function ResourcesScreen({
         </View>
 
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { height: singleLineInputHeight, paddingTop: 0, paddingBottom: 4 }]}
           value={search}
           onChangeText={setSearch}
           placeholder="Search resources"
@@ -234,7 +237,7 @@ const styles = StyleSheet.create({
   intro: { gap: spacing.xs, marginBottom: spacing.xl },
   title: { color: colors.textPrimary, fontSize: fontSize.xl, fontWeight: '700' },
   subtitle: { color: colors.textSecondary, fontSize: fontSize.base, lineHeight: 21 },
-  searchInput: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, color: colors.textPrimary, fontSize: fontSize.base, marginBottom: spacing.xl, minHeight: 48, paddingHorizontal: spacing.md },
+  searchInput: { includeFontPadding: false, textAlignVertical: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, color: colors.textPrimary, fontSize: fontSize.base, marginBottom: spacing.xl, minHeight: 48, paddingHorizontal: spacing.md },
   list: { gap: spacing.md },
   card: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg, borderWidth: 1, flexDirection: 'row', gap: spacing.md, minHeight: 72, padding: spacing.md },
   icon: { alignItems: 'center', borderRadius: radius.md, height: 42, justifyContent: 'center', width: 42 },
@@ -253,14 +256,14 @@ const styles = StyleSheet.create({
   foodIcon: { backgroundColor: colors.resourceGreen },
   legalIcon: { backgroundColor: colors.resourcePurple },
   sexualViolenceIcon: { backgroundColor: colors.resourceBerry },
-  iconText: { color: colors.white, fontSize: fontSize.sm, fontWeight: '700' },
+  iconText: { includeFontPadding: false, textAlignVertical: 'center', color: colors.white, fontSize: fontSize.sm, fontWeight: '700' },
   iconTextDark: { color: colors.accentOn },
   sectionTitle: { color: colors.textPrimary, fontSize: fontSize.md, fontWeight: '700', marginTop: spacing.xs },
   cardCopy: { flex: 1, gap: spacing.xs },
   cardTitle: { color: colors.textPrimary, fontSize: fontSize.md, fontWeight: '700' },
   cardDescription: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 18 },
   chevronBadge: { alignItems: 'center', backgroundColor: colors.accent, borderRadius: radius.full, height: 28, justifyContent: 'center', width: 28 },
-  chevron: { color: colors.yellow, fontSize: 25, fontWeight: '500', lineHeight: 27 },
+  chevron: { includeFontPadding: false, textAlignVertical: 'center', color: colors.yellow, fontSize: 25, fontWeight: '500', lineHeight: 27 },
   emptyState: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg, borderWidth: 1, gap: spacing.xs, padding: spacing.lg },
   emptyTitle: { color: colors.textPrimary, fontSize: fontSize.md, fontWeight: '700' },
   emptyText: { color: colors.textSecondary, fontSize: fontSize.base, lineHeight: 20 },

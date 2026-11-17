@@ -1,3 +1,4 @@
+import { useWindowDimensions } from 'react-native';
 import React, { useRef, useState } from 'react';
 import {
   ScrollView,
@@ -21,6 +22,8 @@ const TOPICS = [
 type TopicId = typeof TOPICS[number]['id'];
 
 export function ContactScreen() {
+  const { fontScale } = useWindowDimensions();
+  const singleLineInputHeight = Math.max(48, Math.ceil(20 * fontScale) + 16);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -117,19 +120,19 @@ export function ContactScreen() {
           <View style={styles.nameRow}>
             <View style={styles.halfField}>
               <Text style={styles.label}>First name *</Text>
-              <TextInput style={styles.input} ref={node => { controls.current.firstName = node; }} value={firstName} onChangeText={value => { setFirstName(value); clearFieldError('firstName'); }} autoCapitalize="words" autoComplete="given-name" textContentType="givenName" placeholder="First name" placeholderTextColor={colors.textMuted} accessibilityLabel="First name, required" />
+              <TextInput style={[styles.input, styles.nameInput, { height: singleLineInputHeight, paddingTop: 0, paddingBottom: 4 }]} ref={node => { controls.current.firstName = node; }} value={firstName} onChangeText={value => { setFirstName(value); clearFieldError('firstName'); }} autoCapitalize="words" autoComplete="given-name" textContentType="givenName" placeholder="First name" placeholderTextColor={colors.textMuted} accessibilityLabel="First name, required" />
             {fieldError('firstName')}
             </View>
             <View style={styles.halfField}>
               <Text style={styles.label}>Last name *</Text>
-              <TextInput style={styles.input} ref={node => { controls.current.lastName = node; }} value={lastName} onChangeText={value => { setLastName(value); clearFieldError('lastName'); }} autoCapitalize="words" autoComplete="family-name" textContentType="familyName" placeholder="Last name" placeholderTextColor={colors.textMuted} accessibilityLabel="Last name, required" />
+              <TextInput style={[styles.input, styles.nameInput, { height: singleLineInputHeight, paddingTop: 0, paddingBottom: 4 }]} ref={node => { controls.current.lastName = node; }} value={lastName} onChangeText={value => { setLastName(value); clearFieldError('lastName'); }} autoCapitalize="words" autoComplete="family-name" textContentType="familyName" placeholder="Last name" placeholderTextColor={colors.textMuted} accessibilityLabel="Last name, required" />
             {fieldError('lastName')}
             </View>
           </View>
 
           <View style={styles.field}>
             <Text style={styles.label}>Email *</Text>
-            <TextInput style={styles.input} ref={node => { controls.current.email = node; }} value={email} onChangeText={value => { setEmail(value); clearFieldError('email'); }} autoCapitalize="none" autoComplete="email" keyboardType="email-address" textContentType="emailAddress" placeholder="you@example.com" placeholderTextColor={colors.textMuted} accessibilityLabel="Email address, required" />
+            <TextInput style={[styles.input, { height: singleLineInputHeight, paddingTop: 0, paddingBottom: 4 }]} ref={node => { controls.current.email = node; }} value={email} onChangeText={value => { setEmail(value); clearFieldError('email'); }} autoCapitalize="none" autoComplete="email" keyboardType="email-address" textContentType="emailAddress" placeholder="you@example.com" placeholderTextColor={colors.textMuted} accessibilityLabel="Email address, required" />
             {fieldError('email')}
           </View>
 
@@ -170,6 +173,7 @@ export function ContactScreen() {
 }
 
 const styles = StyleSheet.create({
+  nameInput: { fontSize: 14, lineHeight: 20, fontWeight: '400' },
   root: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
   content: { gap: spacing.lg, padding: spacing.xl, paddingBottom: spacing.xxl + spacing.lg },
@@ -179,13 +183,13 @@ const styles = StyleSheet.create({
   halfField: { flex: 1, gap: spacing.xs },
   field: { gap: spacing.xs },
   label: { color: colors.textPrimary, fontSize: fontSize.sm, fontWeight: '700' },
-  input: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, color: colors.textPrimary, fontSize: fontSize.base, minHeight: 48, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  input: { includeFontPadding: false, textAlignVertical: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, color: colors.textPrimary, fontSize: fontSize.base, minHeight: 48, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   inquiryInput: { minHeight: 132 },
   counter: { alignSelf: 'flex-end', color: colors.textMuted, fontSize: fontSize.sm },
   topicList: { gap: spacing.sm },
   topic: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, flexDirection: 'row', justifyContent: 'space-between', minHeight: 48, paddingHorizontal: spacing.md },
   topicSelected: { backgroundColor: colors.surfaceMuted, borderColor: colors.accent },
-  topicText: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '600' },
+  topicText: { includeFontPadding: false, textAlignVertical: 'center', color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '600' },
   topicTextSelected: { color: colors.textPrimary },
   topicMarker: { color: colors.textMuted, fontSize: fontSize.sm, fontWeight: '700' },
   topicMarkerSelected: { color: colors.accent },
@@ -196,6 +200,6 @@ const styles = StyleSheet.create({
   statusSuccessText: { color: colors.textPrimary, fontSize: fontSize.base, lineHeight: 20 },
   sendButton: { alignItems: 'center', backgroundColor: colors.accent, borderRadius: radius.md, justifyContent: 'center', minHeight: 52, paddingHorizontal: spacing.lg },
   sendButtonDisabled: { backgroundColor: colors.border },
-  sendButtonText: { color: colors.accentOn, fontSize: fontSize.base, fontWeight: '700' },
+  sendButtonText: { includeFontPadding: false, textAlignVertical: 'center', color: colors.accentOn, fontSize: fontSize.base, fontWeight: '700' },
   footer: { color: colors.textMuted, fontSize: fontSize.sm, lineHeight: 18, marginTop: spacing.sm },
 });

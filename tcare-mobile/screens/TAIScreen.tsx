@@ -1,3 +1,4 @@
+import { useWindowDimensions } from 'react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { KeyboardChatScrollView, KeyboardStickyView } from 'react-native-keyboard-controller';
 import { useSharedValue } from 'react-native-reanimated';
@@ -314,6 +315,8 @@ function SupportResourceLinks({
 }
 
 export function TAIScreen({ campus, footerHeight }: { campus?: 'utsg' | 'utsc' | 'utm'; footerHeight: number }) {
+  const { fontScale } = useWindowDimensions();
+  const singleLineInputHeight = Math.max(48, Math.ceil(20 * fontScale) + 16);
   const composerHeight = useSharedValue(0);
   const [messages, setMessages] = useState<Message[]>(INITIAL);
   const [input, setInput] = useState('');
@@ -674,7 +677,7 @@ export function TAIScreen({ campus, footerHeight }: { campus?: 'utsg' | 'utsc' |
       )}
       <View style={styles.inputRow} onLayout={(event) => { composerHeight.value = event.nativeEvent.layout.height; }}>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { height: singleLineInputHeight, paddingTop: 0, paddingBottom: 4 }]}
           value={input}
           onChangeText={setInput}
           placeholder="Type a message..."
@@ -778,7 +781,7 @@ const styles = StyleSheet.create({
   composerDock: { position: 'absolute', bottom: 0, left: 0, right: 0 },
   jumpOverlay: { position: 'absolute', bottom: '100%', marginBottom: spacing.sm, left: 0, right: 0, backgroundColor: 'transparent' },
   jumpButton: { alignSelf: 'center', backgroundColor: colors.surface, minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.lg, borderColor: colors.border, borderWidth: 1, borderRadius: radius.full },
-  jumpText: { color: colors.textPrimary, fontWeight: '600' },
+  jumpText: { includeFontPadding: false, textAlignVertical: 'center', color: colors.textPrimary, fontWeight: '600' },
   chatArea: { flex: 1 },
   chatContent: { padding: spacing.lg, gap: spacing.md },
   bubbleRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm },
@@ -808,7 +811,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     paddingHorizontal: spacing.md,
   },
-  retryMessageButtonText: { color: colors.accentOn, fontSize: fontSize.sm, fontWeight: '700' },
+  retryMessageButtonText: { includeFontPadding: false, textAlignVertical: 'center', color: colors.accentOn, fontSize: fontSize.sm, fontWeight: '700' },
   disambiguationOptions: { gap: spacing.md, marginTop: spacing.md },
   disambiguationOption: {
     alignItems: 'center',
@@ -850,9 +853,9 @@ const styles = StyleSheet.create({
   stepsTitle: { color: colors.textPrimary, fontSize: fontSize.sm, fontWeight: '700' },
   directionsChevron: { color: colors.accent, fontSize: fontSize.md, fontWeight: '700' },
   googleMapsButton: { alignItems: 'center', backgroundColor: colors.accent, borderRadius: radius.md, justifyContent: 'center', marginTop: spacing.sm, minHeight: 44, paddingHorizontal: spacing.md },
-  googleMapsButtonText: { color: colors.accentOn, fontSize: fontSize.sm, fontWeight: '700' },
+  googleMapsButtonText: { includeFontPadding: false, textAlignVertical: 'center', color: colors.accentOn, fontSize: fontSize.sm, fontWeight: '700' },
   stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs },
-  stepNumber: {
+  stepNumber: { includeFontPadding: false, textAlignVertical: 'center',
     minWidth: 18,
     height: 18,
     borderRadius: radius.full,
@@ -875,7 +878,7 @@ const styles = StyleSheet.create({
   mentalHealthTitle: { color: colors.textPrimary, fontSize: fontSize.base, fontWeight: '700' },
   mentalHealthIntro: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 18 },
   chooseFacilityButton: { alignSelf: 'flex-start', backgroundColor: colors.accent, borderRadius: radius.md, minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.md },
-  chooseFacilityButtonText: { color: colors.accentOn, fontSize: fontSize.sm, fontWeight: '700' },
+  chooseFacilityButtonText: { includeFontPadding: false, textAlignVertical: 'center', color: colors.accentOn, fontSize: fontSize.sm, fontWeight: '700' },
   mentalHealthSubhead: { color: colors.textMuted, fontSize: fontSize.sm, fontWeight: '700', marginTop: 2 },
   mentalHealthLocation: {
     backgroundColor: colors.surfaceMuted,
@@ -901,7 +904,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
   },
-  mentalHealthLinkText: { color: colors.textPrimary, flex: 1, fontSize: fontSize.sm, fontWeight: '600' },
+  mentalHealthLinkText: { includeFontPadding: false, textAlignVertical: 'center', color: colors.textPrimary, flex: 1, fontSize: fontSize.sm, fontWeight: '600' },
   mentalHealthLinkArrow: { color: colors.accent, fontSize: fontSize.base, fontWeight: '700' },
   thinkingBubble: {
     flexDirection: 'row',
@@ -928,7 +931,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-  input: {
+  input: { includeFontPadding: false, textAlignVertical: 'center',
     flex: 1,
     backgroundColor: colors.surfaceMuted,
     color: colors.textPrimary,
@@ -949,17 +952,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sendBtnDisabled: { opacity: 0.55 },
-  sendBtnText: { color: colors.white, fontSize: fontSize.md },
+  sendBtnText: { includeFontPadding: false, textAlignVertical: 'center', color: colors.white, fontSize: fontSize.md },
   modalBackdrop: { backgroundColor: 'rgba(0, 0, 0, 0.45)', flex: 1, justifyContent: 'center', padding: spacing.xl },
   modalDismissArea: { ...StyleSheet.absoluteFill },
   modalCard: { backgroundColor: colors.surface, borderRadius: radius.lg, gap: spacing.sm, maxHeight: '82%', padding: spacing.lg },
   modalTitle: { color: colors.textPrimary, fontSize: fontSize.lg, fontWeight: '700' },
   modalBody: { color: colors.textSecondary, fontSize: fontSize.base, lineHeight: 20, marginBottom: spacing.xs },
   modalBackButton: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.sm },
-  modalBackButtonText: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '700' },
+  modalBackButtonText: { includeFontPadding: false, textAlignVertical: 'center', color: colors.accent, fontSize: fontSize.sm, fontWeight: '700' },
   modalOptions: { flexGrow: 0 },
   collegeOption: { borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, marginBottom: spacing.sm, minHeight: 44, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, justifyContent: 'center' },
-  collegeOptionText: { color: colors.accent, fontSize: fontSize.base, fontWeight: '600' },
+  collegeOptionText: { includeFontPadding: false, textAlignVertical: 'center', color: colors.accent, fontSize: fontSize.base, fontWeight: '600' },
   mapLoadingOverlay: {
     ...StyleSheet.absoluteFill,
     alignItems: 'center',
