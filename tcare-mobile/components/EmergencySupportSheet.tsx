@@ -14,14 +14,18 @@ const PHONE_SUPPORT = [
 ];
 
 export function EmergencySupportSheet({ visible, onClose }: Props) {
+  const copyNumber = async (support: (typeof PHONE_SUPPORT)[number]) => {
+    await Clipboard.setStringAsync(support.phoneLabel);
+    Alert.alert('Number copied', `Open the Phone app and paste ${support.phoneLabel} when you are ready.`);
+  };
+
   const handleSupportAction = async (support: (typeof PHONE_SUPPORT)[number]) => {
     if (Platform.OS === 'android') {
       await IntentLauncher.startActivityAsync('android.intent.action.DIAL');
       return;
     }
 
-    await Clipboard.setStringAsync(support.phoneLabel);
-    Alert.alert('Number copied', `Open the Phone app and enter ${support.phoneLabel} when you are ready.`);
+    await copyNumber(support);
   };
 
   return (
@@ -35,7 +39,7 @@ export function EmergencySupportSheet({ visible, onClose }: Props) {
             <Text style={styles.eyebrow}>URGENT SUPPORT</Text>
             <Text style={styles.title}>You do not have to handle this alone.</Text>
             <Text style={styles.body}>
-              T-Care will never place a call or send a text. On Android, open a blank dialer; on iPhone, copy a number and open Phone when you are ready.
+              T-Care will never place a call or send a text. On Android, copy a number and open a blank dialer; on iPhone, copy a number and open Phone when you are ready.
             </Text>
             {PHONE_SUPPORT.map((support) => (
               <View key={support.number} style={styles.supportRow}>
@@ -46,13 +50,18 @@ export function EmergencySupportSheet({ visible, onClose }: Props) {
                   style={[styles.openPhoneButton, support.number === '911' && styles.emergencyButton]}
                   onPress={() => void handleSupportAction(support)}
                   accessibilityRole="button"
-                  accessibilityLabel={Platform.OS === 'android' ? 'Open blank phone dialer' : `Copy ${support.phoneLabel}`}
+                  accessibilityLabel={Platform.OS === 'android' ? `Open blank phone dialer for ${support.name}` : `Copy number for ${support.name}`}
                   accessibilityHint={Platform.OS === 'android' ? 'Opens the phone dialer without a number or call' : 'Copies this number so you can enter it in your Phone app'}
                 >
                   <Text style={[styles.openPhoneText, support.number === '911' && styles.emergencyButtonText]}>
                     {Platform.OS === 'android' ? 'Open dialer' : 'Copy number'}
                   </Text>
                 </TouchableOpacity>
+                {Platform.OS === 'android' && (
+                  <TouchableOpacity style={styles.openPhoneButton} onPress={() => void copyNumber(support)} accessibilityRole="button" accessibilityLabel={`Copy number for ${support.name}`}>
+                    <Text style={styles.openPhoneText}>Copy number</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             ))}
             <Text style={styles.note}>If you can, move to a safer place or ask someone nearby to stay with you.</Text>

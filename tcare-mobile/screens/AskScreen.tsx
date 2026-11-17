@@ -1,3 +1,4 @@
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
@@ -6,9 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   Animated,
   Easing,
@@ -52,6 +51,7 @@ const MOODS: { emoji: string; label: string; mood: 'good' | 'okay' | 'struggling
 ];
 
 export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccessibilityPress, onResolveDisambiguation, onEmergencySupportPress, campus, onCampusChange }: Props) {
+  const insets = useSafeAreaInsets();
   const [text, setText] = useState('');
   const [activeMood, setActiveMood] = useState<'good' | 'okay' | 'struggling' | null>(null);
   const [campusPickerVisible, setCampusPickerVisible] = useState(false);
@@ -155,7 +155,7 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
 
   return (
     <View style={styles.container}>
-      <KeyboardAvoidingView style={[styles.flex, !isLayoutReady && styles.pendingLayout]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <View style={[styles.flex, !isLayoutReady && styles.pendingLayout]}>
         <View style={styles.header}>
           <View style={styles.logoBox}><Text style={styles.logoText}>T</Text></View>
           <Text style={styles.headerTitle}>T-Care</Text>
@@ -235,7 +235,7 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
               </TouchableOpacity>
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </View>
 
       <DidYouMeanSheet
         prompt={disambiguation}
@@ -252,6 +252,7 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
           <Animated.View
             style={[
               styles.modalCard,
+              { maxHeight: '90%', paddingBottom: Math.max(spacing.xl, insets.bottom) },
               {
                 opacity: campusAnim,
                 transform: [
@@ -265,7 +266,7 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
               },
             ]}
           >
-            <Pressable onPress={() => undefined} accessibilityViewIsModal>
+            <ScrollView accessibilityViewIsModal>
               <Text style={styles.modalTitle}>Set your campus</Text>
               <Text style={styles.modalBody}>Optional. T-Care saves this preference and uses it to make service results more relevant.</Text>
               {CAMPUSES.map((option) => (
@@ -285,7 +286,7 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
               >
                 <Text style={styles.skipCampusText}>{campus ? 'Remove my selection' : 'I’ll choose later'}</Text>
               </TouchableOpacity>
-            </Pressable>
+            </ScrollView>
           </Animated.View>
         </Animated.View>
       </Modal>

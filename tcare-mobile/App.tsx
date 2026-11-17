@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, BackHandler, Platform, View, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
+import { Alert, BackHandler, KeyboardAvoidingView, Platform, View, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -638,6 +638,7 @@ function AppContent() {
   const result = resultsByTab[resultSource] ?? null;
   // Preserve the Resources list scroll position across the ResultScreen swap so
   // pressing "back" returns the student to exactly where they were, not the top.
+  const [resourceSearch, setResourceSearch] = useState('');
   const resourcesScrollOffset = useRef(0);
 
   useEffect(() => {
@@ -1037,7 +1038,7 @@ function AppContent() {
 
   const renderNonTaiBody = () => {
     if (tab === 'contact') {
-      return <ContactScreen />;
+      return null;
     }
 
     if (loading) {
@@ -1071,6 +1072,8 @@ function AppContent() {
           onMentalHealthPress={() => handleTalkSupport('resources')}
           onAccessibilityPress={() => handleAccessibilityServices('resources')}
           onStudentLifePress={handleStudentLifeResource}
+          search={resourceSearch}
+          setSearch={setResourceSearch}
           initialScrollOffset={resourcesScrollOffset.current}
           onScrollOffsetChange={(offset) => {
             resourcesScrollOffset.current = offset;
@@ -1131,38 +1134,41 @@ function AppContent() {
 
   // The shell owns system insets; screens must not reserve them again.
   return (
-    <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
-      <StatusBar style="dark" />
-      <View style={styles.body}>
-        <View style={tab === 'tai' ? styles.taiScreen : styles.hiddenTaiScreen}>
-          <TAIScreen campus={campus?.id} />
+    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
+        <StatusBar style="dark" />
+        <View style={styles.body}>
+          <View style={tab === 'tai' ? styles.taiScreen : styles.hiddenTaiScreen}>
+            <TAIScreen campus={campus?.id} />
+          </View>
+          <View style={tab === 'contact' ? styles.taiScreen : styles.hiddenTaiScreen}><ContactScreen /></View>
+          {tab !== 'tai' && renderNonTaiBody()}
         </View>
-        {tab !== 'tai' && renderNonTaiBody()}
-      </View>
-      <SafeAreaView style={styles.footer} edges={['bottom']}>
-        <TouchableOpacity
-          style={styles.urgentSupportButton}
-          onPress={() => setEmergencyVisible(true)}
-          accessibilityRole="button"
-          accessibilityLabel="Get urgent support"
-          accessibilityHint="Opens urgent support options without making a call"
-        >
-          <Text style={styles.urgentSupportText}>Need urgent support?</Text>
-        </TouchableOpacity>
-        <TabBar
-          active={tab}
-          onChange={(key) => {
-            if (key === tab) return;
-            requestId.current += 1;
-            setTab(key);
-            setResultSource(key);
-            setShowLocationPaths(false);
-            setLoading(false);
-          }}
-        />
+        <SafeAreaView style={styles.footer} edges={['bottom']}>
+          <TouchableOpacity
+            style={styles.urgentSupportButton}
+            onPress={() => setEmergencyVisible(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Get urgent support"
+            accessibilityHint="Opens urgent support options without making a call"
+          >
+            <Text style={styles.urgentSupportText}>Need urgent support?</Text>
+          </TouchableOpacity>
+          <TabBar
+            active={tab}
+            onChange={(key) => {
+              if (key === tab) return;
+              requestId.current += 1;
+              setTab(key);
+              setResultSource(key);
+              setShowLocationPaths(false);
+              setLoading(false);
+            }}
+          />
+        </SafeAreaView>
+        <EmergencySupportSheet visible={emergencyVisible} onClose={() => setEmergencyVisible(false)} />
       </SafeAreaView>
-      <EmergencySupportSheet visible={emergencyVisible} onClose={() => setEmergencyVisible(false)} />
-    </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 

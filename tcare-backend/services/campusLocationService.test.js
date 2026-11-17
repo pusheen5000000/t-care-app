@@ -120,7 +120,8 @@ test('food support routes UTSC and UTM students to their campus food centres', (
   assert.match(utsc.location, /SL-210-B/);
   assert.match(utm.name, /UTMSU Food Centre/);
   assert.match(utm.location, /Room 100/);
-  assert.ok(links.some((link) => link.url === 'https://scsu.ca/foodcentre'));
+  const utscFoodCentre = links.find((link) => link.title === 'SCSU Food Centre (UTSC)');
+  assert.equal(utscFoodCentre?.url, 'https://www.scsu.ca/equity-centres#food');
   assert.ok(links.some((link) => link.url === 'https://utmsu.ca/service/food-centre/'));
 });
 

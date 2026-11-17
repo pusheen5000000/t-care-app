@@ -5,7 +5,6 @@ import {
   Animated,
   Alert,
   ActivityIndicator,
-  KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
@@ -384,9 +383,26 @@ export function TAIScreen({ campus }: { campus?: 'utsg' | 'utsc' | 'utm' }) {
   } | null>(null);
   const scrollViewRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
 
+  const followLatest = useRef(true);
+  const [showJump, setShowJump] = useState(false);
+  const latestMessage = messages[messages.length - 1];
+  const [lastSeenId, setLastSeenId] = useState(latestMessage?.id);
+  useEffect(() => {
+    if (!showJump) setLastSeenId(latestMessage?.id);
+  }, [showJump, latestMessage?.id]);
+  const jumpLabel = latestMessage?.role === 'assistant' && latestMessage.id !== lastSeenId
+    ? 'New reply'
+    : 'Latest message';
+  const jumpToBottom = () => {
+    followLatest.current = true;
+    setShowJump(false);
+    scrollViewRef.current?.scrollToEnd({ animated: false });
+  };
+
   const send = async (retryQuery?: string) => {
     const query = (retryQuery ?? input).trim();
     if (!query || isSending) return;
+    jumpToBottom();
 
     // For short, everyday needs typed straight into the chat ("i'm hungry"),
     // the intended next step is ambiguous. Ask a quick follow-up with specific
@@ -566,7 +582,6 @@ export function TAIScreen({ campus }: { campus?: 'utsg' | 'utsc' | 'utm' }) {
   const finishMapLoading = () => {
     if (!mapLoadingLocation) return;
     setMapLoadingLocation(null);
-    requestAnimationFrame(() => scrollViewRef.current?.scrollToEnd({ animated: true }));
   };
 
   const selectCollegeFacility = async (collegeId: string) => {
@@ -648,10 +663,7 @@ export function TAIScreen({ campus }: { campus?: 'utsg' | 'utsc' | 'utm' }) {
 
   return (
     <View style={styles.safeArea}>
-      <KeyboardAvoidingView
-        style={styles.root}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <View style={styles.root}>
       <View style={styles.header}>
         <View style={styles.avatar}>
           <Text style={styles.avatarEmoji}>🤖</Text>
@@ -671,7 +683,16 @@ export function TAIScreen({ campus }: { campus?: 'utsg' | 'utsc' | 'utm' }) {
         ref={scrollViewRef}
         style={styles.chatArea}
         contentContainerStyle={styles.chatContent}
-        onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+        scrollEventThrottle={16}
+        onScroll={({ nativeEvent: { contentSize, contentOffset, layoutMeasurement } }) => {
+          if (!layoutMeasurement.height) return;
+          const distance = contentSize.height - layoutMeasurement.height - contentOffset.y;
+          followLatest.current = distance <= 96;
+          setShowJump(distance > 96);
+        }}
+        onContentSizeChange={() => {
+          if (followLatest.current) scrollViewRef.current?.scrollToEnd({ animated: false });
+        }}
       >
         {messages.map((message) => (
           <View
@@ -772,6 +793,11 @@ export function TAIScreen({ campus }: { campus?: 'utsg' | 'utsc' | 'utm' }) {
         )}
       </ScrollView>
 
+      {showJump && (
+        <TouchableOpacity style={styles.jumpButton} onPress={jumpToBottom} accessibilityRole="button" accessibilityLabel={`Scroll to ${jumpLabel.toLowerCase()}`}>
+          <Text style={styles.jumpText}>↓ {jumpLabel}</Text>
+        </TouchableOpacity>
+      )}
       <View style={styles.inputRow}>
         <TextInput
           style={styles.input}
@@ -839,7 +865,7 @@ export function TAIScreen({ campus }: { campus?: 'utsg' | 'utsc' | 'utm' }) {
           </View>
         </View>
       )}
-      </KeyboardAvoidingView>
+      </View>
     </View>
   );
 }
@@ -872,6 +898,8 @@ const styles = StyleSheet.create({
   statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.success },
   statusText: { color: colors.textMuted, fontSize: fontSize.sm },
   followUpHint: { backgroundColor: colors.infoBg, color: colors.infoText, fontSize: fontSize.sm, lineHeight: 18, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
+  jumpButton: { alignSelf: 'center', minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.lg, borderColor: colors.border, borderWidth: 1, borderRadius: radius.full },
+  jumpText: { color: colors.textPrimary, fontWeight: '600' },
   chatArea: { flex: 1 },
   chatContent: { padding: spacing.lg, gap: spacing.md },
   bubbleRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm },

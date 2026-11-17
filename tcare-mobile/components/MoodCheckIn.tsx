@@ -36,7 +36,7 @@ export function MoodCheckIn({ visible, mood, onClose, onEmergencySupportPress }:
             Glad things are going well. If anything comes up later, T-Care is
             always here.
           </Text>
-          <TouchableOpacity style={styles.primaryButton} onPress={handleClose}>
+          <TouchableOpacity accessibilityRole="button" style={styles.primaryButton} onPress={handleClose}>
             <Text style={styles.primaryButtonText}>Thanks</Text>
           </TouchableOpacity>
         </>
@@ -57,13 +57,13 @@ export function MoodCheckIn({ visible, mood, onClose, onEmergencySupportPress }:
           <Text style={styles.stepLabel}>QUICK SAFETY CHECK</Text>
           <Text style={styles.title}>Are you having any thoughts of hurting yourself or others?</Text>
           <View style={styles.answerRow}>
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               style={[styles.answerButton, styles.answerYes]}
               onPress={() => { handleClose(); onEmergencySupportPress(); }}
             >
               <Text style={styles.answerYesText}>Yes, I am</Text>
             </TouchableOpacity>
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               style={[styles.answerButton, styles.answerNo]}
               onPress={() => setSafetyAnswer('no')}
             >
@@ -83,10 +83,9 @@ export function MoodCheckIn({ visible, mood, onClose, onEmergencySupportPress }:
             If you choose to reach out, open your phone app and dial or text one of these numbers yourself.
           </Text>
 
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             style={styles.urgentButton}
             onPress={() => { handleClose(); onEmergencySupportPress(); }}
-            accessibilityRole="button"
             accessibilityLabel="Open urgent support options"
           >
             <Text style={styles.urgentButtonText}>Open urgent support options</Text>
@@ -112,7 +111,7 @@ export function MoodCheckIn({ visible, mood, onClose, onEmergencySupportPress }:
             <Text style={styles.resourceSubtitle}>If there is immediate danger, use your phone to call 9-1-1 or go to the nearest emergency department.</Text>
           </View>
 
-          <TouchableOpacity style={styles.primaryButton} onPress={handleClose}>
+          <TouchableOpacity accessibilityRole="button" style={styles.primaryButton} onPress={handleClose}>
             <Text style={styles.primaryButtonText}>Done</Text>
           </TouchableOpacity>
         </>
@@ -126,7 +125,7 @@ export function MoodCheckIn({ visible, mood, onClose, onEmergencySupportPress }:
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
       <View style={styles.overlay}>
         <View style={styles.card}>
-          <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close mood check-in" style={styles.closeButton} onPress={handleClose}>
             <Text style={styles.closeButtonText}>✕</Text>
           </TouchableOpacity>
           <ScrollView showsVerticalScrollIndicator={false}>
@@ -155,7 +154,7 @@ function GroundingContent({ onDone }: { onDone: () => void }) {
         </View>
       ))}
 
-      <TouchableOpacity style={styles.primaryButton} onPress={onDone}>
+      <TouchableOpacity accessibilityRole="button" style={styles.primaryButton} onPress={onDone}>
         <Text style={styles.primaryButtonText}>Done</Text>
       </TouchableOpacity>
     </>

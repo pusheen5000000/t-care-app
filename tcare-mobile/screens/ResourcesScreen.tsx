@@ -12,6 +12,8 @@ import {
 import { colors, fontSize, radius, spacing } from '../theme';
 
 type Props = {
+  search: string;
+  setSearch: (value: string) => void;
   onMentalHealthPress: () => void;
   onAccessibilityPress: () => void;
   onStudentLifePress: (resourceId: string) => void;
@@ -40,13 +42,13 @@ export function ResourcesScreen({
   onMentalHealthPress,
   onAccessibilityPress,
   onStudentLifePress,
+  search, setSearch,
   initialScrollOffset = 0,
   onScrollOffsetChange,
 }: Props) {
   const [isLayoutReady, setIsLayoutReady] = useState(false);
   const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const scrollOffset = useRef(initialScrollOffset);
-  const [search, setSearch] = useState('');
   const normalizedSearch = search.trim().toLowerCase();
   const matchingResources = STUDENT_LIFE_RESOURCES.filter((resource) =>
     !normalizedSearch
@@ -94,6 +96,7 @@ export function ResourcesScreen({
       pointerEvents={isLayoutReady ? 'auto' : 'none'}
     >
       <ScrollView
+        keyboardShouldPersistTaps="handled"
         ref={scrollRef}
         contentContainerStyle={styles.content}
         onScroll={handleScroll}

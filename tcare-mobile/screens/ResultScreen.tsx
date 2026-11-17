@@ -428,6 +428,7 @@ function SupportResourcesSection({
 }) {
   const [collegePickerService, setCollegePickerService] = useState<CollegeServiceId | null>(null);
   const [collegeSearch, setCollegeSearch] = useState('');
+  const matches = COLLEGES.filter((college) => college.label.toLowerCase().includes(collegeSearch.trim().toLowerCase()));
   const governmentLinks = resources.links.filter((link) => link.group.toLowerCase() === 'government support');
   const universityLinks = resources.links.filter((link) => link.group.toLowerCase() === 'u of t resources');
 
@@ -515,8 +516,16 @@ function SupportResourcesSection({
             <Text style={styles.modalTitle}>Choose your college</Text>
             <Text style={styles.modalBody}>{pickerBody}</Text>
             <TextInput value={collegeSearch} onChangeText={setCollegeSearch} placeholder="Search colleges" placeholderTextColor={colors.textMuted} style={styles.collegeSearch} accessibilityLabel="Search UTSG colleges" />
-            <ScrollView style={styles.options} showsVerticalScrollIndicator={false}>
-              {COLLEGES.filter((college) => college.label.toLowerCase().includes(collegeSearch.trim().toLowerCase())).map((college) => (
+            <ScrollView keyboardShouldPersistTaps="handled" style={styles.options} showsVerticalScrollIndicator={false}>
+              {matches.length === 0 && (
+                <View>
+                  <Text style={styles.modalBody} accessibilityLiveRegion="polite">No colleges match your search.</Text>
+                  <TouchableOpacity style={styles.collegeOption} accessibilityRole="button" onPress={() => setCollegeSearch('')}>
+                    <Text style={styles.collegeOptionText}>Clear search</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              {matches.map((college) => (
                 <TouchableOpacity
                   key={college.id}
                   style={styles.collegeOption}

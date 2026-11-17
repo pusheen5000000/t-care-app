@@ -28,6 +28,7 @@ module.exports = [
     keywords: [
       'overwhelmed',
       'talk to someone',
+      'someone to talk to',
       'counselling',
       'counseling',
       'mental health',
@@ -97,6 +98,7 @@ module.exports = [
       'study skills',
       'writing help',
       'academic advising',
+      'help with my courses',
       'academic advisor',
       'program advising',
     ],
@@ -227,7 +229,7 @@ module.exports = [
     ], links: [
       { group: 'U of T resources', title: 'UTSU Food Bank', description: 'Free food-bank support for U of T students, including students with families.', url: 'https://www.utsu.ca/food-bank/' },
       { group: 'U of T resources', title: 'UTSU Food Programming', description: 'Food-bank support and other student food programs.', url: 'https://www.utsu.ca/food-programming/' },
-      { group: 'U of T resources', title: 'SCSU Food Centre (UTSC)', description: 'Food-access support and current details for UTSC students.', url: 'https://www.scsu.ca/' },
+      { group: 'U of T resources', title: 'SCSU Food Centre (UTSC)', description: 'Food-access support and current details for UTSC students.', url: 'https://www.scsu.ca/equity-centres#food' },
       { group: 'U of T resources', title: 'UTMSU Food Centre (UTM)', description: 'Food-access support and current pickup details for UTM students.', url: 'https://utmsu.ca/service/food-centre/' },
     ] },
   },
@@ -236,7 +238,7 @@ module.exports = [
     // Casual dining keywords are intentionally specific so genuine food-bank
     // needs ("food bank", "hungry", "food insecurity") still match Food & Basic
     // Needs, while "where to eat", "dining hall", "coffee", etc. land here.
-    keywords: ['where to eat', 'place to eat', 'places to eat', 'campus food', 'food on campus', 'food hall', 'food court', 'dining hall', 'dining commons', 'dining', 'cafeteria', 'cafe', 'café', 'coffee', 'starbucks', 'meal plan', 'grab a bite', 'restaurant', 'restaurants', 'lunch', 'breakfast', 'somewhere to eat'],
+    keywords: ['eat on campus', 'where to eat', 'place to eat', 'places to eat', 'campus food', 'food on campus', 'food hall', 'food court', 'dining hall', 'dining commons', 'dining', 'cafeteria', 'cafe', 'café', 'coffee', 'starbucks', 'meal plan', 'grab a bite', 'restaurant', 'restaurants', 'lunch', 'breakfast', 'somewhere to eat'],
     summary: 'Grab a bite at a campus food hall, café, or residence dining commons. Tap a spot for directions, or check U of T Food Services for full hours.',
     address: '', fee: 'Varies', hours: 'Varies by location',
     listOnly: true,
