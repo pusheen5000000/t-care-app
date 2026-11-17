@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { colors, spacing, fontSize } from '../theme';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { colors, fontSize } from '../theme';
 
 export type TabKey = 'ask' | 'resources' | 'tai' | 'contact';
 
@@ -58,15 +58,15 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
-    minHeight: 64,
-    paddingVertical: 8,
+    minHeight: Platform.OS === 'ios' ? 52 : 64,
+    paddingVertical: Platform.OS === 'ios' ? 4 : 8,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
     gap: 4,
     justifyContent: 'center',
-    minHeight: 48,
+    minHeight: Platform.OS === 'ios' ? 44 : 48,
   },
   indicator: {
     width: 18,

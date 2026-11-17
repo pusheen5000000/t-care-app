@@ -1,5 +1,6 @@
 import React from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fontSize, radius, spacing } from '../theme';
 import type { DisambiguationOption, DisambiguationPrompt } from '../utils/disambiguation';
 
@@ -19,10 +20,12 @@ type Props = {
 export function DidYouMeanSheet({ prompt, onSelect, onAskAnyway, onClose }: Props) {
   const visible = prompt !== null;
 
+  const insets = useSafeAreaInsets();
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.card} onPress={() => undefined} accessibilityViewIsModal>
+        <Pressable style={[styles.card, { paddingBottom: Math.max(spacing.xl, insets.bottom), paddingLeft: spacing.xl + insets.left, paddingRight: spacing.xl + insets.right }]} onPress={() => undefined} accessibilityViewIsModal>
           <View style={styles.handle} accessibilityElementsHidden />
           <Text style={styles.question}>{prompt?.question ?? 'Did you mean:'}</Text>
           {prompt?.trigger ? (

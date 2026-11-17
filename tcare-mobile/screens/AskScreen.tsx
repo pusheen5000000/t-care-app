@@ -13,7 +13,6 @@ import {
   Animated,
   Easing,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, fontSize, radius } from '../theme';
 import { MoodCheckIn } from '../components/MoodCheckIn';
 import { DidYouMeanSheet } from '../components/DidYouMeanSheet';
@@ -155,7 +154,7 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <KeyboardAvoidingView style={[styles.flex, !isLayoutReady && styles.pendingLayout]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={styles.header}>
           <View style={styles.logoBox}><Text style={styles.logoText}>T</Text></View>
@@ -290,7 +289,7 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
           </Animated.View>
         </Animated.View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -9,7 +9,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, fontSize, radius, spacing } from '../theme';
 
 type Props = {
@@ -90,7 +89,7 @@ export function ResourcesScreen({
   };
 
   return (
-    <SafeAreaView
+    <View
       style={[styles.container, !isLayoutReady && styles.pendingLayout]}
       pointerEvents={isLayoutReady ? 'auto' : 'none'}
     >
@@ -221,7 +220,7 @@ export function ResourcesScreen({
         </View>
       </ScrollView>
 
-    </SafeAreaView>
+    </View>
   );
 }
 

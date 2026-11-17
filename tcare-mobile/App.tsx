@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, BackHandler, View, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
+import { Alert, BackHandler, Platform, View, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AskScreen } from './screens/AskScreen';
@@ -9,7 +10,7 @@ import { ContactScreen } from './screens/ContactScreen';
 import { ResourcesScreen } from './screens/ResourcesScreen';
 import { TabBar, TabKey } from './components/TabBar';
 import { EmergencySupportSheet } from './components/EmergencySupportSheet';
-import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { colors, fontSize } from './theme';
 import type { LocationResult, QueryResult, RecoveryKind, SupportResources, TravelMode } from './types';
 import type { DisambiguationOption } from './utils/disambiguation';
@@ -634,7 +635,6 @@ function AppContent() {
   const [campus, setCampus] = useState<{ id: 'utsg' | 'utsc' | 'utm'; label: string } | null>(null);
   const [campusPreferenceLoaded, setCampusPreferenceLoaded] = useState(false);
   const requestId = useRef(0);
-  const insets = useSafeAreaInsets();
   const result = resultsByTab[resultSource] ?? null;
   // Preserve the Resources list scroll position across the ResultScreen swap so
   // pressing "back" returns the student to exactly where they were, not the top.
@@ -1129,15 +1129,17 @@ function AppContent() {
     );
   };
 
+  // The shell owns system insets; screens must not reserve them again.
   return (
-    <View style={styles.root}>
+    <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
+      <StatusBar style="dark" />
       <View style={styles.body}>
         <View style={tab === 'tai' ? styles.taiScreen : styles.hiddenTaiScreen}>
           <TAIScreen campus={campus?.id} />
         </View>
         {tab !== 'tai' && renderNonTaiBody()}
       </View>
-      <SafeAreaView style={[styles.footer, { paddingBottom: insets.bottom }]} edges={['bottom']}>
+      <SafeAreaView style={styles.footer} edges={['bottom']}>
         <TouchableOpacity
           style={styles.urgentSupportButton}
           onPress={() => setEmergencyVisible(true)}
@@ -1160,7 +1162,7 @@ function AppContent() {
         />
       </SafeAreaView>
       <EmergencySupportSheet visible={emergencyVisible} onClose={() => setEmergencyVisible(false)} />
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -1170,7 +1172,7 @@ const styles = StyleSheet.create({
   footer: { backgroundColor: colors.surface },
   taiScreen: { flex: 1 },
   hiddenTaiScreen: { display: 'none' },
-  urgentSupportButton: { alignItems: 'center', backgroundColor: colors.dangerSurface, borderTopColor: colors.danger, borderTopWidth: 2, justifyContent: 'center', minHeight: 44 },
+  urgentSupportButton: { alignItems: 'center', backgroundColor: colors.dangerSurface, borderTopColor: colors.danger, borderTopWidth: 2, justifyContent: 'center', minHeight: Platform.OS === 'ios' ? 44 : 48 },
   urgentSupportText: { color: colors.danger, fontSize: fontSize.base, fontWeight: '700' },
   loadingScreen: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   loadingText: { color: colors.textSecondary, fontSize: fontSize.base },
