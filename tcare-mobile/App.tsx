@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BackHandler, KeyboardAvoidingView, Platform, StatusBar, View, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
+import { BackHandler, Platform, StatusBar, View, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
+import { KeyboardAvoidingView, KeyboardProvider } from 'react-native-keyboard-controller';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AskScreen } from './screens/AskScreen';
 import { ResultScreen } from './screens/ResultScreen';
@@ -568,7 +569,9 @@ async function resolveQuery(
 export default function App() {
   return (
     <SafeAreaProvider>
-      <AppContent />
+      <KeyboardProvider statusBarTranslucent navigationBarTranslucent>
+        <AppContent />
+      </KeyboardProvider>
     </SafeAreaProvider>
   );
 }
@@ -577,6 +580,7 @@ type Campus = { id: 'utsg' | 'utsc' | 'utm'; label: string };
 
 function AppContent() {
   const [tab, setTab] = useState<TabKey>('ask');
+  const [footerHeight, setFooterHeight] = useState(0);
   const [emergencyVisible, setEmergencyVisible] = useState(false);
   const [campus, setCampus] = useState<Campus | null>(null);
   const [campusPreferenceLoaded, setCampusPreferenceLoaded] = useState(false);
@@ -614,12 +618,11 @@ function AppContent() {
 
   // The shell owns system insets; screens must not reserve them again.
   return (
-    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
         {Platform.OS !== 'web' && <StatusBar barStyle="dark-content" />}
-        <View style={styles.page}>
+        <KeyboardAvoidingView style={styles.page} behavior="padding" automaticOffset enabled={tab !== 'tai'}>
           <View style={tab === 'tai' ? styles.page : styles.hiddenPage}>
-            <TAIScreen campus={campus?.id} />
+            <TAIScreen campus={campus?.id} footerHeight={footerHeight} />
           </View>
           <View style={tab === 'contact' ? styles.page : styles.hiddenPage}><ContactScreen /></View>
           {(['ask', 'resources'] as const).map(page => (
@@ -628,8 +631,9 @@ function AppContent() {
                 onEmergencySupportPress={() => setEmergencyVisible(true)} onReturnToAsk={() => setTab('ask')} />
             </View>
           ))}
-        </View>
-        <SafeAreaView style={styles.footer} edges={['bottom']}>
+        </KeyboardAvoidingView>
+        {/* Keep the footer in place beneath the keyboard; removing it causes a layout jump. */}
+        <SafeAreaView style={styles.footer} edges={['bottom']} onLayout={(event) => setFooterHeight(event.nativeEvent.layout.height)}>
           <TouchableOpacity
             style={styles.urgentSupportButton}
             onPress={() => setEmergencyVisible(true)}
@@ -646,7 +650,6 @@ function AppContent() {
         </SafeAreaView>
         <EmergencySupportSheet visible={emergencyVisible} onClose={() => setEmergencyVisible(false)} />
       </SafeAreaView>
-    </KeyboardAvoidingView>
   );
 }
 

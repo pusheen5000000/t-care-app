@@ -27,6 +27,12 @@ area. Screen content uses ordinary views so insets are applied only once.
 Native modals render outside that shell, so edge-aligned sheets handle their
 own insets. The tab bar uses 44-point targets on iOS and 48-dp targets on Android.
 
+Chat uses Keyboard Controller's native animation for both the conversation
+and composer. Both use the measured footer height as their offset; keep these
+in sync. The footer stays in the layout behind the keyboard. Do not add a
+second keyboard-avoiding wrapper, keyboard-event visibility toggle, or
+layout-triggered scroll-to-end to Chat: those introduce separate movements.
+
 On-device layout checks before release:
 
 - iPhone with a home indicator: visit all tabs and a result; check that there
@@ -39,3 +45,10 @@ On-device layout checks before release:
   sheet and check its last action clears system navigation.
 - Rotate to landscape and increase system text size; check cutout clearance,
   readable tab labels, scrolling, and access to sheet actions.
+- Chat keyboard regression: with a long conversation, open and close the
+  keyboard both at the latest message and while reading older messages. The
+  messages, input, and latest-message button should lift together and return
+  together, with no footer jump or opaque panel over the conversation. Repeat
+  with interactive keyboard dismissal on iOS and Back dismissal on Android.
+  Check Send and Latest message while the keyboard is open, and repeat with
+  a short conversation, landscape, and a hardware keyboard.

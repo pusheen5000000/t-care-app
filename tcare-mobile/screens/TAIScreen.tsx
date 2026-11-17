@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { KeyboardChatScrollView, KeyboardStickyView } from 'react-native-keyboard-controller';
+import { useSharedValue } from 'react-native-reanimated';
 import * as Location from 'expo-location';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import {
@@ -311,7 +313,8 @@ function SupportResourceLinks({
   );
 }
 
-export function TAIScreen({ campus }: { campus?: 'utsg' | 'utsc' | 'utm' }) {
+export function TAIScreen({ campus, footerHeight }: { campus?: 'utsg' | 'utsc' | 'utm'; footerHeight: number }) {
+  const composerHeight = useSharedValue(0);
   const [messages, setMessages] = useState<Message[]>(INITIAL);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -542,16 +545,21 @@ export function TAIScreen({ campus }: { campus?: 'utsg' | 'utsc' | 'utm' }) {
 
       <Text style={styles.followUpHint}>Continue a question after you&apos;ve explored a result in Ask or Resources.</Text>
 
-      <ScrollView
+      <View style={styles.conversation}>
+      {/* Match the dock's footer offset so messages and input share the native keyboard curve. */}
+      <KeyboardChatScrollView
         ref={scrollViewRef}
+        offset={footerHeight}
+        extraContentPadding={composerHeight}
+        keyboardLiftBehavior="always"
         style={styles.chatArea}
         contentContainerStyle={styles.chatContent}
         scrollEventThrottle={16}
-        onScroll={({ nativeEvent: { contentSize, contentOffset, layoutMeasurement } }) => {
-          if (!layoutMeasurement.height) return;
-          const distance = contentSize.height - layoutMeasurement.height - contentOffset.y;
-          followLatest.current = distance <= 96;
-          setShowJump(distance > 96);
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        onEndVisible={(visible) => {
+          followLatest.current = visible;
+          setShowJump(!visible);
         }}
         onContentSizeChange={() => {
           if (followLatest.current) scrollViewRef.current?.scrollToEnd({ animated: false });
@@ -654,14 +662,17 @@ export function TAIScreen({ campus }: { campus?: 'utsg' | 'utsc' | 'utm' }) {
             <TAIThinkingIndicator />
           </View>
         )}
-      </ScrollView>
+      </KeyboardChatScrollView>
 
+      <KeyboardStickyView style={styles.composerDock} offset={{ opened: footerHeight }} pointerEvents="box-none">
       {showJump && (
+        <View style={styles.jumpOverlay} pointerEvents="box-none">
         <TouchableOpacity style={styles.jumpButton} onPress={jumpToBottom} accessibilityRole="button" accessibilityLabel={`Scroll to ${jumpLabel.toLowerCase()}`}>
           <Text style={styles.jumpText}>↓ {jumpLabel}</Text>
         </TouchableOpacity>
+        </View>
       )}
-      <View style={styles.inputRow}>
+      <View style={styles.inputRow} onLayout={(event) => { composerHeight.value = event.nativeEvent.layout.height; }}>
         <TextInput
           style={styles.input}
           value={input}
@@ -684,6 +695,8 @@ export function TAIScreen({ campus }: { campus?: 'utsg' | 'utsc' | 'utm' }) {
         >
           <Text style={styles.sendBtnText}>➤</Text>
         </TouchableOpacity>
+      </View>
+      </KeyboardStickyView>
       </View>
 
       <Modal visible={collegePickerVisible} transparent animationType="fade" onRequestClose={() => setCollegePickerVisible(false)}>
@@ -761,7 +774,10 @@ const styles = StyleSheet.create({
   statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.success },
   statusText: { color: colors.textMuted, fontSize: fontSize.sm },
   followUpHint: { backgroundColor: colors.infoBg, color: colors.infoText, fontSize: fontSize.sm, lineHeight: 18, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
-  jumpButton: { alignSelf: 'center', minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.lg, borderColor: colors.border, borderWidth: 1, borderRadius: radius.full },
+  conversation: { flex: 1, minHeight: 0 },
+  composerDock: { position: 'absolute', bottom: 0, left: 0, right: 0 },
+  jumpOverlay: { position: 'absolute', bottom: '100%', marginBottom: spacing.sm, left: 0, right: 0, backgroundColor: 'transparent' },
+  jumpButton: { alignSelf: 'center', backgroundColor: colors.surface, minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.lg, borderColor: colors.border, borderWidth: 1, borderRadius: radius.full },
   jumpText: { color: colors.textPrimary, fontWeight: '600' },
   chatArea: { flex: 1 },
   chatContent: { padding: spacing.lg, gap: spacing.md },
