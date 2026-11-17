@@ -67,26 +67,23 @@ function findSelectedCampusLocation(campus, campusLocations) {
   return campusLocations.find((campusLocation) => campusNames[campus].test(campusLocation.name)) ?? null;
 }
 
-function withRelevantCampusLocations(supportResources, location, query, campus) {
-  if (!supportResources?.campusLocations) return supportResources;
+function resolveCampusSupport(supportResources, location, query, campus) {
+  const locations = supportResources?.campusLocations;
+  if (!locations) return { supportResources };
 
-  const selectedLocation = findSelectedCampusLocation(campus, supportResources.campusLocations);
-  const requestedLocation = findRequestedCampusLocation(query, supportResources.campusLocations);
-  const nearbyLocation = findNearbyCampusLocation(location, supportResources.campusLocations);
-  const relevantLocation = selectedLocation ?? requestedLocation ?? nearbyLocation;
-  return {
-    ...supportResources,
-    intro: relevantLocation
-      ? selectedLocation
-        ? `Showing the in-person support for your selected campus at ${relevantLocation.name}.`
-        : requestedLocation
-        ? `Showing the in-person support at ${relevantLocation.name}.`
-        : `Showing the in-person support available near you at ${relevantLocation.name}.`
-      : 'We could not confidently match you to a U of T campus, so here are all in-person options.',
-    // Keep every campus visible after choosing the map destination, so a
-    // student can compare or switch to another campus office from the result.
-    campusLocations: supportResources.campusLocations,
-  };
+  const selected = findSelectedCampusLocation(campus, locations);
+  const requested = findRequestedCampusLocation(query, locations);
+  const destination = selected ?? requested ?? findNearbyCampusLocation(location, locations);
+  let intro = 'We could not confidently match you to a U of T campus, so here are all in-person options.';
+  if (selected) intro = `Showing the in-person support for your selected campus at ${selected.name}.`;
+  else if (requested) intro = `Showing the in-person support at ${requested.name}.`;
+  else if (destination) intro = `Showing the in-person support available near you at ${destination.name}.`;
+
+  return { selected, destination, supportResources: { ...supportResources, intro } };
+}
+
+function withRelevantCampusLocations(supportResources, location, query, campus) {
+  return resolveCampusSupport(supportResources, location, query, campus).supportResources;
 }
 
 function campusLocationToOffice(campusLocation, service) {
@@ -102,6 +99,7 @@ module.exports = {
   findNearbyCampusLocation,
   findRequestedCampusLocation,
   findSelectedCampusLocation,
+  resolveCampusSupport,
   withRelevantCampusLocations,
   campusLocationToOffice,
   requiresCollegePicker,

@@ -1,8 +1,5 @@
 {
   "android": {
     "softwareKeyboardLayoutMode": "resize"
-  },
-  "plugins": [
-    "expo-status-bar"
-  ]
+  }
 }

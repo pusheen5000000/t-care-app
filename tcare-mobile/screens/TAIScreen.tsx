@@ -3,7 +3,6 @@ import * as Location from 'expo-location';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import {
   Animated,
-  Alert,
   ActivityIndicator,
   Platform,
   ScrollView,
@@ -12,43 +11,22 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  Linking,
   Modal,
   Pressable,
 } from 'react-native';
 import { colors, fontSize, radius, spacing } from '../theme';
-import type { SupportResources } from '../types';
-import { openGoogleMapsDirections } from '../utils/googleMaps';
+import type { LocationResult, RouteCoordinate, SupportResources } from '../types';
+import { post } from '../utils/api';
+import { COLLEGES } from '../utils/colleges';
+import { getDeviceLocation } from '../utils/deviceLocation';
+import { openExternalLink, openGoogleMapsDirections } from '../utils/googleMaps';
+import { destinationRegion, geometryToCoordinates, routeMapKey } from '../utils/routeGeometry';
 import { getDisambiguation } from '../utils/disambiguation';
 import type { DisambiguationOption } from '../utils/disambiguation';
 
-type Coordinate = { latitude: number; longitude: number };
-type RouteStep = { instruction: string; distance: string };
-
-function confirmLocationUse(): Promise<boolean> {
-  return new Promise((resolve) => {
-    Alert.alert(
-      'Use your location for directions?',
-      'T-Care uses your location only to estimate walking time and show directions. You can still view office details without it.',
-      [
-        { text: 'Not now', style: 'cancel', onPress: () => resolve(false) },
-        { text: 'Continue', onPress: () => resolve(true) },
-      ],
-      { cancelable: true, onDismiss: () => resolve(false) },
-    );
-  });
-}
-
-type Route = {
-  placeName: string;
-  placeSubtitle: string;
-  walkMinutes: number;
-  distanceText?: string | null;
-  steps: RouteStep[];
-  origin?: Coordinate;
-  destination?: Coordinate;
-  polyline?: { type: string; coordinates: number[][] | number[][][] } | null;
-};
+type Route = Pick<LocationResult,
+  'placeName' | 'placeSubtitle' | 'walkMinutes' | 'distanceText' | 'origin' | 'destination' | 'polyline'
+> & { steps: NonNullable<LocationResult['steps']> };
 
 type Message = {
   id: string;
@@ -64,18 +42,10 @@ type Message = {
   disambiguation?: DisambiguationOption[];
 };
 
-type QueryResponse = {
+type QueryResponse = Partial<Route> & {
   type?: 'info' | 'location';
   title?: string;
   summary?: string;
-  placeName?: string;
-  placeSubtitle?: string;
-  walkMinutes?: number;
-  distanceText?: string | null;
-  steps?: RouteStep[];
-  origin?: Coordinate;
-  destination?: Coordinate;
-  polyline?: Route['polyline'];
   serviceId?: string;
   supportResources?: SupportResources;
   facilityPicker?: 'campus' | 'college';
@@ -104,16 +74,6 @@ const INITIAL: Message[] = [
     role: 'assistant',
     text: "Hi! I'm T-AI, your campus support assistant. Ask about academics, money, housing, international support, safety, careers, libraries, food, wellbeing, or accessibility. I can also find campus buildings by name or timetable code, like “Where is Bahen?” or “How do I get to SS 1083?”",
   },
-];
-
-const COLLEGES = [
-  { id: 'innis', label: 'Innis College' },
-  { id: 'new-college', label: 'New College' },
-  { id: 'st-michaels', label: "St. Michael's College" },
-  { id: 'trinity', label: 'Trinity College' },
-  { id: 'university-college', label: 'University College' },
-  { id: 'victoria', label: 'Victoria College' },
-  { id: 'woodsworth', label: 'Woodsworth College' },
 ];
 
 const CAMPUSES = [
@@ -165,14 +125,10 @@ function TAIThinkingIndicator() {
   );
 }
 
-function geometryToCoordinates(polyline: Route['polyline']): Coordinate[] {
-  if (!polyline) return [];
-  const toCoordinate = ([longitude, latitude]: number[]) => ({ latitude, longitude });
-  if (polyline.type === 'LineString') return (polyline.coordinates as number[][]).map(toCoordinate);
-  if (polyline.type === 'MultiLineString') {
-    return (polyline.coordinates as number[][][]).flat().map(toCoordinate);
-  }
-  return [];
+function routeFromResponse(payload: QueryResponse): Route | undefined {
+  const { placeName, placeSubtitle, walkMinutes, distanceText, steps, origin, destination, polyline } = payload;
+  if (!placeName || !placeSubtitle) return;
+  return { placeName, placeSubtitle, walkMinutes: walkMinutes ?? 0, distanceText, steps: steps ?? [], origin, destination, polyline };
 }
 
 function RouteCard({ route, onMapReady }: { route: Route; onMapReady?: () => void }) {
@@ -180,40 +136,29 @@ function RouteCard({ route, onMapReady }: { route: Route; onMapReady?: () => voi
   const [directionsVisible, setDirectionsVisible] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
   const mapRef = useRef<MapView>(null);
-  const region = route.destination && {
-    latitude: route.destination.latitude,
-    longitude: route.destination.longitude,
-    latitudeDelta: 0.02,
-    longitudeDelta: 0.02,
-  };
-  const routeMapKey = coordinates.length > 0
-    ? `route-${coordinates.length}-${coordinates[0].latitude}-${coordinates[0].longitude}-${coordinates[coordinates.length - 1].latitude}-${coordinates[coordinates.length - 1].longitude}`
-    : 'destination';
+  const region = destinationRegion(route.destination);
 
-  if (!region) return null;
-
-  const fitRoute = (animated = false) => {
+  useEffect(() => {
+    if (!isMapReady || !route.destination) return;
     const points = coordinates.length > 0
       ? coordinates
-      : [route.origin, route.destination].filter(Boolean) as Coordinate[];
+      : [route.origin, route.destination].filter(Boolean) as RouteCoordinate[];
 
     if (points.length > 1) {
       mapRef.current?.fitToCoordinates(points, {
-        animated,
+        animated: true,
         edgePadding: { top: 36, right: 36, bottom: 36, left: 36 },
       });
     }
     onMapReady?.();
-  };
-
-  useEffect(() => {
-    if (isMapReady) fitRoute(true);
   }, [isMapReady, route.destination, route.origin, route.polyline]);
+
+  if (!region) return null;
 
   return (
     <View style={styles.routeCard}>
       <MapView
-        key={routeMapKey}
+        key={routeMapKey(coordinates)}
         ref={mapRef}
         style={styles.routeMap}
         initialRegion={region}
@@ -294,17 +239,15 @@ function SupportResourceLinks({
 }) {
   const [loadingCampusLocation, setLoadingCampusLocation] = useState<string | null>(null);
   const [mapError, setMapError] = useState(false);
-  const open = async (url: string) => {
-    if (await Linking.canOpenURL(url)) await Linking.openURL(url);
-  };
+  const facilityLabel = facilityPicker === 'college' ? 'Choose your college or campus' : 'Choose your campus';
 
   return (
     <View style={styles.mentalHealthCard}>
       <Text style={styles.mentalHealthTitle}>{resources.title ?? 'Mental Health Support'}</Text>
       {resources.intro && <Text style={styles.mentalHealthIntro}>{resources.intro}</Text>}
       {facilityPicker && (
-        <TouchableOpacity style={styles.chooseFacilityButton} onPress={onChooseFacility} accessibilityRole="button" accessibilityLabel={facilityPicker === 'college' ? 'Choose your college or campus' : 'Choose your campus'}>
-          <Text style={styles.chooseFacilityButtonText}>{facilityPicker === 'college' ? 'Choose your college or campus' : 'Choose your campus'}</Text>
+        <TouchableOpacity style={styles.chooseFacilityButton} onPress={onChooseFacility} accessibilityRole="button" accessibilityLabel={facilityLabel}>
+          <Text style={styles.chooseFacilityButtonText}>{facilityLabel}</Text>
         </TouchableOpacity>
       )}
       {resources.campusLocations.length > 0 && (
@@ -352,7 +295,7 @@ function SupportResourceLinks({
               <TouchableOpacity
                 key={link.url}
                 style={styles.mentalHealthLink}
-                onPress={() => void open(link.url)}
+                onPress={() => void openExternalLink(link.url)}
                 accessibilityRole="link"
                 accessibilityLabel={link.title}
                 accessibilityHint="Opens an external support website"
@@ -440,36 +383,14 @@ export function TAIScreen({ campus }: { campus?: 'utsg' | 'utsc' | 'utm' }) {
       // declined, T-AI still answers and can show the destination on the map.
       const asksForDirections = /\b(directions?|guide(?: me)?|route|map|navigation|navigate|wayfind(?:ing)?|find (?:my|the) way|how (do|can) i get|how to get|get to|get me|take me|bring me|lead me|walk me|show me (?:the )?(?:way|route)|go to|head to|travel to|walk to|reach|arriv(?:e|al|ing)|destination|where is)\b/i.test(query);
       const asksForOnCampusSupport = /\b(mental health|counselling|counseling|anxious|anxiety|overwhelmed|stressed|talk to someone|accessibility|accommodation|disability|adaptive technology|assistive technology|note taker|exam accommodation)\b/i.test(query);
-      let location: { lat: number; lng: number } | undefined;
-      if (asksForDirections || asksForOnCampusSupport) {
-        const shouldUseLocation = await confirmLocationUse();
-        const permission = shouldUseLocation
-          ? await Location.requestForegroundPermissionsAsync()
-          : { status: 'denied' as const };
-        if (permission.status === 'granted') {
-          try {
-            const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-            location = { lat: position.coords.latitude, lng: position.coords.longitude };
-          } catch (locationError) {
-            // A recently known position still lets us give a route when GPS is
-            // temporarily unavailable indoors or taking too long to acquire.
-            console.warn('Could not get current location:', locationError);
-            const lastKnown = await Location.getLastKnownPositionAsync({
-              maxAge: 60_000,
-              requiredAccuracy: 500,
-            });
-            if (lastKnown) {
-              location = { lat: lastKnown.coords.latitude, lng: lastKnown.coords.longitude };
-            }
-          }
-        }
-      }
+      const location = asksForDirections || asksForOnCampusSupport
+        ? await getDeviceLocation((error) => {
+            console.warn('Could not get current location:', error);
+            return Location.getLastKnownPositionAsync({ maxAge: 60_000, requiredAccuracy: 500 });
+          })
+        : undefined;
 
-      const response = await fetch(`${API_BASE_URL}/api/query`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, location, campus }),
-      });
+      const response = await post(`${API_BASE_URL}/api/query`, { query, location, campus });
       const payload: QueryResponse = await response.json();
 
       if (!response.ok) {
@@ -479,27 +400,13 @@ export function TAIScreen({ campus }: { campus?: 'utsg' | 'utsc' | 'utm' }) {
       const text = [payload.title, payload.summary].filter(Boolean).join('\n\n');
       if (!text) throw new Error('The assistant returned an empty response.');
 
-      const route =
-        payload.type === 'location' && payload.placeName && payload.placeSubtitle
-          ? {
-              placeName: payload.placeName,
-              placeSubtitle: payload.placeSubtitle,
-              walkMinutes: payload.walkMinutes ?? 0,
-              distanceText: payload.distanceText,
-              steps: payload.steps ?? [],
-              origin: payload.origin,
-              destination: payload.destination,
-          polyline: payload.polyline,
-            }
-          : undefined;
-
       setMessages((prev) => [
         ...prev,
         {
           id: `${Date.now()}-assistant`,
           role: 'assistant',
           text,
-          route,
+          route: payload.type === 'location' ? routeFromResponse(payload) : undefined,
           serviceId: payload.serviceId,
           supportResources: payload.supportResources,
           facilityPicker: payload.facilityPicker,
@@ -532,38 +439,14 @@ export function TAIScreen({ campus }: { campus?: 'utsg' | 'utsc' | 'utm' }) {
     try {
       // Offer to use the student's location so we can draw a walking path. If
       // they decline (or it is unavailable), we still pin the destination.
-      const shouldUseLocation = await confirmLocationUse();
-      const permission = shouldUseLocation
-        ? await Location.requestForegroundPermissionsAsync()
-        : { status: 'denied' as const };
-      const position =
-        permission.status === 'granted'
-          ? await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
-          : undefined;
-      const location = position
-        ? { lat: position.coords.latitude, lng: position.coords.longitude }
-        : undefined;
-
-      const response = await fetch(`${API_BASE_URL}/api/campus-location`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ serviceId, campusLocationName, location }),
-      });
+      const location = await getDeviceLocation();
+      const response = await post(`${API_BASE_URL}/api/campus-location`, { serviceId, campusLocationName, location });
       const payload: QueryResponse = await response.json();
-      if (!response.ok || !payload.placeName || !payload.placeSubtitle || !payload.destination) {
+      const route = routeFromResponse(payload);
+      if (!response.ok || !route?.destination) {
         throw new Error(payload.error || 'Could not load this campus location.');
       }
 
-      const route: Route = {
-        placeName: payload.placeName,
-        placeSubtitle: payload.placeSubtitle,
-        walkMinutes: payload.walkMinutes ?? 0,
-        distanceText: payload.distanceText,
-        steps: payload.steps ?? [],
-        origin: payload.origin,
-        destination: payload.destination,
-        polyline: payload.polyline,
-      };
       setMessages((messages) => messages.map((message) => (
         message.id === messageId ? { ...message, route } : message
       )));
@@ -590,36 +473,16 @@ export function TAIScreen({ campus }: { campus?: 'utsg' | 'utsc' | 'utm' }) {
     if (!selectedFacility) return;
     setIsSending(true);
     try {
-      const shouldUseLocation = await confirmLocationUse();
-      const permission = shouldUseLocation
-        ? await Location.requestForegroundPermissionsAsync()
-        : { status: 'denied' as const };
-      const position = permission.status === 'granted'
-        ? await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
-        : undefined;
-      const location = position ? { lat: position.coords.latitude, lng: position.coords.longitude } : undefined;
-      const response = await fetch(`${API_BASE_URL}/api/college-service/${collegeId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ location, serviceId: selectedFacility.serviceId }),
-      });
+      const location = await getDeviceLocation();
+      const response = await post(`${API_BASE_URL}/api/college-service/${collegeId}`, { location, serviceId: selectedFacility.serviceId });
       const payload: QueryResponse = await response.json();
-      if (!response.ok || !payload.placeName || !payload.placeSubtitle) throw new Error(payload.error || 'Could not load this college service.');
-      const { placeName, placeSubtitle } = payload;
+      const route = routeFromResponse(payload);
+      if (!response.ok || !route) throw new Error(payload.error || 'Could not load this college service.');
       setMessages((previous) => [...previous, {
         id: `${Date.now()}-assistant`,
         role: 'assistant',
         text: [payload.title, payload.summary].filter(Boolean).join('\n\n'),
-        route: {
-          placeName,
-          placeSubtitle,
-          walkMinutes: payload.walkMinutes ?? 0,
-          distanceText: payload.distanceText,
-          steps: payload.steps ?? [],
-          origin: payload.origin,
-          destination: payload.destination,
-          polyline: payload.polyline,
-        },
+        route,
         serviceId: payload.serviceId,
         supportResources: payload.supportResources,
       }]);

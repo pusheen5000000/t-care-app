@@ -1,7 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, BackHandler, KeyboardAvoidingView, Platform, View, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
-import * as Location from 'expo-location';
+import { BackHandler, KeyboardAvoidingView, Platform, StatusBar, View, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AskScreen } from './screens/AskScreen';
 import { ResultScreen } from './screens/ResultScreen';
@@ -12,8 +10,10 @@ import { TabBar, TabKey } from './components/TabBar';
 import { EmergencySupportSheet } from './components/EmergencySupportSheet';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { colors, fontSize } from './theme';
-import type { LocationResult, QueryResult, RecoveryKind, SupportResources, TravelMode } from './types';
+import type { LocationResult, QueryResult, RecoveryKind, RouteCoordinate, SupportResources, TravelMode } from './types';
 import type { DisambiguationOption } from './utils/disambiguation';
+import { post } from './utils/api';
+import { getDeviceLocation } from './utils/deviceLocation';
 
 const TCARD_QUERY = 'I lost my TCard, what do I do?';
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
@@ -304,7 +304,8 @@ const STUDENT_LIFE_RESOURCES: Record<string, QueryResult> = {
   },
 };
 
-const STUDENT_LIFE_RESOURCE_QUERIES: Record<string, string> = {
+// Only these cards need a backend lookup. The rest use their curated content directly.
+const RESOURCE_LOOKUP_QUERIES: Record<string, string> = {
   'financial-aid': 'Where is financial aid and awards?',
   housing: 'Where is the housing office?',
   international: 'Where is the international student office?',
@@ -312,45 +313,8 @@ const STUDENT_LIFE_RESOURCE_QUERIES: Record<string, string> = {
   safety: 'Where is Campus Safety?',
   career: 'Where is the career support adviser?',
   'libraries-it': 'Where is student IT support?',
-  'learning-strategies': 'Where can I get help with studying and academic skills?',
-  'indigenous-support': 'Where can Indigenous students get support?',
   food: 'Where is food and basic needs support?',
-  'tenant-rights': 'Where can I get help with tenant rights and legal housing concerns?',
-  'sexual-violence': 'Where is sexual violence support?',
-  'campus-dining': 'Where can I get food on campus?',
-  'study-spots': 'Where can I find a quiet place to study?',
-  events: "What's happening on campus this week?",
-  atms: 'Where can I find an ATM?',
-  recreation: 'Where can I work out on campus?',
-  clubs: 'Where can I find student clubs?',
-  'transit-parking': 'Where can I park or catch transit near campus?',
-  printing: 'Where can I print documents on campus?',
-  'lost-found': 'Where do I report a lost item?',
-  'multi-faith': 'Where can I find a prayer or meditation space?',
 };
-
-// Resource ids that are fully answered by curated content and have no matching
-// backend service. These render their STUDENT_LIFE_RESOURCES entry directly
-// instead of routing through /api/query, which would misclassify casual needs
-// (for example sending "where to eat" to the food bank).
-const LOCAL_ONLY_RESOURCES = new Set<string>([
-  'campus-dining',
-  'study-spots',
-  'events',
-  'atms',
-  'recreation',
-  'clubs',
-  'transit-parking',
-  'printing',
-  'lost-found',
-  'multi-faith',
-  'indigenous-support',
-  'tenant-rights',
-  'sexual-violence',
-  // Curated learning-support links; the backend "academic-success" service is a
-  // college-picker office flow, so keep this list-style resource local instead.
-  'learning-strategies',
-]);
 
 // Trim a curated resource's location list to the student's selected campus.
 // Only locations tagged with a campus are filtered; untagged entries always
@@ -485,6 +449,21 @@ const HEALTH_WELLNESS_FALLBACK: QueryResult = {
 
 type DeviceLocation = { lat: number; lng: number };
 
+async function getMapData<T>(endpoint: string, body: object, label: string): Promise<T> {
+  if (!API_BASE_URL) throw new Error('Missing EXPO_PUBLIC_API_URL');
+  const response = await post(`${API_BASE_URL}${endpoint}`, body);
+  if (!response.ok) throw new Error(`${label} request failed (${response.status})`);
+  return response.json();
+}
+
+function getRoute(mode: TravelMode, origin: DeviceLocation, destination: RouteCoordinate) {
+  return getMapData<Pick<LocationResult, 'travelMinutes' | 'polyline'>>('/api/route', {
+    mode,
+    origin,
+    destination: { lat: destination.latitude, lng: destination.longitude },
+  }, 'Route');
+}
+
 class RequestError extends Error {
   constructor(
     public readonly kind: 'configuration' | 'connection' | 'rate-limit' | 'service' | 'invalid-response',
@@ -500,12 +479,7 @@ async function postJson<T>(url: string, body: object): Promise<T> {
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
+    const response = await post(url, body, controller.signal);
 
     if (response.status === 429) {
       throw new RequestError('rate-limit', 'Too many requests');
@@ -532,30 +506,6 @@ async function postJson<T>(url: string, body: object): Promise<T> {
     throw new RequestError('connection', 'Network request failed');
   } finally {
     clearTimeout(timeout);
-  }
-}
-
-async function getCurrentLocation(): Promise<DeviceLocation | undefined> {
-  const shouldUseLocation = await new Promise<boolean>((resolve) => {
-    Alert.alert(
-      'Use your location for directions?',
-      'T-Care uses your location only to estimate walking time and show directions. You can still view office details without it.',
-      [
-        { text: 'Not now', style: 'cancel', onPress: () => resolve(false) },
-        { text: 'Continue', onPress: () => resolve(true) },
-      ],
-      { cancelable: true, onDismiss: () => resolve(false) },
-    );
-  });
-  if (!shouldUseLocation) return undefined;
-  const permission = await Location.requestForegroundPermissionsAsync();
-  if (permission.status !== 'granted') return undefined;
-
-  try {
-    const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-    return { lat: position.coords.latitude, lng: position.coords.longitude };
-  } catch {
-    throw new Error('LOCATION_UNAVAILABLE');
   }
 }
 
@@ -604,12 +554,11 @@ function createRecoveryResult(query: string, error: unknown): QueryResult {
 
 async function resolveQuery(
   query: string,
-  location?: DeviceLocation,
   campus?: 'utsg' | 'utsc' | 'utm',
 ): Promise<QueryResult> {
   if (!API_BASE_URL) throw new RequestError('configuration', 'Missing EXPO_PUBLIC_API_URL');
 
-  const result = await postJson<unknown>(`${API_BASE_URL}/api/query`, { query, location, campus });
+  const result = await postJson<unknown>(`${API_BASE_URL}/api/query`, { query, campus });
   if (!result || typeof result !== 'object' || !('type' in result) || !['info', 'location', 'recovery'].includes(String(result.type))) {
     throw new RequestError('invalid-response', 'The service returned an incomplete answer');
   }
@@ -667,8 +616,8 @@ function AppContent() {
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
-        <StatusBar style="dark" />
-        <View style={styles.body}>
+        {Platform.OS !== 'web' && <StatusBar barStyle="dark-content" />}
+        <View style={styles.page}>
           <View style={tab === 'tai' ? styles.page : styles.hiddenPage}>
             <TAIScreen campus={campus?.id} />
           </View>
@@ -746,23 +695,26 @@ function QueryPage({ page, active, campus, onCampusChange, onEmergencySupportPre
   }, [active, loading, result, page, onReturnToAsk]);
 
   const handleSubmit = async (query: string) => {
-    if (/\b(mental health|counselling|counseling|anxious|anxiety|overwhelmed|stressed|talk to someone)\b/i.test(query)) {
-      return handleTalkSupport();
-    }
-    if (/\b(accessibility|accommodation|disability|adaptive technology|assistive technology|note taker|exam accommodation)\b/i.test(query)) {
-      return handleAccessibilityServices(query);
+    if (page === 'ask') {
+      if (/\b(mental health|counselling|counseling|anxious|anxiety|overwhelmed|stressed|talk to someone)\b/i.test(query)) {
+        return handleTalkSupport();
+      }
+      if (/\b(accessibility|accommodation|disability|adaptive technology|assistive technology|note taker|exam accommodation)\b/i.test(query)) {
+        return handleAccessibilityServices(query);
+      }
+      setShowLocationPaths(false);
     }
 
     const currentRequestId = ++requestId.current;
-    setShowLocationPaths(false);
     setLoading(true);
     try {
-      const r = await resolveQuery(query, undefined, campus?.id);
+      const r = await resolveQuery(query, campus?.id);
       if (currentRequestId === requestId.current) {
         setResult(r);
       }
     } catch (err) {
-      console.error(err);
+      if (page === 'ask') console.error(err);
+      else console.warn('Could not retry campus resource:', err);
       if (currentRequestId === requestId.current) {
         setResult(createRecoveryResult(query, err));
       }
@@ -772,29 +724,7 @@ function QueryPage({ page, active, campus, onCampusChange, onEmergencySupportPre
   };
 
   const handleRetry = () => {
-    if (result?.type !== 'recovery') return;
-    if (page === 'ask') {
-      void handleSubmit(result.query);
-      return;
-    }
-
-    const currentRequestId = ++requestId.current;
-    setLoading(true);
-    void resolveQuery(result.query, undefined, campus?.id)
-      .then((nextResult) => {
-        if (currentRequestId === requestId.current) {
-          setResult(nextResult);
-        }
-      })
-      .catch((error) => {
-        console.warn('Could not retry campus resource:', error);
-        if (currentRequestId === requestId.current) {
-          setResult(createRecoveryResult(result.query, error));
-        }
-      })
-      .finally(() => {
-        if (currentRequestId === requestId.current) setLoading(false);
-      });
+    if (result?.type === 'recovery') void handleSubmit(result.query);
   };
 
   const loadMapDestination = async (
@@ -812,28 +742,10 @@ function QueryPage({ page, active, campus, onCampusChange, onEmergencySupportPre
     // / directions action), offer to use their location so we can draw a path.
     // Declining still pins the destination — the backend geocodes the address.
     setLoading(true);
-    let location: DeviceLocation | undefined;
-    if (requestRoute) {
-      try {
-        location = await getCurrentLocation();
-      } catch {
-        location = undefined;
-      }
-    }
+    const location = requestRoute ? await getDeviceLocation().catch(() => undefined) : undefined;
 
     try {
-      const apiUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
-
-      if (!apiUrl) throw new Error('Missing EXPO_PUBLIC_API_URL');
-
-      const response = await fetch(`${apiUrl}${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ location, query, serviceId, campus: campus?.id }),
-      });
-
-      if (!response.ok) throw new Error(`Map request failed (${response.status})`);
-      const nextResult = (await response.json()) as QueryResult;
+      const nextResult = await getMapData<QueryResult>(endpoint, { location, query, serviceId, campus: campus?.id }, 'Map');
       if (currentRequestId === requestId.current) {
         setShowLocationPaths(Boolean(location));
         setResult(nextResult);
@@ -859,7 +771,6 @@ function QueryPage({ page, active, campus, onCampusChange, onEmergencySupportPre
   const handleCollegeSelect = (
     collegeId: string,
     serviceId: 'academic-success' | 'financial-aid' | 'registrar-enrolment' = 'registrar-enrolment',
-    requestRoute = false,
   ) =>
     loadMapDestination(`/api/college-service/${collegeId}`, {
       type: 'info',
@@ -878,7 +789,7 @@ function QueryPage({ page, active, campus, onCampusChange, onEmergencySupportPre
         : serviceId === 'academic-success'
           ? 'We could not load your college academic advising office. Please try again shortly.'
           : 'We could not load your college registrar’s office. Please try again shortly.',
-    }, undefined, serviceId, requestRoute);
+    }, undefined, serviceId, true);
 
   const handleResolveDisambiguation = (option: DisambiguationOption) => {
     switch (option.action.kind) {
@@ -895,42 +806,28 @@ function QueryPage({ page, active, campus, onCampusChange, onEmergencySupportPre
 
   const handleStudentLifeResource = async (resourceId: string) => {
     const resource = STUDENT_LIFE_RESOURCES[resourceId];
-    const query = STUDENT_LIFE_RESOURCE_QUERIES[resourceId];
-    if (!resource || !query) return;
+    const query = RESOURCE_LOOKUP_QUERIES[resourceId];
+    if (!resource) return;
     const currentRequestId = ++requestId.current;
     setShowResourceMap(Boolean(campus));
     setShowLocationPaths(false);
     setLoading(true);
 
-    // The result screen header should read the Resources-tab card the student
-    // tapped, even when the backend resolves the answer to a building or campus
-    // office (e.g. "Where is student IT support?" can resolve to "Student
-    // Centre"). Stamp the card's own label onto whatever result we render so
-    // the header stays consistent with the page they opened. Most cards match
-    // resource.title; the registrar card is shown as "Courses & academic
-    // support" on the Resources tab, so map it explicitly.
+    if (!query) {
+      setResult(withCampusFilteredLocations(resource, campus?.id));
+      setLoading(false);
+      return;
+    }
+
+    // Keep the card's label when the backend resolves it to a differently named office.
     const resourcesTabLabel = resourceId === 'registrar'
       ? 'Courses & academic support'
       : resource.title;
     const withResourcesTabLabel = (value: QueryResult): QueryResult =>
       value.type === 'recovery' ? value : { ...value, resourcesTabLabel };
 
-    // Casual, everyday resources (where to eat, study spots, ATMs, clubs, …)
-    // have no dedicated backend service. Sending them through /api/query lets
-    // the classifier misfire — "where can I get food on campus" matches the
-    // food-bank keyword and buries the dining list. Show the curated content
-    // directly so these options always render a valid, useful list.
-    if (LOCAL_ONLY_RESOURCES.has(resourceId)) {
-      if (currentRequestId === requestId.current) {
-        setResult(withCampusFilteredLocations(resource, campus?.id));
-        setLoading(false);
-      }
-      return;
-    }
-
     try {
-      setShowLocationPaths(false);
-      const response = await resolveQuery(query, undefined, campus?.id);
+      const response = await resolveQuery(query, campus?.id);
       if (currentRequestId === requestId.current) {
         setResult(withResourcesTabLabel(response));
       }
@@ -952,23 +849,10 @@ function QueryPage({ page, active, campus, onCampusChange, onEmergencySupportPre
     // Offer to use the student's location so we can draw a walking path. If they
     // decline (or it is unavailable), we still pin the destination on the map.
     setLoading(true);
-    let location: DeviceLocation | undefined;
-    try {
-      location = await getCurrentLocation();
-    } catch {
-      location = undefined;
-    }
+    const location = await getDeviceLocation().catch(() => undefined);
 
     try {
-      if (!API_BASE_URL) throw new Error('Missing EXPO_PUBLIC_API_URL');
-
-      const response = await fetch(`${API_BASE_URL}/api/campus-location`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ serviceId, campusLocationName, location }),
-      });
-      if (!response.ok) throw new Error(`Campus map request failed (${response.status})`);
-      const nextResult = (await response.json()) as QueryResult;
+      const nextResult = await getMapData<QueryResult>('/api/campus-location', { serviceId, campusLocationName, location }, 'Campus map');
       if (currentRequestId === requestId.current) {
         setShowResourceMap(true);
         setShowLocationPaths(Boolean(location));
@@ -987,22 +871,10 @@ function QueryPage({ page, active, campus, onCampusChange, onEmergencySupportPre
 
     const currentRequestId = ++requestId.current;
 
-    const apiUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
-    if (!apiUrl) return false;
+    if (!API_BASE_URL) return false;
 
     try {
-      const response = await fetch(`${apiUrl}/api/route`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mode,
-          origin: { lat: result.origin.latitude, lng: result.origin.longitude },
-          destination: { lat: result.destination.latitude, lng: result.destination.longitude },
-        }),
-      });
-      if (!response.ok) throw new Error(`Route request failed (${response.status})`);
-
-      const route = await response.json() as Pick<LocationResult, 'travelMinutes' | 'polyline'>;
+      const route = await getRoute(mode, { lat: result.origin.latitude, lng: result.origin.longitude }, result.destination);
       if (currentRequestId === requestId.current) {
         setResult(current => current?.type === 'location' ? { ...current, travelMinutes: route.travelMinutes, polyline: route.polyline } : current);
       }
@@ -1018,22 +890,9 @@ function QueryPage({ page, active, campus, onCampusChange, onEmergencySupportPre
     const currentRequestId = ++requestId.current;
 
     try {
-      const location = await getCurrentLocation();
+      const location = await getDeviceLocation(() => { throw new Error('LOCATION_UNAVAILABLE'); });
       if (!location) return false;
-      const apiUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
-      if (!apiUrl) throw new Error('Missing EXPO_PUBLIC_API_URL');
-
-      const response = await fetch(`${apiUrl}/api/route`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mode: 'walk',
-          origin: location,
-          destination: { lat: result.destination.latitude, lng: result.destination.longitude },
-        }),
-      });
-      if (!response.ok) throw new Error(`Route request failed (${response.status})`);
-      const route = await response.json() as Pick<LocationResult, 'travelMinutes' | 'polyline'>;
+      const route = await getRoute('walk', location, result.destination);
       if (currentRequestId !== requestId.current) return false;
       setResult(current => current?.type === 'location' ? {
             ...current,
@@ -1072,7 +931,7 @@ function QueryPage({ page, active, campus, onCampusChange, onEmergencySupportPre
           <ResultScreen backLabel={page === 'resources' ? 'Back to resources' : 'Back to Ask'} result={result} showMap={page === 'ask' || showResourceMap} showLocationPaths={showLocationPaths}
             onAskAnother={handleAskAnother} onRetry={handleRetry} onTravelModeChange={updateTravelRoute}
             onShowWalkingRoute={handleShowWalkingRoute} onCampusLocationPress={handleCampusLocationPress}
-            onCollegeSelect={(collegeId, serviceId) => handleCollegeSelect(collegeId, serviceId, true)} />
+            onCollegeSelect={handleCollegeSelect} />
         </View>
       )}
       {loading && (
@@ -1087,7 +946,6 @@ function QueryPage({ page, active, campus, onCampusChange, onEmergencySupportPre
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  body: { flex: 1 },
   footer: { backgroundColor: colors.surface },
   page: { flex: 1 },
   hiddenPage: { display: 'none' },
@@ -1096,6 +954,4 @@ const styles = StyleSheet.create({
   routeRetry: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 16 },
   loadingScreen: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   loadingText: { color: colors.textSecondary, fontSize: fontSize.base },
-  placeholderScreen: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  placeholderText: { color: colors.textMuted, fontSize: fontSize.base },
 });

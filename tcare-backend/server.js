@@ -1,8 +1,3 @@
-// server.js
-//
-// Fresh backend for T-Care.
-// Stack: Express + Groq (query understanding) + Geoapify (routing)
-
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
@@ -16,9 +11,7 @@ const { classifyQuery } = require('./services/groqService');
 const { geocodeAddress, getRoute, getWalkingRoute } = require('./services/mapsService');
 const {
   campusLocationToOffice,
-  findNearbyCampusLocation,
-  findRequestedCampusLocation,
-  findSelectedCampusLocation,
+  resolveCampusSupport,
   withRelevantCampusLocations,
   requiresCollegePicker,
 } = require('./services/campusLocationService');
@@ -32,6 +25,11 @@ const CONTACT_TOPICS = new Set(['App issue', 'Service question', 'Suggestion', '
 
 function contactField(value, maxLength) {
   return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
+}
+
+function sendError(res, err, message, status = 500) {
+  console.error(err);
+  return res.status(status).json({ error: message, detail: err.message });
 }
 
 async function createMapResult({ office, query, summary, location }) {
@@ -82,85 +80,42 @@ function filterListOnlyByCampus(supportResources, campus) {
   };
 }
 
-function createInfoResult({ service, query, title, summary, location, campus }) {
-  const campusLocations = service.supportResources?.campusLocations ?? [];
-
-  // Casual list-only services (for example campus dining) present a curated set
-  // of places to go. They are not tri-campus offices, so never prompt for a
-  // campus. When entries are campus-tagged and the student has a selected
-  // campus, trim the list to that campus so amenities match where they are.
-  if (service.listOnly) {
-    return {
-      type: 'info',
-      serviceId: service.id,
-      query,
-      title: title || service.name,
-      summary: summary || service.summary,
-      supportResources: filterListOnlyByCampus(service.supportResources, campus),
-    };
-  }
-
-  const confidentCampusLocation = findSelectedCampusLocation(campus, campusLocations)
-    ?? findRequestedCampusLocation(query, campusLocations)
-    ?? findNearbyCampusLocation(location, campusLocations);
-  return {
+async function createCampusAwareServiceResult({ service, query, title, summary, location, campus }) {
+  const info = {
     type: 'info',
     serviceId: service.id,
     query,
     title: title || service.name,
     summary: summary || service.summary,
-    supportResources: withRelevantCampusLocations(service.supportResources, location, query, campus),
-    facilityPicker: requiresCollegePicker(service)
-      ? 'college'
-      : (campusLocations.length > 1 && !confidentCampusLocation ? 'campus' : undefined),
   };
-}
-
-async function createCampusAwareServiceResult({ service, query, title, summary, location, campus }) {
-  // List-only services (casual dining, etc.) are curated lists, not routable
-  // offices. Return the list directly rather than resolving a single map office.
   if (service.listOnly) {
-    return createInfoResult({ service, query, title, summary, location, campus });
+    return { ...info, supportResources: filterListOnlyByCampus(service.supportResources, campus) };
   }
 
-  // A UTSG college is a required second choice for these services. Never let a
-  // UTSG mention or device location bypass that choice and open a map instead.
-  const campusLocations = service.supportResources?.campusLocations ?? [];
-  const selectedCampusLocation = findSelectedCampusLocation(campus, campusLocations);
-  // UTSG college services still require a college. UTSC and UTM selections
-  // identify a single campus office and can map directly.
-  if (requiresCollegePicker(service) && (!selectedCampusLocation || /st\.?\s*george|utsg/i.test(selectedCampusLocation.name))) {
-    return createInfoResult({ service, query, title, summary, location, campus });
+  const { selected, destination, supportResources } = resolveCampusSupport(service.supportResources, location, query, campus);
+  // College services can map directly only after the student selects UTSC or UTM.
+  if (requiresCollegePicker(service) && (!selected || /st\.?\s*george|utsg/i.test(selected.name))) {
+    return { ...info, supportResources, facilityPicker: 'college' };
   }
-  const requestedCampusLocation = findRequestedCampusLocation(query, campusLocations);
-  const nearbyCampusLocation = findNearbyCampusLocation(location, campusLocations);
-  const resolvedCampusLocation = selectedCampusLocation ?? requestedCampusLocation ?? nearbyCampusLocation;
-  if (!resolvedCampusLocation) return createInfoResult({ service, query, title, summary, location, campus });
+  if (!destination) {
+    const facilityPicker = supportResources?.campusLocations?.length > 1 ? 'campus' : undefined;
+    return { ...info, supportResources, facilityPicker };
+  }
 
   const result = await createMapResult({
-    office: campusLocationToOffice(resolvedCampusLocation, service),
+    office: campusLocationToOffice(destination, service),
     query,
-    summary: summary || service.summary,
+    summary: info.summary,
     location,
   });
   return {
     ...result,
     serviceId: service.id,
-    title: title || resolvedCampusLocation.name,
-    supportResources: withRelevantCampusLocations(service.supportResources, location, query, campus),
+    title: title || destination.name,
+    supportResources,
   };
 }
 
-/**
- * POST /api/query
- * body: { query: string, location?: { lat: number, lng: number } }
- *
- * Returns a QueryResult shaped for the mobile app:
- *   { type: 'info', query, title, summary }
- * or
- *   { type: 'location', query, title, summary, placeName,
- *     placeSubtitle, walkMinutes, fee, hours, polyline, origin, destination }
- */
 app.post('/api/query', async (req, res) => {
   const { query, location, campus } = req.body;
 
@@ -246,35 +201,23 @@ app.post('/api/query', async (req, res) => {
       }
     }
 
-    // No matching service — just return the AI's plain-language answer
     if (!matched) {
       return res.json({
-        type: 'info',
-        query,
-        title: classification.title || "Here's what I found",
-        summary: classification.summary,
+        type: 'info', query, title: classification.title || "Here's what I found", summary: classification.summary,
       });
     }
 
-    // Matched a service, but no location provided — return info without a route
-    if (!location) {
-      return res.json({
-        type: 'info',
-        query,
-        title: classification.title || matched.name,
-        summary: classification.summary || matched.summary,
-        supportResources: matched.supportResources,
-      });
-    }
+    const title = classification.title || matched.name;
+    const summary = classification.summary || matched.summary;
+    if (!location) return res.json({ type: 'info', query, title, summary, supportResources: matched.supportResources });
 
-    // Matched a service AND we have the student's location — get the route
     const route = await getWalkingRoute(location, matched.address);
 
     return res.json({
       type: 'location',
       query,
-      title: classification.title || matched.name,
-      summary: classification.summary || matched.summary,
+      title,
+      summary,
       placeName: matched.name,
       placeSubtitle: matched.address,
       walkMinutes: route.walkMinutes,
@@ -289,8 +232,7 @@ app.post('/api/query', async (req, res) => {
       supportResources: matched.supportResources,
     });
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Something went wrong', detail: err.message });
+    return sendError(res, err, 'Something went wrong');
   }
 });
 
@@ -323,8 +265,7 @@ app.post('/api/route', async (req, res) => {
       polyline: route.polyline,
     });
   } catch (err) {
-    console.error(err);
-    return res.status(502).json({ error: 'Could not calculate route', detail: err.message });
+    return sendError(res, err, 'Could not calculate route', 502);
   }
 });
 
@@ -406,34 +347,29 @@ app.post('/api/tcard-office', async (req, res) => {
       })
     );
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Could not load the TCard Office map', detail: err.message });
+    return sendError(res, err, 'Could not load the TCard Office map');
   }
 });
 
-app.post('/api/accessibility-services', async (req, res) => {
-  const accessibilityServices = services.find((service) => service.id === 'accessibility-services');
-  const { location, query, campus } = req.body ?? {};
+for (const [id, label, defaultQuery] of [
+  ['accessibility-services', 'Accessibility Services', 'Where can I access accessibility services?'],
+  ['health-wellness', 'Health & Wellness', 'I need someone to talk to'],
+]) {
+  app.post(`/api/${id}`, async (req, res) => {
+    const service = services.find((candidate) => candidate.id === id);
+    const { query, location, campus } = req.body ?? {};
+    if (!service) return res.status(500).json({ error: `${label} is not configured` });
 
-  if (!accessibilityServices) {
-    return res.status(500).json({ error: 'Accessibility Services is not configured' });
-  }
-
-  try {
-    return res.json(await createCampusAwareServiceResult({
-      service: accessibilityServices,
-      query: typeof query === 'string' && query.trim()
-        ? query
-        : 'Where can I access accessibility services?',
-      summary: accessibilityServices.summary,
-      location,
-      campus,
-    }));
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Could not load the Accessibility Services map', detail: err.message });
-  }
-});
+    try {
+      const useQuery = id === 'accessibility-services' && typeof query === 'string' && query.trim();
+      return res.json(await createCampusAwareServiceResult({
+        service, query: useQuery ? query : defaultQuery, location, campus,
+      }));
+    } catch (err) {
+      return sendError(res, err, `Could not load the ${label} map`);
+    }
+  });
+}
 
 // Lets a student choose a specific office from the full tri-campus list.
 app.post('/api/campus-location', async (req, res) => {
@@ -459,30 +395,7 @@ app.post('/api/campus-location', async (req, res) => {
       supportResources: withRelevantCampusLocations(service.supportResources, location),
     });
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Could not load the campus location map', detail: err.message });
-  }
-});
-
-app.post('/api/health-wellness', async (req, res) => {
-  const healthWellness = services.find((service) => service.id === 'health-wellness');
-  const { location, campus } = req.body ?? {};
-
-  if (!healthWellness) {
-    return res.status(500).json({ error: 'Health & Wellness is not configured' });
-  }
-
-  try {
-    return res.json(await createCampusAwareServiceResult({
-      service: healthWellness,
-      query: 'I need someone to talk to',
-      summary: healthWellness.summary,
-      location,
-      campus,
-    }));
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Could not load the Health & Wellness map', detail: err.message });
+    return sendError(res, err, 'Could not load the campus location map');
   }
 });
 
@@ -497,10 +410,10 @@ app.post(['/api/college-service/:collegeId', '/api/college-registrar/:collegeId'
   try {
     const result = await createMapResult({
       office,
-        query: facilityService?.name ?? 'College service',
-        summary: `${office.name} is the local UTSG office selected for ${facilityService?.name ?? 'this service'}. Use the resources below for the next step.`,
-        location,
-      });
+      query: facilityService?.name ?? 'College service',
+      summary: `${office.name} is the local UTSG office selected for ${facilityService?.name ?? 'this service'}. Use the resources below for the next step.`,
+      location,
+    });
     return res.json({
       ...result,
       title: `${facilityService?.name ?? 'College service'} at ${office.name}`,
@@ -508,7 +421,6 @@ app.post(['/api/college-service/:collegeId', '/api/college-registrar/:collegeId'
       supportResources: facilityService?.supportResources,
     });
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Could not load the college registrar map', detail: err.message });
+    return sendError(res, err, 'Could not load the college registrar map');
   }
 });

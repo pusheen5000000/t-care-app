@@ -1,62 +1,22 @@
-// services/groqService.js
-//
-// Uses Groq's OpenAI-compatible chat completions endpoint.
-// Docs: https://console.groq.com/docs/quickstart
-//
-// No SDK needed — Groq's API matches OpenAI's request/response shape,
-// so a plain fetch() call works fine and keeps this dependency-free.
-
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_MODEL = 'llama-3.3-70b-versatile';
 
-/**
- * Ask Groq to pick the best-matching service (or none) for a student's
- * query, and to write a short, calm, plain-language summary.
- *
- * @param {string} query - the student's raw text
- * @param {Array} services - the services list from data/services.js
- * @returns {Promise<{ serviceId: string|null, title: string, summary: string, destination?: string|null }>}
- */
-// A small, conservative gibberish detector. It only flags input that a person
-// almost certainly did not intend as a real question, so genuine (even
-// short or oddly phrased) queries still reach the AI.
+// Short campus acronyms can be valid even with no vowels.
+const KNOWN_TERMS = new Set([
+  'ttc', 'utm', 'utsc', 'utsg', 'atm', 'atms', 'osap', 'uhip', 'gym', 'gyms',
+  'id', 'tcard', 'acorn', 'utorid', 'wifi', 'it', 'cv', 'faq',
+]);
+
 function looksUnreadable(text) {
-  const trimmed = text.trim();
-  if (!trimmed) return true;
+  const letters = text.replace(/[^a-zA-Z]/g, '').length;
+  const length = text.replace(/\s/g, '').length;
+  if (!letters || (length >= 4 && letters / length < 0.4)) return true;
 
-  // Strip everything except letters/spaces to judge the words themselves.
-  const letters = trimmed.replace(/[^a-zA-Z]/g, '');
-  const alphaRatio = trimmed.length ? letters.length / trimmed.replace(/\s/g, '').length : 0;
-
-  // Mostly symbols or digits with almost no letters (e.g. "?!?!", "123456").
-  if (letters.length === 0) return true;
-  if (trimmed.replace(/\s/g, '').length >= 4 && alphaRatio < 0.4) return true;
-
-  const words = trimmed.split(/\s+/).filter(Boolean);
-
-  // Common campus acronyms and terms that have no vowel or look "consonant
-  // heavy" but are perfectly valid searches.
-  const KNOWN_TERMS = new Set([
-    'ttc', 'utm', 'utsc', 'utsg', 'atm', 'atms', 'osap', 'uhip', 'gym', 'gyms',
-    'id', 'tcard', 'acorn', 'utorid', 'wifi', 'it', 'cv', 'faq',
-  ]);
-
-  // A word is "word-like" if it has a vowel and no long consonant run. Real
-  // English words almost always satisfy this; keyboard mashing rarely does.
-  const isWordLike = (word) => {
-    const w = word.replace(/[^a-zA-Z]/g, '').toLowerCase();
-    if (!w) return false;
-    if (KNOWN_TERMS.has(w)) return true;
-    if (w.length <= 2) return true; // short tokens like "i", "to", "of"
-    if (!/[aeiouy]/.test(w)) return false; // no vowel at all
-    if (/[^aeiouy]{5,}/.test(w)) return false; // 5+ consonants in a row
-    return true;
-  };
-
-  const wordLikeCount = words.filter(isWordLike).length;
-
-  // If nothing in the message reads like a word, treat it as unreadable.
-  return wordLikeCount === 0;
+  return !text.split(/\s+/).some((token) => {
+    const word = token.replace(/[^a-zA-Z]/g, '').toLowerCase();
+    if (!word) return false;
+    return word.length <= 2 || KNOWN_TERMS.has(word) || (/[aeiouy]/.test(word) && !/[^aeiouy]{5,}/.test(word));
+  });
 }
 
 // A single, friendly "please rephrase" answer used whenever a prompt is

@@ -9,7 +9,10 @@ export function googleMapsDirectionsUrl(placeName: string, placeSubtitle: string
   return `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
 }
 
-export async function openGoogleMapsDirections(placeName: string, placeSubtitle: string) {
-  const url = googleMapsDirectionsUrl(placeName, placeSubtitle);
+export async function openExternalLink(url: string) {
   if (await Linking.canOpenURL(url)) await Linking.openURL(url);
+}
+
+export async function openGoogleMapsDirections(placeName: string, placeSubtitle: string) {
+  return openExternalLink(googleMapsDirectionsUrl(placeName, placeSubtitle));
 }

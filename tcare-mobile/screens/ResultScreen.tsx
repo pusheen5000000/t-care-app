@@ -8,13 +8,14 @@ import {
   TextInput,
   ScrollView,
   StyleSheet,
-  Linking,
   useWindowDimensions,
 } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import { colors, spacing, fontSize, radius } from '../theme';
 import type { QueryResult, LocationResult, RecoveryResult, SupportResources, TravelMode } from '../types';
-import { openGoogleMapsDirections } from '../utils/googleMaps';
+import { COLLEGES } from '../utils/colleges';
+import { openExternalLink, openGoogleMapsDirections } from '../utils/googleMaps';
+import { destinationRegion, geometryToCoordinates, routeMapKey } from '../utils/routeGeometry';
 
 type Props = {
   result: QueryResult;
@@ -35,16 +36,6 @@ const COLLEGE_SERVICE_IDS = new Set<CollegeServiceId>([
   'financial-aid',
   'registrar-enrolment',
 ]);
-
-const COLLEGES = [
-  { id: 'innis', label: 'Innis College' },
-  { id: 'new-college', label: 'New College' },
-  { id: 'st-michaels', label: "St. Michael's College" },
-  { id: 'trinity', label: 'Trinity College' },
-  { id: 'university-college', label: 'University College' },
-  { id: 'victoria', label: 'Victoria College' },
-  { id: 'woodsworth', label: 'Woodsworth College' },
-];
 
 const TRAVEL_MODES: { key: TravelMode; label: string }[] = [
   { key: 'bike', label: 'Bike' },
@@ -105,7 +96,6 @@ export function ResultScreen({ backLabel, result, showMap = true, showLocationPa
             query={result.query}
             resultTitle={result.title}
             serviceId={result.type === 'recovery' ? undefined : result.serviceId}
-            showLocationPaths={showLocationPaths}
             onCampusLocationPress={onCampusLocationPress}
             onCollegeSelect={onCollegeSelect}
           />
@@ -113,29 +103,6 @@ export function ResultScreen({ backLabel, result, showMap = true, showLocationPa
       </ScrollView>
     </View>
   );
-}
-
-// Flattens Geoapify's GeoJSON geometry (LineString or MultiLineString)
-// into a flat array of {latitude, longitude} points for react-native-maps.
-function geometryToCoordinates(
-  geometry: LocationResult['polyline']
-): { latitude: number; longitude: number }[] {
-  if (!geometry) return [];
-
-  const toLatLng = (pair: number[]) => ({
-    latitude: pair[1],
-    longitude: pair[0],
-  });
-
-  if (geometry.type === 'LineString') {
-    return (geometry.coordinates as number[][]).map(toLatLng);
-  }
-
-  if (geometry.type === 'MultiLineString') {
-    return (geometry.coordinates as number[][][]).flat().map(toLatLng);
-  }
-
-  return [];
 }
 
 function LocationBlock({
@@ -152,7 +119,6 @@ function LocationBlock({
   const [travelMode, setTravelMode] = useState<TravelMode>('walk');
   const [isChangingMode, setIsChangingMode] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
-  const isLoadingRoute = isChangingMode;
   const [isWalkingPathExpanded, setIsWalkingPathExpanded] = useState(false);
   const mapRef = useRef<MapView>(null);
   const [isMapReady, setIsMapReady] = useState(false);
@@ -169,26 +135,9 @@ function LocationBlock({
     }
     setIsChangingMode(false);
   };
-  const showWalkingRoute = async () => {
-    await selectTravelMode('walk');
-  };
   const routeCoords = geometryToCoordinates(result.polyline);
-  const origin = result.origin;
-  const destination = result.destination;
+  const { origin, destination } = result;
   const hasRoute = showLocationPaths && Boolean(origin && destination && routeCoords.length > 0);
-  const routeMapKey = hasRoute
-    ? `route-${routeCoords.length}-${routeCoords[0].latitude}-${routeCoords[0].longitude}-${routeCoords[routeCoords.length - 1].latitude}-${routeCoords[routeCoords.length - 1].longitude}`
-    : 'destination';
-
-  const initialRegion = destination
-    ? {
-        latitude: destination.latitude,
-        longitude: destination.longitude,
-        latitudeDelta: 0.02,
-        longitudeDelta: 0.02,
-      }
-    : undefined;
-
   useEffect(() => {
     if (!isMapReady || !hasRoute || !origin || !destination) return;
 
@@ -202,10 +151,10 @@ function LocationBlock({
     <>
       <View style={styles.mapCard}>
         <MapView
-          key={routeMapKey}
+          key={hasRoute ? routeMapKey(routeCoords) : 'destination'}
           ref={mapRef}
           style={[styles.map, isPortrait && styles.mapPortrait]}
-          initialRegion={initialRegion}
+          initialRegion={destinationRegion(destination)}
           onMapReady={() => setIsMapReady(true)}
           accessibilityLabel={`Map to ${result.placeName}`}
         >
@@ -219,7 +168,7 @@ function LocationBlock({
           {destination && (
             <Marker coordinate={destination} title={result.placeName} />
           )}
-          {hasRoute && routeCoords.length > 0 && (
+          {hasRoute && (
             <Polyline
               coordinates={routeCoords}
               strokeColor={colors.accent}
@@ -236,13 +185,13 @@ function LocationBlock({
         </View>
       </View>
 
-      {hasRoute && destination && Boolean(routeError) && (
+      {hasRoute && Boolean(routeError) && (
         <View style={styles.routePrompt}>
           <Text style={styles.routePromptTitle}>Need directions?</Text>
           <Text style={styles.routePromptBody}>Use your location only to show a walking route and time.</Text>
           <View style={styles.routeActions}>
-            <TouchableOpacity style={styles.showRouteButton} onPress={() => void showWalkingRoute()} disabled={isLoadingRoute} accessibilityRole="button" accessibilityLabel="Show walking route">
-              <Text style={styles.showRouteButtonText}>{isLoadingRoute ? 'Getting route…' : 'Show walking route'}</Text>
+            <TouchableOpacity style={styles.showRouteButton} onPress={() => void selectTravelMode('walk')} disabled={isChangingMode} accessibilityRole="button" accessibilityLabel="Show walking route">
+              <Text style={styles.showRouteButtonText}>{isChangingMode ? 'Getting route…' : 'Show walking route'}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.openMapsButton} onPress={() => void openGoogleMapsDirections(result.placeName, result.placeSubtitle)} accessibilityRole="button" accessibilityLabel="Open destination in Maps">
               <Text style={styles.openMapsButtonText}>Open in Maps</Text>
@@ -353,10 +302,9 @@ function ResultNextStep({
   const [routeError, setRouteError] = useState<string | null>(null);
   const isLocation = result.type === 'location';
   const primaryLink = getBestNextStepLink(result);
-  const locationResult = result as LocationResult;
   const useDirections = isLocation
     && showLocationPaths
-    && Boolean(locationResult.origin && geometryToCoordinates(locationResult.polyline).length > 0);
+    && Boolean(result.origin && geometryToCoordinates(result.polyline).length > 0);
   const actionLabel = isLocation
     ? useDirections
       ? 'Open directions in Google Maps'
@@ -364,10 +312,8 @@ function ResultNextStep({
         ? 'Getting walking route...'
         : 'Show walking route'
     : getActionLabel(result.query, result.title, primaryLink);
-  const prompt = useDirections
+  const prompt = isLocation
     ? `Ready to find ${result.placeName}?`
-    : isLocation
-      ? `Ready to find ${result.placeName}?`
     : getNextStepPrompt(actionLabel);
 
   const handlePress = async () => {
@@ -384,8 +330,7 @@ function ResultNextStep({
       return;
     }
 
-    const url = primaryLink?.url ?? 'https://www.utoronto.ca/';
-    if (await Linking.canOpenURL(url)) await Linking.openURL(url);
+    await openExternalLink(primaryLink?.url ?? 'https://www.utoronto.ca/');
   };
 
   return (
@@ -415,7 +360,6 @@ function SupportResourcesSection({
   query,
   resultTitle,
   serviceId,
-  showLocationPaths,
   onCampusLocationPress,
   onCollegeSelect,
 }: {
@@ -423,7 +367,6 @@ function SupportResourcesSection({
   query: string;
   resultTitle: string;
   serviceId?: string;
-  showLocationPaths: boolean;
   onCampusLocationPress: (serviceId: string, campusLocationName: string) => void;
   onCollegeSelect: (collegeId: string, serviceId: CollegeServiceId) => void;
 }) {
@@ -442,11 +385,6 @@ function SupportResourcesSection({
     : collegePickerService === 'academic-success'
       ? 'Choose your UTSG college to find its academic advising office.'
       : 'Choose your UTSG college to find its registrar office.';
-
-  const openLink = async (url: string) => {
-    const supported = await Linking.canOpenURL(url);
-    if (supported) await Linking.openURL(url);
-  };
 
   return (
     <>
@@ -507,8 +445,8 @@ function SupportResourcesSection({
         );
       })}
 
-      <ResourceLinks title="Government-Approved Support" links={governmentLinks} query={query} contextTitle={resultTitle} onOpen={openLink} />
-      <ResourceLinks title="U of T Resources" links={universityLinks} query={query} contextTitle={resultTitle} onOpen={openLink} />
+      <ResourceLinks title="Government-Approved Support" links={governmentLinks} query={query} contextTitle={resultTitle} />
+      <ResourceLinks title="U of T Resources" links={universityLinks} query={query} contextTitle={resultTitle} />
       </View>
 
       <Modal visible={collegePickerService !== null} transparent animationType="fade" onRequestClose={() => setCollegePickerService(null)}>
@@ -558,13 +496,11 @@ function ResourceLinks({
   links,
   query,
   contextTitle,
-  onOpen,
 }: {
   title: string;
   links: SupportResources['links'];
   query: string;
   contextTitle: string;
-  onOpen: (url: string) => Promise<void>;
 }) {
   if (!links.length) return null;
 
@@ -575,7 +511,7 @@ function ResourceLinks({
         <TouchableOpacity
           key={link.url}
           style={styles.resourceLink}
-          onPress={() => void onOpen(link.url)}
+          onPress={() => void openExternalLink(link.url)}
           accessibilityRole="link"
           accessibilityLabel={link.title}
           accessibilityHint="Opens an external support website"
@@ -592,6 +528,8 @@ function ResourceLinks({
   );
 }
 
+const COMMON_QUERY_TERMS = new Set(['about', 'where', 'there', 'would', 'could', 'please', 'need', 'help', 'with', 'find', 'what', 'that', 'this']);
+
 function getBestNextStepLink(result: QueryResult): SupportResources['links'][number] | undefined {
   const links = result.supportResources?.links ?? [];
   if (links.length < 2) return links[0];
@@ -600,19 +538,24 @@ function getBestNextStepLink(result: QueryResult): SupportResources['links'][num
     `${result.query} ${result.title}`
       .toLowerCase()
       .match(/[a-z]{3,}/g)
-      ?.filter((term) => !new Set(['about', 'where', 'there', 'would', 'could', 'please', 'need', 'help', 'with', 'find', 'what', 'that', 'this']).has(term))
+      ?.filter((term) => !COMMON_QUERY_TERMS.has(term))
       ?? [],
   );
 
-  return links.reduce((best, link) => {
-    const score = (candidate: SupportResources['links'][number]) => {
-      const text = `${candidate.title} ${candidate.description}`.toLowerCase();
-      return [...queryTerms].reduce((total, term) => total + (text.includes(term) ? 1 : 0), 0)
-        + (candidate.group === 'U of T resources' ? 0.25 : 0);
-    };
-
-    return score(link) > score(best) ? link : best;
-  });
+  let best = links[0];
+  let bestScore = -1;
+  for (const link of links) {
+    const text = `${link.title} ${link.description}`.toLowerCase();
+    let score = link.group === 'U of T resources' ? 0.25 : 0;
+    for (const term of queryTerms) {
+      if (text.includes(term)) score++;
+    }
+    if (score > bestScore) {
+      best = link;
+      bestScore = score;
+    }
+  }
+  return best;
 }
 
 function getNextStepPrompt(actionLabel: string) {
@@ -641,19 +584,11 @@ function getResultHeaderTitle(result: QueryResult) {
   if (/not sure what you.re after|campus helper|do best with a real question|invalid prompt|appropriate, on-topic|does.?n.t look like something i can help/.test(context)) return 'Let’s narrow it down';
   if (/\b(?:hello|hi|hey|welcome)\b/.test(context)) return 'Welcome to T-Care';
 
-  // The header next to the Back button should match the label of the card the
-  // student tapped on the Resources tab. For most pages result.title already
-  // equals that label ("Mental health support", "Financial aid & awards",
-  // "Housing & residence", …). A couple of pages carry a slightly different
-  // answer-card title, so map those back to the exact Resources-tab label.
-  const resourcesTabLabel = getResourcesTabLabel(result);
-  if (resourcesTabLabel) return resourcesTabLabel;
-
-  if (result.title) return result.title;
-
-  if (result.type === 'location') return 'Getting there';
-
-  return 'Campus support';
+  // Keep the tapped card's label when its backend result is a campus office.
+  return result.resourcesTabLabel
+    || (result.serviceId && RESOURCES_TAB_LABEL_BY_SERVICE_ID[result.serviceId])
+    || result.title
+    || (result.type === 'location' ? 'Getting there' : 'Campus support');
 }
 
 // Maps a backend service to the exact label shown on its Resources-tab card.
@@ -682,24 +617,6 @@ const RESOURCES_TAB_LABEL_BY_SERVICE_ID: Record<string, string> = {
   'campus-recreation': 'Gyms & recreation',
   'campus-transit-parking': 'Transit & parking',
 };
-
-function getResourcesTabLabel(result: QueryResult): string | undefined {
-  if (result.type === 'recovery') return undefined;
-
-  // Authoritative: when a page is opened from a Resources-tab card, App stamps
-  // that card's label onto the result. This holds even when the backend
-  // resolves the query to a building/office title (e.g. "Student Centre").
-  if (result.resourcesTabLabel) return result.resourcesTabLabel;
-
-  // Fallback for flows that don't stamp a label (mental-health and
-  // accessibility map destinations, or Ask-tab answers): map the stable
-  // backend serviceId to the resource's Resources-tab label.
-  const serviceId = result.serviceId;
-  if (serviceId && RESOURCES_TAB_LABEL_BY_SERVICE_ID[serviceId]) {
-    return RESOURCES_TAB_LABEL_BY_SERVICE_ID[serviceId];
-  }
-  return undefined;
-}
 
 function getActionLabel(
   query: string,

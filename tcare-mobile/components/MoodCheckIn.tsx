@@ -20,10 +20,10 @@ const GROUNDING_STEPS = [
 ];
 
 export function MoodCheckIn({ visible, mood, onClose, onEmergencySupportPress }: Props) {
-  const [safetyAnswer, setSafetyAnswer] = useState<'yes' | 'no' | null>(null);
+  const [showGrounding, setShowGrounding] = useState(false);
 
   const handleClose = () => {
-    setSafetyAnswer(null);
+    setShowGrounding(false);
     onClose();
   };
 
@@ -43,7 +43,7 @@ export function MoodCheckIn({ visible, mood, onClose, onEmergencySupportPress }:
       );
     }
 
-    if (mood === 'okay') {
+    if (mood === 'okay' || (mood === 'struggling' && showGrounding)) {
       return <GroundingContent onDone={handleClose} />;
     }
 
@@ -51,74 +51,26 @@ export function MoodCheckIn({ visible, mood, onClose, onEmergencySupportPress }:
       return null;
     }
 
-    if (safetyAnswer === null) {
-      return (
-        <>
-          <Text style={styles.stepLabel}>QUICK SAFETY CHECK</Text>
-          <Text style={styles.title}>Are you having any thoughts of hurting yourself or others?</Text>
-          <View style={styles.answerRow}>
-            <TouchableOpacity accessibilityRole="button"
-              style={[styles.answerButton, styles.answerYes]}
-              onPress={() => { handleClose(); onEmergencySupportPress(); }}
-            >
-              <Text style={styles.answerYesText}>Yes, I am</Text>
-            </TouchableOpacity>
-            <TouchableOpacity accessibilityRole="button"
-              style={[styles.answerButton, styles.answerNo]}
-              onPress={() => setSafetyAnswer('no')}
-            >
-              <Text style={styles.answerNoText}>No, I'm okay</Text>
-            </TouchableOpacity>
-          </View>
-        </>
-      );
-    }
-
-    if (safetyAnswer === 'yes') {
-      return (
-        <>
-          <Text style={styles.warningTitle}>⚠️ You're not alone</Text>
-          <Text style={styles.body}>
-            You deserve support. This app will not call or text anyone for you.
-            If you choose to reach out, open your phone app and dial or text one of these numbers yourself.
-          </Text>
-
+    return (
+      <>
+        <Text style={styles.stepLabel}>QUICK SAFETY CHECK</Text>
+        <Text style={styles.title}>Are you having any thoughts of hurting yourself or others?</Text>
+        <View style={styles.answerRow}>
           <TouchableOpacity accessibilityRole="button"
-            style={styles.urgentButton}
+            style={[styles.answerButton, styles.answerYes]}
             onPress={() => { handleClose(); onEmergencySupportPress(); }}
-            accessibilityLabel="Open urgent support options"
           >
-            <Text style={styles.urgentButtonText}>Open urgent support options</Text>
+            <Text style={styles.answerYesText}>Yes, I am</Text>
           </TouchableOpacity>
-
-          <View style={styles.resourceCard}>
-            <Text style={styles.resourceTitle}>9-8-8 Suicide Crisis Helpline</Text>
-            <Text style={styles.resourceSubtitle}>Call or text 9-8-8 yourself · Free · 24/7</Text>
-          </View>
-
-          <View style={styles.resourceCard}>
-            <Text style={styles.resourceTitle}>U of T Telus Health Student Support</Text>
-            <Text style={styles.resourceSubtitle}>Call or text 1-844-451-9700 yourself · 24/7</Text>
-          </View>
-
-          <View style={styles.resourceCard}>
-            <Text style={styles.resourceTitle}>Good2Talk student helpline</Text>
-            <Text style={styles.resourceSubtitle}>Call 1-866-925-5454 yourself · Free · 24/7</Text>
-          </View>
-
-          <View style={styles.resourceCard}>
-            <Text style={styles.resourceTitle}>Emergency help</Text>
-            <Text style={styles.resourceSubtitle}>If there is immediate danger, use your phone to call 9-1-1 or go to the nearest emergency department.</Text>
-          </View>
-
-          <TouchableOpacity accessibilityRole="button" style={styles.primaryButton} onPress={handleClose}>
-            <Text style={styles.primaryButtonText}>Done</Text>
+          <TouchableOpacity accessibilityRole="button"
+            style={[styles.answerButton, styles.answerNo]}
+            onPress={() => setShowGrounding(true)}
+          >
+            <Text style={styles.primaryButtonText}>No, I'm okay</Text>
           </TouchableOpacity>
-        </>
-      );
-    }
-
-    return <GroundingContent onDone={handleClose} />;
+        </View>
+      </>
+    );
   };
 
   return (
@@ -203,12 +155,6 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginBottom: spacing.md,
   },
-  warningTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: '700',
-    color: colors.danger,
-    marginBottom: spacing.md,
-  },
   body: {
     fontSize: fontSize.base,
     color: colors.textSecondary,
@@ -241,39 +187,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     borderColor: colors.accent,
   },
-  answerNoText: {
-    color: colors.accentOn,
-    fontWeight: '600',
-    fontSize: fontSize.base,
-  },
-  resourceCard: {
-    backgroundColor: colors.infoBg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    borderRadius: radius.lg,
-  },
-  resourceTitle: {
-    fontSize: fontSize.base,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  resourceSubtitle: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  urgentButton: {
-    alignItems: 'center',
-    backgroundColor: colors.danger,
-    borderRadius: radius.lg,
-    marginBottom: spacing.sm,
-    minHeight: 48,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-  },
-  urgentButtonText: { color: colors.white, fontSize: fontSize.base, fontWeight: '700' },
   groundingStep: {
     borderLeftWidth: 2,
     borderLeftColor: colors.accent,

@@ -11,8 +11,8 @@ function normalize(value) {
 
 function matchesPhrase(query, phrase) {
   const normalizedPhrase = normalize(phrase);
-  if (!normalizedPhrase) return false;
-  return new RegExp(`(^|\\s)${normalizedPhrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=\\s|$)`).test(query);
+  // Both strings have normalized spaces. Padding keeps partial words from matching.
+  return normalizedPhrase !== '' && ` ${query} `.includes(` ${normalizedPhrase} `);
 }
 
 function matchesCode(rawQuery, code) {
