@@ -20,6 +20,7 @@ type Props = {
   result: QueryResult;
   showMap?: boolean;
   showLocationPaths?: boolean;
+  backLabel: string;
   onAskAnother: () => void;
   onRetry: () => void;
   onTravelModeChange: (mode: TravelMode) => Promise<boolean>;
@@ -52,7 +53,7 @@ const TRAVEL_MODES: { key: TravelMode; label: string }[] = [
   { key: 'transit', label: 'Transit' },
 ];
 
-export function ResultScreen({ result, showMap = true, showLocationPaths = true, onAskAnother, onRetry, onTravelModeChange, onShowWalkingRoute, onCampusLocationPress, onCollegeSelect }: Props) {
+export function ResultScreen({ backLabel, result, showMap = true, showLocationPaths = true, onAskAnother, onRetry, onTravelModeChange, onShowWalkingRoute, onCampusLocationPress, onCollegeSelect }: Props) {
   const isLocation = result.type === 'location';
   const isRecovery = result.type === 'recovery';
   const headerTitle = getResultHeaderTitle(result);
@@ -67,7 +68,7 @@ export function ResultScreen({ result, showMap = true, showLocationPaths = true,
           onPress={onAskAnother}
           activeOpacity={0.7}
           accessibilityRole="button"
-          accessibilityLabel="Ask another question"
+          accessibilityLabel={backLabel}
         >
           <Text style={styles.backText}>{'< Back'}</Text>
         </TouchableOpacity>

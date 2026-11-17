@@ -624,23 +624,13 @@ export default function App() {
   );
 }
 
+type Campus = { id: 'utsg' | 'utsc' | 'utm'; label: string };
+
 function AppContent() {
   const [tab, setTab] = useState<TabKey>('ask');
-  const [resultsByTab, setResultsByTab] = useState<Partial<Record<TabKey, QueryResult>>>({});
-  const [resultSource, setResultSource] = useState<TabKey>('ask');
-  const [showResourceMap, setShowResourceMap] = useState(false);
-  const [showLocationPaths, setShowLocationPaths] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [emergencyVisible, setEmergencyVisible] = useState(false);
-  const [campus, setCampus] = useState<{ id: 'utsg' | 'utsc' | 'utm'; label: string } | null>(null);
+  const [campus, setCampus] = useState<Campus | null>(null);
   const [campusPreferenceLoaded, setCampusPreferenceLoaded] = useState(false);
-  const requestId = useRef(0);
-  const result = resultsByTab[resultSource] ?? null;
-  // Preserve the Resources list scroll position across the ResultScreen swap so
-  // pressing "back" returns the student to exactly where they were, not the top.
-  const [resourceSearch, setResourceSearch] = useState('');
-  const resourcesScrollOffset = useRef(0);
-
   useEffect(() => {
     void AsyncStorage.getItem(CAMPUS_PREFERENCE_KEY)
       .then((savedCampus) => {
@@ -654,42 +644,17 @@ function AppContent() {
       .finally(() => setCampusPreferenceLoaded(true));
   }, []);
 
+
   useEffect(() => {
+    if (tab !== 'tai' && tab !== 'contact') return;
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (emergencyVisible) {
-        setEmergencyVisible(false);
-        return true;
-      }
-
-      if (loading) {
-        requestId.current += 1;
-        setLoading(false);
-        return true;
-      }
-
-      if (result && resultSource === tab) {
-        setResultsByTab((current) => {
-          const next = { ...current };
-          delete next[resultSource];
-          return next;
-        });
-        setShowResourceMap(false);
-        setShowLocationPaths(false);
-        return true;
-      }
-
-      if (tab !== 'ask') {
-        setTab('ask');
-        return true;
-      }
-
-      return false;
+      setTab('ask');
+      return true;
     });
-
     return () => subscription.remove();
-  }, [emergencyVisible, loading, result, resultSource, tab]);
+  }, [tab]);
 
-  const handleCampusChange = (nextCampus: { id: 'utsg' | 'utsc' | 'utm'; label: string } | null) => {
+  const handleCampusChange = (nextCampus: Campus | null) => {
     setCampus(nextCampus);
     if (!campusPreferenceLoaded) return;
     void (nextCampus
@@ -698,46 +663,117 @@ function AppContent() {
     ).catch(() => undefined);
   };
 
+  // The shell owns system insets; screens must not reserve them again.
+  return (
+    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
+        <StatusBar style="dark" />
+        <View style={styles.body}>
+          <View style={tab === 'tai' ? styles.page : styles.hiddenPage}>
+            <TAIScreen campus={campus?.id} />
+          </View>
+          <View style={tab === 'contact' ? styles.page : styles.hiddenPage}><ContactScreen /></View>
+          {(['ask', 'resources'] as const).map(page => (
+            <View key={page} style={tab === page ? styles.page : styles.hiddenPage}>
+              <QueryPage page={page} active={tab === page} campus={campus} onCampusChange={handleCampusChange}
+                onEmergencySupportPress={() => setEmergencyVisible(true)} onReturnToAsk={() => setTab('ask')} />
+            </View>
+          ))}
+        </View>
+        <SafeAreaView style={styles.footer} edges={['bottom']}>
+          <TouchableOpacity
+            style={styles.urgentSupportButton}
+            onPress={() => setEmergencyVisible(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Get urgent support"
+            accessibilityHint="Opens urgent support options without making a call"
+          >
+            <Text style={styles.urgentSupportText}>Need urgent support?</Text>
+          </TouchableOpacity>
+          <TabBar
+            active={tab}
+            onChange={setTab}
+          />
+        </SafeAreaView>
+        <EmergencySupportSheet visible={emergencyVisible} onClose={() => setEmergencyVisible(false)} />
+      </SafeAreaView>
+    </KeyboardAvoidingView>
+  );
+}
+
+type QueryPageProps = {
+  page: 'ask' | 'resources';
+  active: boolean;
+  campus: Campus | null;
+  onCampusChange: (campus: Campus | null) => void;
+  onEmergencySupportPress: () => void;
+  onReturnToAsk: () => void;
+};
+
+function QueryPage({ page, active, campus, onCampusChange, onEmergencySupportPress, onReturnToAsk }: QueryPageProps) {
+  const [result, setResult] = useState<QueryResult | null>(null);
+  const [showResourceMap, setShowResourceMap] = useState(false);
+  const [showLocationPaths, setShowLocationPaths] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const requestId = useRef(0);
+  const [resourceSearch, setResourceSearch] = useState('');
+  const [mapError, setMapError] = useState<{ serviceId: string; locationName: string } | null>(null);
+  const handleAskAnother = () => {
+    setMapError(null);
+    requestId.current += 1;
+    setLoading(false);
+    setShowResourceMap(false);
+    setShowLocationPaths(false);
+    setResult(null);
+  };
+  useEffect(() => {
+    if (!active) return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (loading) {
+        requestId.current += 1;
+        setLoading(false);
+        return true;
+      }
+      if (result) {
+        handleAskAnother();
+        return true;
+      }
+      if (page === 'ask') return false;
+      onReturnToAsk();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [active, loading, result, page, onReturnToAsk]);
+
   const handleSubmit = async (query: string) => {
     if (/\b(mental health|counselling|counseling|anxious|anxiety|overwhelmed|stressed|talk to someone)\b/i.test(query)) {
       return handleTalkSupport();
     }
     if (/\b(accessibility|accommodation|disability|adaptive technology|assistive technology|note taker|exam accommodation)\b/i.test(query)) {
-      return handleAccessibilityServices('ask', query);
+      return handleAccessibilityServices(query);
     }
 
     const currentRequestId = ++requestId.current;
-    setResultSource('ask');
     setShowLocationPaths(false);
     setLoading(true);
     try {
       const r = await resolveQuery(query, undefined, campus?.id);
       if (currentRequestId === requestId.current) {
-        setResultsByTab((current) => ({ ...current, ask: r }));
+        setResult(r);
       }
     } catch (err) {
       console.error(err);
       if (currentRequestId === requestId.current) {
-        setResultsByTab((current) => ({ ...current, ask: createRecoveryResult(query, err) }));
+        setResult(createRecoveryResult(query, err));
       }
     } finally {
       if (currentRequestId === requestId.current) setLoading(false);
     }
   };
 
-  const handleAskAnother = () => {
-    setResultsByTab((current) => {
-      const next = { ...current };
-      delete next[resultSource];
-      return next;
-    });
-    setTab(resultSource);
-  };
-
   const handleRetry = () => {
     if (result?.type !== 'recovery') return;
-    const source = resultSource;
-    if (source === 'ask') {
+    if (page === 'ask') {
       void handleSubmit(result.query);
       return;
     }
@@ -747,13 +783,13 @@ function AppContent() {
     void resolveQuery(result.query, undefined, campus?.id)
       .then((nextResult) => {
         if (currentRequestId === requestId.current) {
-          setResultsByTab((current) => ({ ...current, [source]: nextResult }));
+          setResult(nextResult);
         }
       })
       .catch((error) => {
         console.warn('Could not retry campus resource:', error);
         if (currentRequestId === requestId.current) {
-          setResultsByTab((current) => ({ ...current, [source]: createRecoveryResult(result.query, error) }));
+          setResult(createRecoveryResult(result.query, error));
         }
       })
       .finally(() => {
@@ -764,19 +800,18 @@ function AppContent() {
   const loadMapDestination = async (
     endpoint: string,
     fallback: QueryResult,
-    source: TabKey = 'ask',
     query?: string,
     serviceId?: string,
     requestRoute = false,
   ) => {
     const currentRequestId = ++requestId.current;
-    setResultSource(source);
-    setShowResourceMap(source !== 'resources' || Boolean(campus) || requestRoute);
+    setShowResourceMap(page !== 'resources' || Boolean(campus) || requestRoute);
     setShowLocationPaths(false);
 
     // When the student explicitly asked to be routed somewhere (a "show on map"
     // / directions action), offer to use their location so we can draw a path.
     // Declining still pins the destination — the backend geocodes the address.
+    setLoading(true);
     let location: DeviceLocation | undefined;
     if (requestRoute) {
       try {
@@ -786,7 +821,6 @@ function AppContent() {
       }
     }
 
-    setLoading(true);
     try {
       const apiUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
 
@@ -799,15 +833,15 @@ function AppContent() {
       });
 
       if (!response.ok) throw new Error(`Map request failed (${response.status})`);
+      const nextResult = (await response.json()) as QueryResult;
       if (currentRequestId === requestId.current) {
-        const nextResult = (await response.json()) as QueryResult;
         setShowLocationPaths(Boolean(location));
-        setResultsByTab((current) => ({ ...current, [source]: nextResult }));
+        setResult(nextResult);
       }
     } catch (error) {
       console.warn('Could not load map destination:', error);
       if (currentRequestId === requestId.current) {
-        setResultsByTab((current) => ({ ...current, [source]: fallback }));
+        setResult(fallback);
       }
     } finally {
       if (currentRequestId === requestId.current) setLoading(false);
@@ -816,16 +850,15 @@ function AppContent() {
 
   const handleLostTCard = () => loadMapDestination('/api/tcard-office', TCARD_OFFICE_FALLBACK);
 
-  const handleAccessibilityServices = (source: TabKey = 'ask', query?: string) =>
-    loadMapDestination('/api/accessibility-services', accessibilityFallbackFor(query), source, query);
+  const handleAccessibilityServices = (query?: string) =>
+    loadMapDestination('/api/accessibility-services', accessibilityFallbackFor(query), query);
 
-  const handleTalkSupport = (source: TabKey = 'ask') =>
-    loadMapDestination('/api/health-wellness', HEALTH_WELLNESS_FALLBACK, source);
+  const handleTalkSupport = () =>
+    loadMapDestination('/api/health-wellness', HEALTH_WELLNESS_FALLBACK);
 
   const handleCollegeSelect = (
     collegeId: string,
     serviceId: 'academic-success' | 'financial-aid' | 'registrar-enrolment' = 'registrar-enrolment',
-    source: TabKey = 'ask',
     requestRoute = false,
   ) =>
     loadMapDestination(`/api/college-service/${collegeId}`, {
@@ -845,27 +878,26 @@ function AppContent() {
         : serviceId === 'academic-success'
           ? 'We could not load your college academic advising office. Please try again shortly.'
           : 'We could not load your college registrar’s office. Please try again shortly.',
-    }, source, undefined, serviceId, requestRoute);
+    }, undefined, serviceId, requestRoute);
 
   const handleResolveDisambiguation = (option: DisambiguationOption) => {
     switch (option.action.kind) {
       case 'mental-health':
-        return handleTalkSupport('ask');
+        return handleTalkSupport();
       case 'accessibility':
-        return handleAccessibilityServices('ask');
+        return handleAccessibilityServices();
       case 'resource':
         // The disambiguation prompt lives on the Ask tab, so the result must
         // render there — not on the Resources tab.
-        return handleStudentLifeResource(option.action.resourceId, 'ask');
+        return handleStudentLifeResource(option.action.resourceId);
     }
   };
 
-  const handleStudentLifeResource = async (resourceId: string, source: TabKey = 'resources') => {
+  const handleStudentLifeResource = async (resourceId: string) => {
     const resource = STUDENT_LIFE_RESOURCES[resourceId];
     const query = STUDENT_LIFE_RESOURCE_QUERIES[resourceId];
     if (!resource || !query) return;
     const currentRequestId = ++requestId.current;
-    setResultSource(source);
     setShowResourceMap(Boolean(campus));
     setShowLocationPaths(false);
     setLoading(true);
@@ -890,7 +922,7 @@ function AppContent() {
     // directly so these options always render a valid, useful list.
     if (LOCAL_ONLY_RESOURCES.has(resourceId)) {
       if (currentRequestId === requestId.current) {
-        setResultsByTab((current) => ({ ...current, [source]: withCampusFilteredLocations(resource, campus?.id) }));
+        setResult(withCampusFilteredLocations(resource, campus?.id));
         setLoading(false);
       }
       return;
@@ -900,12 +932,12 @@ function AppContent() {
       setShowLocationPaths(false);
       const response = await resolveQuery(query, undefined, campus?.id);
       if (currentRequestId === requestId.current) {
-        setResultsByTab((current) => ({ ...current, [source]: withResourcesTabLabel(response) }));
+        setResult(withResourcesTabLabel(response));
       }
     } catch (error) {
       console.warn('Could not load campus resource locations:', error);
       if (currentRequestId === requestId.current) {
-        setResultsByTab((current) => ({ ...current, [source]: withResourcesTabLabel(resource) }));
+        setResult(withResourcesTabLabel(resource));
       }
     } finally {
       if (currentRequestId === requestId.current) setLoading(false);
@@ -914,11 +946,12 @@ function AppContent() {
 
   const handleCampusLocationPress = async (serviceId: string, campusLocationName: string) => {
     const currentRequestId = ++requestId.current;
-    const source = resultSource;
+    setMapError(null);
     setShowLocationPaths(false);
 
     // Offer to use the student's location so we can draw a walking path. If they
     // decline (or it is unavailable), we still pin the destination on the map.
+    setLoading(true);
     let location: DeviceLocation | undefined;
     try {
       location = await getCurrentLocation();
@@ -926,7 +959,6 @@ function AppContent() {
       location = undefined;
     }
 
-    setLoading(true);
     try {
       if (!API_BASE_URL) throw new Error('Missing EXPO_PUBLIC_API_URL');
 
@@ -936,22 +968,15 @@ function AppContent() {
         body: JSON.stringify({ serviceId, campusLocationName, location }),
       });
       if (!response.ok) throw new Error(`Campus map request failed (${response.status})`);
+      const nextResult = (await response.json()) as QueryResult;
       if (currentRequestId === requestId.current) {
-        const nextResult = (await response.json()) as QueryResult;
         setShowResourceMap(true);
         setShowLocationPaths(Boolean(location));
-        setResultsByTab((current) => ({ ...current, [source]: nextResult }));
+        setResult(nextResult);
       }
     } catch (error) {
       console.warn('Could not load selected campus map:', error);
-      Alert.alert(
-        'Could not update directions',
-        'Your current result is still available. Please try again.',
-        [
-          { text: 'Not now', style: 'cancel' },
-          { text: 'Try again', onPress: () => void handleCampusLocationPress(serviceId, campusLocationName) },
-        ],
-      );
+      if (currentRequestId === requestId.current) setMapError({ serviceId, locationName: campusLocationName });
     } finally {
       if (currentRequestId === requestId.current) setLoading(false);
     }
@@ -979,14 +1004,7 @@ function AppContent() {
 
       const route = await response.json() as Pick<LocationResult, 'travelMinutes' | 'polyline'>;
       if (currentRequestId === requestId.current) {
-        setResultsByTab((current) => {
-          const sourceResult = current[resultSource];
-          if (sourceResult?.type !== 'location') return current;
-          return {
-            ...current,
-            [resultSource]: { ...sourceResult, travelMinutes: route.travelMinutes, polyline: route.polyline },
-          };
-        });
+        setResult(current => current?.type === 'location' ? { ...current, travelMinutes: route.travelMinutes, polyline: route.polyline } : current);
       }
       return true;
     } catch (error) {
@@ -997,6 +1015,7 @@ function AppContent() {
 
   const handleShowWalkingRoute = async (): Promise<boolean> => {
     if (result?.type !== 'location' || !result.destination) return false;
+    const currentRequestId = ++requestId.current;
 
     try {
       const location = await getCurrentLocation();
@@ -1015,19 +1034,13 @@ function AppContent() {
       });
       if (!response.ok) throw new Error(`Route request failed (${response.status})`);
       const route = await response.json() as Pick<LocationResult, 'travelMinutes' | 'polyline'>;
-      setResultsByTab((current) => {
-        const sourceResult = current[resultSource];
-        if (sourceResult?.type !== 'location') return current;
-        return {
-          ...current,
-          [resultSource]: {
-            ...sourceResult,
+      if (currentRequestId !== requestId.current) return false;
+      setResult(current => current?.type === 'location' ? {
+            ...current,
             origin: { latitude: location.lat, longitude: location.lng },
             travelMinutes: route.travelMinutes,
             polyline: route.polyline,
-          },
-        };
-      });
+          } : current);
       setShowLocationPaths(true);
       return true;
     } catch (error) {
@@ -1036,139 +1049,39 @@ function AppContent() {
     }
   };
 
-  const renderNonTaiBody = () => {
-    if (tab === 'contact') {
-      return null;
-    }
-
-    if (loading) {
-      return (
-        <View style={styles.loadingScreen}>
-          <ActivityIndicator color={colors.accent} size="large" />
-          <Text style={styles.loadingText}>Finding the right resource...</Text>
-        </View>
-      );
-    }
-
-    if (result && resultSource === tab) {
-      return (
-        <ResultScreen
-          result={result}
-          showMap={resultSource !== 'resources' || showResourceMap}
-          showLocationPaths={showLocationPaths}
-          onAskAnother={handleAskAnother}
-          onRetry={handleRetry}
-          onTravelModeChange={updateTravelRoute}
-          onShowWalkingRoute={handleShowWalkingRoute}
-          onCampusLocationPress={handleCampusLocationPress}
-          onCollegeSelect={(collegeId, serviceId) => handleCollegeSelect(collegeId, serviceId, resultSource, true)}
-        />
-      );
-    }
-
-    if (tab === 'resources') {
-      return (
-        <ResourcesScreen
-          onMentalHealthPress={() => handleTalkSupport('resources')}
-          onAccessibilityPress={() => handleAccessibilityServices('resources')}
-          onStudentLifePress={handleStudentLifeResource}
-          search={resourceSearch}
-          setSearch={setResourceSearch}
-          initialScrollOffset={resourcesScrollOffset.current}
-          onScrollOffsetChange={(offset) => {
-            resourcesScrollOffset.current = offset;
-          }}
-        />
-      );
-    }
-
-    if (tab !== 'ask') {
-      return (
-        <View style={styles.placeholderScreen}>
-          <Text style={styles.placeholderText}>
-            {/* @ts-expect-error The branch is intentionally unreachable for Resources. */}
-            {tab === 'resources' ? 'Resources' : 'Saved'} screen — coming soon
-          </Text>
-        </View>
-      );
-    }
-
-    if (loading) {
-      return (
-        <View style={styles.loadingScreen}>
-          <ActivityIndicator color={colors.accent} size="large" />
-          <Text style={styles.loadingText}>Finding the right resource...</Text>
-        </View>
-      );
-    }
-
-    if (result && resultSource === tab) {
-      return (
-        <ResultScreen
-          result={result}
-          showMap
-          showLocationPaths={showLocationPaths}
-          onAskAnother={handleAskAnother}
-          onRetry={handleRetry}
-          onTravelModeChange={updateTravelRoute}
-          onShowWalkingRoute={handleShowWalkingRoute}
-          onCampusLocationPress={handleCampusLocationPress}
-          onCollegeSelect={(collegeId, serviceId) => handleCollegeSelect(collegeId, serviceId, resultSource, true)}
-        />
-      );
-    }
-
-    return (
-      <AskScreen
-        onSubmit={handleSubmit}
-        onTCardPress={handleLostTCard}
-        onTalkSupportPress={handleTalkSupport}
-        onAccessibilityPress={handleAccessibilityServices}
-        onResolveDisambiguation={handleResolveDisambiguation}
-        onEmergencySupportPress={() => setEmergencyVisible(true)}
-        campus={campus}
-        onCampusChange={handleCampusChange}
-      />
-    );
-  };
-
-  // The shell owns system insets; screens must not reserve them again.
   return (
-    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
-        <StatusBar style="dark" />
-        <View style={styles.body}>
-          <View style={tab === 'tai' ? styles.taiScreen : styles.hiddenTaiScreen}>
-            <TAIScreen campus={campus?.id} />
-          </View>
-          <View style={tab === 'contact' ? styles.taiScreen : styles.hiddenTaiScreen}><ContactScreen /></View>
-          {tab !== 'tai' && renderNonTaiBody()}
+    <>
+      <View style={loading || result ? styles.hiddenPage : styles.page}>
+        {page === 'resources' ? (
+          <ResourcesScreen onMentalHealthPress={handleTalkSupport} onAccessibilityPress={handleAccessibilityServices}
+            onStudentLifePress={handleStudentLifeResource} search={resourceSearch} setSearch={setResourceSearch} />
+        ) : (
+          <AskScreen onSubmit={handleSubmit} onTCardPress={handleLostTCard} onTalkSupportPress={handleTalkSupport}
+            onAccessibilityPress={handleAccessibilityServices} onResolveDisambiguation={handleResolveDisambiguation}
+            onEmergencySupportPress={onEmergencySupportPress} campus={campus} onCampusChange={onCampusChange} />
+        )}
+      </View>
+      {result && (
+        <View style={loading ? styles.hiddenPage : styles.page}>
+          {mapError && (
+            <TouchableOpacity style={styles.routeRetry} accessibilityRole="button"
+              onPress={() => void handleCampusLocationPress(mapError.serviceId, mapError.locationName)}>
+              <Text style={styles.loadingText}>Directions could not be updated. Tap to retry.</Text>
+            </TouchableOpacity>
+          )}
+          <ResultScreen backLabel={page === 'resources' ? 'Back to resources' : 'Back to Ask'} result={result} showMap={page === 'ask' || showResourceMap} showLocationPaths={showLocationPaths}
+            onAskAnother={handleAskAnother} onRetry={handleRetry} onTravelModeChange={updateTravelRoute}
+            onShowWalkingRoute={handleShowWalkingRoute} onCampusLocationPress={handleCampusLocationPress}
+            onCollegeSelect={(collegeId, serviceId) => handleCollegeSelect(collegeId, serviceId, true)} />
         </View>
-        <SafeAreaView style={styles.footer} edges={['bottom']}>
-          <TouchableOpacity
-            style={styles.urgentSupportButton}
-            onPress={() => setEmergencyVisible(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Get urgent support"
-            accessibilityHint="Opens urgent support options without making a call"
-          >
-            <Text style={styles.urgentSupportText}>Need urgent support?</Text>
-          </TouchableOpacity>
-          <TabBar
-            active={tab}
-            onChange={(key) => {
-              if (key === tab) return;
-              requestId.current += 1;
-              setTab(key);
-              setResultSource(key);
-              setShowLocationPaths(false);
-              setLoading(false);
-            }}
-          />
-        </SafeAreaView>
-        <EmergencySupportSheet visible={emergencyVisible} onClose={() => setEmergencyVisible(false)} />
-      </SafeAreaView>
-    </KeyboardAvoidingView>
+      )}
+      {loading && (
+        <View style={styles.loadingScreen}>
+          <ActivityIndicator color={colors.accent} size="large" />
+          <Text accessibilityLiveRegion="polite" style={styles.loadingText}>Finding the right resource...</Text>
+        </View>
+      )}
+    </>
   );
 }
 
@@ -1176,10 +1089,11 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   body: { flex: 1 },
   footer: { backgroundColor: colors.surface },
-  taiScreen: { flex: 1 },
-  hiddenTaiScreen: { display: 'none' },
+  page: { flex: 1 },
+  hiddenPage: { display: 'none' },
   urgentSupportButton: { alignItems: 'center', backgroundColor: colors.dangerSurface, borderTopColor: colors.danger, borderTopWidth: 2, justifyContent: 'center', minHeight: Platform.OS === 'ios' ? 44 : 48 },
   urgentSupportText: { color: colors.danger, fontSize: fontSize.base, fontWeight: '700' },
+  routeRetry: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 16 },
   loadingScreen: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   loadingText: { color: colors.textSecondary, fontSize: fontSize.base },
   placeholderScreen: { flex: 1, alignItems: 'center', justifyContent: 'center' },
