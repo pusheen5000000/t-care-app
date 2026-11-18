@@ -1,7 +1,8 @@
+import { SystemAwareModal } from './SystemAwareModal';
 import React from 'react';
 import * as Clipboard from 'expo-clipboard';
 import * as IntentLauncher from 'expo-intent-launcher';
-import { Alert, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors, fontSize, radius, spacing } from '../theme';
 
 type Props = { visible: boolean; onClose: () => void };
@@ -29,7 +30,7 @@ export function EmergencySupportSheet({ visible, onClose }: Props) {
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <SystemAwareModal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={styles.sheet} accessibilityViewIsModal>
           <TouchableOpacity style={styles.closeButton} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close urgent support">
@@ -68,7 +69,7 @@ export function EmergencySupportSheet({ visible, onClose }: Props) {
           </ScrollView>
         </View>
       </View>
-    </Modal>
+    </SystemAwareModal>
   );
 }
 

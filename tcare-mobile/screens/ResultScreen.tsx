@@ -1,6 +1,6 @@
+import { SystemAwareModal } from '../components/SystemAwareModal';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Modal,
   Pressable,
   View,
   Text,
@@ -449,7 +449,7 @@ function SupportResourcesSection({
       <ResourceLinks title="U of T Resources" links={universityLinks} query={query} contextTitle={resultTitle} />
       </View>
 
-      <Modal visible={collegePickerService !== null} transparent animationType="fade" onRequestClose={() => setCollegePickerService(null)}>
+      <SystemAwareModal visible={collegePickerService !== null} transparent animationType="fade" onRequestClose={() => setCollegePickerService(null)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setCollegePickerService(null)}>
           <Pressable style={styles.modalCard} onPress={() => undefined} accessibilityViewIsModal>
             <Text style={styles.modalTitle}>Choose your college</Text>
@@ -486,7 +486,7 @@ function SupportResourcesSection({
             </TouchableOpacity>
           </Pressable>
         </Pressable>
-      </Modal>
+      </SystemAwareModal>
     </>
   );
 }

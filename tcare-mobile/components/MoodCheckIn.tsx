@@ -1,5 +1,6 @@
+import { SystemAwareModal } from './SystemAwareModal';
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { colors, spacing, fontSize, radius } from '../theme';
 
 type Mood = 'good' | 'okay' | 'struggling';
@@ -74,7 +75,7 @@ export function MoodCheckIn({ visible, mood, onClose, onEmergencySupportPress }:
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
+    <SystemAwareModal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
       <View style={styles.overlay}>
         <View style={styles.card}>
           <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close mood check-in" style={styles.closeButton} onPress={handleClose}>
@@ -85,7 +86,7 @@ export function MoodCheckIn({ visible, mood, onClose, onEmergencySupportPress }:
           </ScrollView>
         </View>
       </View>
-    </Modal>
+    </SystemAwareModal>
   );
 }
 

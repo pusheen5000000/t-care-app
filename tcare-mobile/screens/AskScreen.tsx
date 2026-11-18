@@ -1,13 +1,15 @@
+import { Platform } from 'react-native';
+import { SystemAwareModal } from '../components/SystemAwareModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import React, { useEffect, useState } from 'react';
 import {
   View,
+  Image,
   Text,
   TextInput,
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  Modal,
   Pressable,
 } from 'react-native';
 import { colors, spacing, fontSize, radius } from '../theme';
@@ -128,14 +130,21 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
   return (
     <View style={styles.container}>
       <View style={[styles.flex, !isLayoutReady && styles.pendingLayout]}>
-        <View style={styles.header}>
-          <View style={styles.logoBox}><Text style={styles.logoText}>T</Text></View>
-          <Text style={styles.headerTitle}>T-Care</Text>
-        </View>
-
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <Text style={styles.greeting} accessibilityRole="header">How can we help?</Text>
-          <Text style={styles.subtitle}>Ask a question. We’ll find the next step.</Text>
+          <View style={styles.header}>
+            <Image
+              source={require('../assets/t-care.png')}
+              style={styles.logo}
+              resizeMode="contain"
+              accessible
+              accessibilityRole="image"
+              accessibilityLabel="T-Care"
+            />
+            <View style={styles.introduction}>
+              <Text style={styles.greeting} accessibilityRole="header">How can we help?</Text>
+              <Text style={styles.subtitle}>Ask a question. We’ll find the next step.</Text>
+            </View>
+          </View>
 
           <TouchableOpacity
             style={styles.campusControl}
@@ -214,13 +223,13 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
 
       <MoodCheckIn visible={activeMood !== null} mood={activeMood} onClose={() => setActiveMood(null)} onEmergencySupportPress={onEmergencySupportPress} />
 
-      <Modal visible={campusPickerVisible} transparent animationType="none" onRequestClose={() => setCampusPickerVisible(false)}>
+      <SystemAwareModal visible={campusPickerVisible} transparent animationType="none" onRequestClose={() => setCampusPickerVisible(false)}>
         <View style={styles.modalBackdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setCampusPickerVisible(false)} accessible={false} importantForAccessibility="no" />
           <View
             style={[
               styles.modalCard,
-              { maxHeight: '90%', paddingBottom: Math.max(spacing.xl, insets.bottom) },
+              { maxHeight: '90%', paddingBottom: Platform.OS === 'android' ? spacing.xl : Math.max(spacing.xl, insets.bottom) },
             ]}
           >
             <ScrollView accessibilityViewIsModal>
@@ -249,7 +258,7 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
             </ScrollView>
           </View>
         </View>
-      </Modal>
+      </SystemAwareModal>
     </View>
   );
 }
@@ -258,25 +267,24 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
   pendingLayout: { opacity: 0 },
-  header: { alignItems: 'center', borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.xl, paddingVertical: spacing.md },
-  logoBox: { alignItems: 'center', backgroundColor: colors.accent, borderRadius: radius.md, height: 32, justifyContent: 'center', width: 32 },
-  logoText: { includeFontPadding: false, textAlignVertical: 'center', color: colors.yellow, fontSize: 16, fontWeight: '700' },
-  headerTitle: { color: colors.textPrimary, fontSize: fontSize.md, fontWeight: '700' },
+  header: { alignItems: 'center', flexDirection: 'row', gap: spacing.lg, marginBottom: spacing.xl },
+  logo: { width: 52, height: 62, flexShrink: 0 },
+  introduction: { flex: 1 },
   scrollContent: { width: '100%', maxWidth: 680, alignSelf: 'center', padding: spacing.xl, paddingBottom: spacing.xxl },
-  greeting: { color: colors.textPrimary, fontSize: 28, fontWeight: '700', marginBottom: spacing.sm },
-  subtitle: { color: colors.textSecondary, fontSize: 16, lineHeight: 24, marginBottom: spacing.xl },
+  greeting: { color: colors.textPrimary, fontSize: 22, fontWeight: '700', marginBottom: spacing.xs },
+  subtitle: { color: colors.textSecondary, fontSize: 14, lineHeight: 20 },
   askPanel: { gap: spacing.md, marginBottom: spacing.xxl },
   inputLabel: { color: colors.textPrimary, fontSize: 16, fontWeight: '600' },
   inputFocused: { borderColor: colors.accent, backgroundColor: colors.infoBg },
   askButtonTextDisabled: { color: colors.textSecondary },
-  input: { color: colors.textPrimary, borderColor: colors.textMuted, borderWidth: 2, borderRadius: radius.md, padding: spacing.md, fontSize: 16, lineHeight: 24, minHeight: 112, textAlignVertical: 'top' },
+  input: { color: colors.textPrimary, borderColor: colors.textMuted, borderWidth: 1, borderRadius: radius.md, padding: spacing.lg, fontSize: 16, lineHeight: 24, minHeight: 112, textAlignVertical: 'top' },
   askButton: { alignItems: 'center', backgroundColor: colors.accent, borderRadius: radius.md, justifyContent: 'center', minHeight: 48, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
   askButtonDisabled: { backgroundColor: colors.surfaceMuted },
   askButtonText: { includeFontPadding: false, textAlignVertical: 'center', color: colors.accentOn, fontSize: 16, fontWeight: '700' },
-  popularHeading: { color: colors.textPrimary, fontSize: fontSize.lg, fontWeight: '700', marginBottom: spacing.sm },
+  popularHeading: { color: colors.textPrimary, fontSize: fontSize.lg, fontWeight: '600', marginBottom: spacing.sm },
   chipList: { gap: 0 },
   chip: { alignItems: 'center', borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: 'row', justifyContent: 'space-between', minHeight: 56, paddingVertical: spacing.md },
-  chipText: { includeFontPadding: false, textAlignVertical: 'center', color: colors.textPrimary, flex: 1, fontSize: 16, fontWeight: '600' },
+  chipText: { includeFontPadding: false, textAlignVertical: 'center', color: colors.textPrimary, flex: 1, fontSize: 16, fontWeight: '400' },
   chipChevron: { includeFontPadding: false, textAlignVertical: 'center', color: colors.accent, fontSize: 24, marginLeft: spacing.md },
   campusControl: { alignItems: 'center', borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, justifyContent: 'space-between', marginBottom: spacing.xl, minHeight: 48, paddingVertical: spacing.sm },
   campusControlLabel: { includeFontPadding: false, textAlignVertical: 'center', color: colors.textSecondary, fontSize: fontSize.base, fontWeight: '600' },
@@ -285,11 +293,11 @@ const styles = StyleSheet.create({
   wellbeingHeader: { marginBottom: spacing.sm },
   wellbeingTitle: { color: colors.textPrimary, fontSize: fontSize.lg, fontWeight: '600' },
   wellbeingHint: { color: colors.textSecondary, fontSize: fontSize.base, marginTop: 2 },
-  moodRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  moodButton: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, flexGrow: 1, flexBasis: 120, flexDirection: 'row', gap: spacing.sm, minHeight: 48, justifyContent: 'center', padding: spacing.md },
+  moodRow: { flexDirection: 'row', gap: spacing.sm },
+  moodButton: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, flex: 1, gap: spacing.sm, minHeight: 48, justifyContent: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.xs },
   moodButtonActive: { backgroundColor: colors.surface, borderColor: colors.accent },
   moodEmoji: { fontSize: 24 },
-  moodLabel: { includeFontPadding: false, textAlignVertical: 'center', flexShrink: 1, color: colors.textSecondary, fontSize: fontSize.base, fontWeight: '600' },
+  moodLabel: { includeFontPadding: false, textAlignVertical: 'center', textAlign: 'center', flexShrink: 1, color: colors.textSecondary, fontSize: fontSize.base, fontWeight: '600' },
   moodLabelActive: { color: colors.textPrimary },
   talkSupportButton: { alignItems: 'center', borderColor: colors.purple, borderRadius: radius.md, borderWidth: 1, justifyContent: 'center', marginTop: spacing.sm, minHeight: 48 },
   talkSupportText: { includeFontPadding: false, textAlignVertical: 'center', color: colors.textPrimary, fontSize: 16, fontWeight: '700' },

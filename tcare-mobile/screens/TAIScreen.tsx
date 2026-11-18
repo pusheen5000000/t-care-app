@@ -1,3 +1,4 @@
+import { SystemAwareModal } from '../components/SystemAwareModal';
 import { useWindowDimensions } from 'react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { KeyboardChatScrollView, KeyboardStickyView } from 'react-native-keyboard-controller';
@@ -7,6 +8,7 @@ import MapView, { Marker, Polyline } from 'react-native-maps';
 import {
   Animated,
   ActivityIndicator,
+  Image,
   Platform,
   ScrollView,
   StyleSheet,
@@ -14,7 +16,6 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  Modal,
   Pressable,
 } from 'react-native';
 import { colors, fontSize, radius, spacing } from '../theme';
@@ -534,19 +535,19 @@ export function TAIScreen({ campus, footerHeight }: { campus?: 'utsg' | 'utsc' |
     <View style={styles.safeArea}>
       <View style={styles.root}>
       <View style={styles.header}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarEmoji}>🤖</Text>
-        </View>
-        <View>
-          <Text style={styles.headerTitle} numberOfLines={1}>Follow-up conversation</Text>
-          <View style={styles.statusRow}>
-            <View style={styles.statusDot} />
-            <Text style={styles.statusText}>Online</Text>
-          </View>
+        <Image
+          source={require('../assets/t-care.png')}
+          style={styles.headerLogo}
+          resizeMode="contain"
+          accessible
+          accessibilityRole="image"
+          accessibilityLabel="T-Care"
+        />
+        <View style={styles.headerCopy}>
+          <Text style={styles.headerTitle} accessibilityRole="header">Chat with T-AI</Text>
+          <Text style={styles.followUpHint}>Continue a question after you&apos;ve explored a result in Ask or Resources.</Text>
         </View>
       </View>
-
-      <Text style={styles.followUpHint}>Continue a question after you&apos;ve explored a result in Ask or Resources.</Text>
 
       <View style={styles.conversation}>
       {/* Match the dock's footer offset so messages and input share the native keyboard curve. */}
@@ -702,7 +703,7 @@ export function TAIScreen({ campus, footerHeight }: { campus?: 'utsg' | 'utsc' |
       </KeyboardStickyView>
       </View>
 
-      <Modal visible={collegePickerVisible} transparent animationType="fade" onRequestClose={() => setCollegePickerVisible(false)}>
+      <SystemAwareModal visible={collegePickerVisible} transparent animationType="fade" onRequestClose={() => setCollegePickerVisible(false)}>
         <View style={styles.modalBackdrop}>
           <Pressable style={styles.modalDismissArea} onPress={() => setCollegePickerVisible(false)} accessibilityRole="button" accessibilityLabel="Close campus selector" />
           <View style={styles.modalCard} accessibilityViewIsModal>
@@ -729,7 +730,7 @@ export function TAIScreen({ campus, footerHeight }: { campus?: 'utsg' | 'utsc' |
             </ScrollView>
           </View>
         </View>
-      </Modal>
+      </SystemAwareModal>
       {mapLoadingLocation && (
         <View
           style={styles.mapLoadingOverlay}
@@ -755,28 +756,18 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
+    gap: spacing.lg,
+    paddingHorizontal: spacing.xl,
     paddingTop: spacing.lg,
     paddingBottom: spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     backgroundColor: colors.surface,
   },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarEmoji: { fontSize: 18 },
-  headerTitle: { color: colors.textPrimary, fontSize: fontSize.md, fontWeight: '700' },
-  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.success },
-  statusText: { color: colors.textMuted, fontSize: fontSize.sm },
-  followUpHint: { backgroundColor: colors.infoBg, color: colors.infoText, fontSize: fontSize.sm, lineHeight: 18, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
+  headerLogo: { width: 40, height: 48, flexShrink: 0 },
+  headerCopy: { flex: 1, gap: spacing.xs },
+  headerTitle: { color: colors.textPrimary, fontSize: fontSize.lg, fontWeight: '700' },
+  followUpHint: { color: colors.textSecondary, fontSize: fontSize.base, lineHeight: 20 },
   conversation: { flex: 1, minHeight: 0 },
   composerDock: { position: 'absolute', bottom: 0, left: 0, right: 0 },
   jumpOverlay: { position: 'absolute', bottom: '100%', marginBottom: spacing.sm, left: 0, right: 0, backgroundColor: 'transparent' },

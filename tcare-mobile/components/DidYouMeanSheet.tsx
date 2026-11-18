@@ -1,5 +1,7 @@
+import { Platform } from 'react-native';
+import { SystemAwareModal } from './SystemAwareModal';
 import React from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fontSize, radius, spacing } from '../theme';
 import type { DisambiguationOption, DisambiguationPrompt } from '../utils/disambiguation';
@@ -23,9 +25,9 @@ export function DidYouMeanSheet({ prompt, onSelect, onAskAnyway, onClose }: Prop
   const insets = useSafeAreaInsets();
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <SystemAwareModal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={[styles.card, { paddingBottom: Math.max(spacing.xl, insets.bottom), paddingLeft: spacing.xl + insets.left, paddingRight: spacing.xl + insets.right }]} onPress={() => undefined} accessibilityViewIsModal>
+        <Pressable style={[styles.card, { paddingBottom: Platform.OS === 'android' ? spacing.xl : Math.max(spacing.xl, insets.bottom), paddingLeft: spacing.xl + (Platform.OS === 'android' ? 0 : insets.left), paddingRight: spacing.xl + (Platform.OS === 'android' ? 0 : insets.right) }]} onPress={() => undefined} accessibilityViewIsModal>
           <View style={styles.handle} accessibilityElementsHidden />
           <Text style={styles.question}>{prompt?.question ?? 'Did you mean:'}</Text>
           {prompt?.trigger ? (
@@ -65,7 +67,7 @@ export function DidYouMeanSheet({ prompt, onSelect, onAskAnyway, onClose }: Prop
           </TouchableOpacity>
         </Pressable>
       </Pressable>
-    </Modal>
+    </SystemAwareModal>
   );
 }
 
