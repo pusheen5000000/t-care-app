@@ -25,18 +25,18 @@ type Props = {
 };
 
 const STUDENT_LIFE_RESOURCES = [
-  { id: 'financial-aid', label: 'Financial Aid & Awards', description: 'Explore awards, UTAPS, OSAP, grants, and funding support.', icon: '$', tone: 'financialIcon' },
-  { id: 'housing', label: 'Housing & Residence', description: 'Apply for residence or get help finding a place to live.', icon: 'H', tone: 'housingIcon' },
-  { id: 'international', label: 'International Student Support', description: 'Get help with immigration, permits, UHIP, and settling in.', icon: 'INT', tone: 'internationalIcon' },
-  { id: 'registrar', label: 'Registrar & Enrolment', description: 'Manage courses, records, fees, and university deadlines.', icon: 'REG', tone: 'registrarIcon' },
-  { id: 'safety', label: 'Campus Safety', description: 'Find emergency contacts, safety planning, and escort services.', icon: 'SAFE', tone: 'safetyIcon' },
-  { id: 'career', label: 'Career Support', description: 'Book advising, explore careers, and find job-search support.', icon: 'CAR', tone: 'careerIcon' },
-  { id: 'libraries-it', label: 'Libraries & IT', description: 'Access study spaces, research tools, Wi-Fi, and tech help.', icon: 'LIB', tone: 'librariesIcon' },
-  { id: 'learning-strategies', label: 'Study Skills & Learning Support', description: 'Build study, writing, time-management, and exam-preparation strategies.', icon: 'STDY', tone: 'learningIcon' },
-  { id: 'indigenous-support', label: 'Indigenous Student Support', description: 'Connect with culturally relevant academic, wellness, financial, and community support.', icon: 'INDI', tone: 'indigenousIcon' },
-  { id: 'food', label: 'Food & Basic Needs', description: 'Find food-bank support and other community resources.', icon: 'FOOD', tone: 'foodIcon' },
-  { id: 'tenant-rights', label: 'Tenant Rights & Legal Help', description: 'Get guidance for off-campus housing concerns and tenant-rights questions.', icon: 'LAW', tone: 'legalIcon' },
-  { id: 'sexual-violence', label: 'Sexual Violence Support', description: 'Access confidential, non-judgmental support and options.', icon: 'SV', tone: 'sexualViolenceIcon' },
+  { id: 'financial-aid', keywords: 'bursary bursaries scholarship scholarships award funding tuition money loans student loan financial assistance', label: 'Financial Aid & Awards', description: 'Explore awards, UTAPS, OSAP, grants, and funding support.', icon: '$', tone: 'financialIcon' },
+  { id: 'housing', keywords: 'dorm dorms dormitory accommodation roommate roommates rent rental apartment apartments move residence application', label: 'Housing & Residence', description: 'Apply for residence or get help finding a place to live.', icon: 'H', tone: 'housingIcon' },
+  { id: 'international', keywords: 'visa study permit work permit immigration health insurance exchange newcomer arrival international students', label: 'International Student Support', description: 'Get help with immigration, permits, UHIP, and settling in.', icon: 'INT', tone: 'internationalIcon' },
+  { id: 'registrar', keywords: 'enrollment enrolment registration course selection timetable transcript transcripts tuition fees deadlines drop withdraw academic records', label: 'Registrar & Enrolment', description: 'Manage courses, records, fees, and university deadlines.', icon: 'REG', tone: 'registrarIcon' },
+  { id: 'safety', keywords: 'emergency police security safe walk walksafe escort harassment theft lost stolen urgent danger', label: 'Campus Safety', description: 'Find emergency contacts, safety planning, and escort services.', icon: 'SAFE', tone: 'safetyIcon' },
+  { id: 'career', keywords: 'job jobs employment internship internships resume résumé cover letter interview interviews networking work career counselling', label: 'Career Support', description: 'Book advising, explore careers, and find job-search support.', icon: 'CAR', tone: 'careerIcon' },
+  { id: 'libraries-it', keywords: 'library books borrowing computer computers printing printer wifi wi-fi internet password account email software technology technical support', label: 'Libraries & IT', description: 'Access study spaces, research tools, Wi-Fi, and tech help.', icon: 'LIB', tone: 'librariesIcon' },
+  { id: 'learning-strategies', keywords: 'tutoring tutor writing essay essays studying exams test tests time management procrastination academic skills learning strategies', label: 'Study Skills & Learning Support', description: 'Build study, writing, time-management, and exam-preparation strategies.', icon: 'STDY', tone: 'learningIcon' },
+  { id: 'indigenous-support', keywords: 'first nations métis metis inuit indigenous students elder elders cultural culture community belonging', label: 'Indigenous Student Support', description: 'Connect with culturally relevant academic, wellness, financial, and community support.', icon: 'INDI', tone: 'indigenousIcon' },
+  { id: 'food', keywords: 'hungry hunger groceries grocery meals pantry food bank foodbank basic needs essentials food insecurity', label: 'Food & Basic Needs', description: 'Find food-bank support and other community resources.', icon: 'FOOD', tone: 'foodIcon' },
+  { id: 'tenant-rights', keywords: 'landlord lease eviction deposit rent rental dispute tenants lawyer legal advice housing rights', label: 'Tenant Rights & Legal Help', description: 'Get guidance for off-campus housing concerns and tenant-rights questions.', icon: 'LAW', tone: 'legalIcon' },
+  { id: 'sexual-violence', keywords: 'sexual assault harassment consent survivor survivors disclosure reporting abuse stalking confidential support', label: 'Sexual Violence Support', description: 'Access confidential, non-judgmental support and options.', icon: 'SV', tone: 'sexualViolenceIcon' },
 ] as const;
 
 export function ResourcesScreen({
@@ -54,13 +54,13 @@ export function ResourcesScreen({
   const scrollOffset = useRef(initialScrollOffset);
   const normalizedSearch = search.trim().toLowerCase();
   const featured = ([
-    { label: 'Mental Health Support', description: 'Connect with Health & Wellness for counselling and care.', hint: 'Opens Health and Wellness support information', tone: 'mentalHealthIcon', icon: 'MH', onPress: onMentalHealthPress },
-    { label: 'Accessibility Services', description: 'Learn about accommodations, assistive technology, and exams.', hint: 'Opens accessibility service information', tone: 'accessibilityIcon', icon: 'AS', onPress: onAccessibilityPress },
-    { label: 'Courses & Academic Support', description: 'Choose your college or campus to find its registrar.', hint: 'Choose your college or campus to find its registrar', tone: 'academicsIcon', icon: 'AC', onPress: () => onStudentLifePress('registrar') },
-  ] as const).filter(resource => (resource.label + " " + resource.description).toLowerCase().includes(normalizedSearch));
+    { label: 'Mental Health Support', keywords: 'therapy therapist counselling counseling counsellor counselor stress anxiety depression wellbeing wellness emotional support psychologist psychiatry', description: 'Connect with Health & Wellness for counselling and care.', hint: 'Opens Health and Wellness support information', tone: 'mentalHealthIcon', icon: 'MH', onPress: onMentalHealthPress },
+    { label: 'Accessibility Services', keywords: 'disability disabilities accommodation accommodations accessible assistive technology exam accommodation ADHD autism chronic illness', description: 'Learn about accommodations, assistive technology, and exams.', hint: 'Opens accessibility service information', tone: 'accessibilityIcon', icon: 'AS', onPress: onAccessibilityPress },
+    { label: 'Courses & Academic Support', keywords: 'course courses enrollment enrolment registration registrar timetable academic advising advisor adviser degree requirements credits program major minor', description: 'Choose your college or campus to find its registrar.', hint: 'Choose your college or campus to find its registrar', tone: 'academicsIcon', icon: 'AC', onPress: () => onStudentLifePress('registrar') },
+  ] as const).filter(resource => `${resource.label} ${resource.description} ${resource.keywords}`.toLowerCase().includes(normalizedSearch));
   const matchingResources = STUDENT_LIFE_RESOURCES.filter((resource) =>
     !normalizedSearch
-    || `${resource.label} ${resource.description}`.toLowerCase().includes(normalizedSearch),
+    || `${resource.label} ${resource.description} ${resource.keywords}`.toLowerCase().includes(normalizedSearch),
   );
   const popularResources = STUDENT_LIFE_RESOURCES.filter((resource) =>
     ['financial-aid', 'housing', 'food'].includes(resource.id),

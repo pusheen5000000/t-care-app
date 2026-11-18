@@ -93,6 +93,28 @@ module.exports = platform => {
       await app.type(search, 'OSAP');
       assert.ok(app.control('Financial Aid & Awards'));
       assert.ok(!app.control('Accessibility Services'));
+      for (const [keyword, label] of [
+        ['  BuRsArY  ', 'Financial Aid & Awards'],
+        ['scholarships', 'Financial Aid & Awards'],
+        ['dorm', 'Housing & Residence'],
+        ['visa', 'International Student Support'],
+        ['transcript', 'Registrar & Enrolment'],
+        ['police', 'Campus Safety'],
+        ['resume', 'Career Support'],
+        ['printing', 'Libraries & IT'],
+        ['tutoring', 'Study Skills & Learning Support'],
+        ['first nations', 'Indigenous Student Support'],
+        ['groceries', 'Food & Basic Needs'],
+        ['landlord', 'Tenant Rights & Legal Help'],
+        ['consent', 'Sexual Violence Support'],
+        ['therapy', 'Mental Health Support'],
+        ['ADHD', 'Accessibility Services'],
+        ['degree requirements', 'Courses & Academic Support'],
+      ]) {
+        await app.type(search, keyword);
+        assert.ok(app.control(label), `${keyword} should find ${label}`);
+        assert.equal(app.text('No Matching Services Yet').length, 0);
+      }
       await app.type(search, 'nothing-matches-this');
       assert.equal(app.text('No Matching Services Yet').length, 1);
       await app.type(search, '');
