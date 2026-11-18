@@ -137,12 +137,25 @@ verification, and troubleshooting. Bash setup automation is deferred.
 
 ## Testing
 
-The backend uses Node's built-in test runner:
+After installing both apps' dependencies, run all checks from the repository root:
 
 ```bash
-cd tcare-backend
 npm test
 ```
+
+This runs the mobile type check, iOS and Android component regressions, and backend tests.
+The mobile tests render the app with React and simulate device permissions, screen-reader
+announcements, maps, storage, the dialer, clipboard, and network responses. They can run
+without API keys, a phone, or a simulator. Use `npm --prefix tcare-mobile test` or
+`npm --prefix tcare-backend test` for a single suite.
+
+For native accessibility acceptance, repeat these on an iPhone with VoiceOver and an
+Android phone with TalkBack, with large system text enabled:
+
+- Send a chat question, listen for one reply announcement, then use **Read latest reply**.
+- Follow **Struggling → Yes, I am** into urgent support and return to Ask.
+- Decline location access, open the destination in Maps, and return to the result.
+- With the keyboard open, submit an incomplete Contact form and reach the first invalid field.
 
 ## Documentation
 

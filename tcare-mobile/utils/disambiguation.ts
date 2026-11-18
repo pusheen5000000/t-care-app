@@ -199,7 +199,7 @@ const RULES: DisambiguationRule[] = [
     ],
   },
   {
-    match: /\b(get (?:around|to campus)|how do i get|transit|bus|subway|ttc|parking|park my car)\b/i,
+    match: /\b(get (?:around|to campus)|how do i get (?:there|around)|transit|bus|subway|ttc|parking|park my car)\b/i,
     trigger: 'getting around',
     question: 'Did you mean:',
     options: [

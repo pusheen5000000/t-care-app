@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { colors, spacing, fontSize, radius } from '../theme';
 
+import { postWithTimeout } from '../utils/api';
+
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
 
 const TOPICS = [
@@ -50,6 +52,7 @@ export function ContactScreen() {
   );
 
   const sendInquiry = async () => {
+    if (isSending) return;
     const trimmedFirstName = firstName.trim();
     const trimmedLastName = lastName.trim();
     const trimmedEmail = email.trim();
@@ -83,19 +86,18 @@ export function ContactScreen() {
     setStatus(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/contact`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          firstName: trimmedFirstName,
-          lastName: trimmedLastName,
-          email: trimmedEmail,
-          topic: selectedTopic?.label,
-          inquiry: trimmedInquiry,
-        }),
+      const { response, payload } = await postWithTimeout<{ ok?: boolean; error?: string }>(`${API_BASE_URL}/api/contact`, {
+        firstName: trimmedFirstName,
+        lastName: trimmedLastName,
+        email: trimmedEmail,
+        topic: selectedTopic?.label,
+        inquiry: trimmedInquiry,
       });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.error || 'We could not send your inquiry. Please try again.');
+      if (!response.ok) {
+        setStatus({ type: 'error', message: payload?.error || 'We could not send your inquiry. Your draft is saved here.' });
+        return;
+      }
+      if (payload?.ok !== true) throw new Error('Unconfirmed delivery');
 
       setFirstName('');
       setLastName('');
@@ -103,8 +105,8 @@ export function ContactScreen() {
       setTopic(null);
       setInquiry('');
       setStatus({ type: 'success', message: 'Your inquiry has been sent. We’ll reply to the email address you provided.' });
-    } catch (error) {
-      setStatus({ type: 'error', message: error instanceof Error ? error.message : 'We could not send your inquiry. Please try again.' });
+    } catch {
+      setStatus({ type: 'error', message: 'Delivery could not be confirmed. Your inquiry may have been sent. Your draft is still here.' });
     } finally {
       setIsSending(false);
     }
@@ -120,19 +122,19 @@ export function ContactScreen() {
           <View style={styles.nameRow}>
             <View style={styles.halfField}>
               <Text style={styles.label}>First name *</Text>
-              <TextInput style={[styles.input, styles.nameInput, { height: singleLineInputHeight, paddingTop: 0, paddingBottom: 4 }]} ref={node => { controls.current.firstName = node; }} value={firstName} onChangeText={value => { setFirstName(value); clearFieldError('firstName'); }} autoCapitalize="words" autoComplete="given-name" textContentType="givenName" placeholder="First name" placeholderTextColor={colors.textMuted} accessibilityLabel="First name, required" />
+              <TextInput editable={!isSending} style={[styles.input, styles.nameInput, { height: singleLineInputHeight, paddingTop: 0, paddingBottom: 4 }]} ref={node => { controls.current.firstName = node; }} value={firstName} onChangeText={value => { setFirstName(value); clearFieldError('firstName'); }} autoCapitalize="words" autoComplete="given-name" textContentType="givenName" placeholder="First name" placeholderTextColor={colors.textMuted} accessibilityLabel="First name, required" />
             {fieldError('firstName')}
             </View>
             <View style={styles.halfField}>
               <Text style={styles.label}>Last name *</Text>
-              <TextInput style={[styles.input, styles.nameInput, { height: singleLineInputHeight, paddingTop: 0, paddingBottom: 4 }]} ref={node => { controls.current.lastName = node; }} value={lastName} onChangeText={value => { setLastName(value); clearFieldError('lastName'); }} autoCapitalize="words" autoComplete="family-name" textContentType="familyName" placeholder="Last name" placeholderTextColor={colors.textMuted} accessibilityLabel="Last name, required" />
+              <TextInput editable={!isSending} style={[styles.input, styles.nameInput, { height: singleLineInputHeight, paddingTop: 0, paddingBottom: 4 }]} ref={node => { controls.current.lastName = node; }} value={lastName} onChangeText={value => { setLastName(value); clearFieldError('lastName'); }} autoCapitalize="words" autoComplete="family-name" textContentType="familyName" placeholder="Last name" placeholderTextColor={colors.textMuted} accessibilityLabel="Last name, required" />
             {fieldError('lastName')}
             </View>
           </View>
 
           <View style={styles.field}>
             <Text style={styles.label}>Email *</Text>
-            <TextInput style={[styles.input, { height: singleLineInputHeight, paddingTop: 0, paddingBottom: 4 }]} ref={node => { controls.current.email = node; }} value={email} onChangeText={value => { setEmail(value); clearFieldError('email'); }} autoCapitalize="none" autoComplete="email" keyboardType="email-address" textContentType="emailAddress" placeholder="you@example.com" placeholderTextColor={colors.textMuted} accessibilityLabel="Email address, required" />
+            <TextInput editable={!isSending} style={[styles.input, { height: singleLineInputHeight, paddingTop: 0, paddingBottom: 4 }]} ref={node => { controls.current.email = node; }} value={email} onChangeText={value => { setEmail(value); clearFieldError('email'); }} autoCapitalize="none" autoComplete="email" keyboardType="email-address" textContentType="emailAddress" placeholder="you@example.com" placeholderTextColor={colors.textMuted} accessibilityLabel="Email address, required" />
             {fieldError('email')}
           </View>
 
@@ -143,7 +145,7 @@ export function ContactScreen() {
               {TOPICS.map((option) => {
                 const selected = topic === option.id;
                 return (
-                  <TouchableOpacity ref={option === TOPICS[0] ? node => { controls.current.topic = node; } : undefined} key={option.id} style={[styles.topic, selected && styles.topicSelected]} onPress={() => { setTopic(option.id); clearFieldError('topic'); }} accessibilityRole="radio" accessibilityLabel={option.label} accessibilityState={{ selected }}>
+                  <TouchableOpacity disabled={isSending} ref={option === TOPICS[0] ? node => { controls.current.topic = node; } : undefined} key={option.id} style={[styles.topic, selected && styles.topicSelected]} onPress={() => { setTopic(option.id); clearFieldError('topic'); }} accessibilityRole="radio" accessibilityLabel={option.label} accessibilityState={{ selected }}>
                     <Text style={[styles.topicText, selected && styles.topicTextSelected]}>{option.label}</Text>
                     <Text style={[styles.topicMarker, selected && styles.topicMarkerSelected]} accessibilityElementsHidden>{selected ? 'Selected' : ''}</Text>
                   </TouchableOpacity>
@@ -154,7 +156,7 @@ export function ContactScreen() {
 
           <View style={styles.field}>
             <Text style={styles.label}>Your inquiry *</Text>
-            <TextInput style={[styles.input, styles.inquiryInput]} ref={node => { controls.current.inquiry = node; }} value={inquiry} onChangeText={value => { setInquiry(value); clearFieldError('inquiry'); }} multiline maxLength={2000} textAlignVertical="top" placeholder="Describe your question or issue" placeholderTextColor={colors.textMuted} accessibilityLabel="Your inquiry, required" accessibilityHint="Provide details that will help the T-Care team respond." />
+            <TextInput editable={!isSending} style={[styles.input, styles.inquiryInput]} ref={node => { controls.current.inquiry = node; }} value={inquiry} onChangeText={value => { setInquiry(value); clearFieldError('inquiry'); }} multiline maxLength={2000} textAlignVertical="top" placeholder="Describe your question or issue" placeholderTextColor={colors.textMuted} accessibilityLabel="Your inquiry, required" accessibilityHint="Provide details that will help the T-Care team respond." />
             {fieldError('inquiry')}
             <Text style={styles.counter}>{inquiry.length}/2000</Text>
           </View>

@@ -1,4 +1,5 @@
-import { Linking } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
+import { Alert, Linking } from 'react-native';
 
 /**
  * Google Maps URLs open the installed Google Maps app when available and
@@ -10,7 +11,20 @@ export function googleMapsDirectionsUrl(placeName: string, placeSubtitle: string
 }
 
 export async function openExternalLink(url: string) {
-  if (await Linking.canOpenURL(url)) await Linking.openURL(url);
+  try {
+    await Linking.openURL(url);
+  } catch {
+    Alert.alert('Could not open link', url, [
+      { text: 'Close', style: 'cancel' },
+      { text: 'Copy link', onPress: async () => {
+        try {
+          if (!await Clipboard.setStringAsync(url)) throw new Error();
+        } catch {
+          Alert.alert('Could not copy link', url);
+        }
+      } },
+    ]);
+  }
 }
 
 export async function openGoogleMapsDirections(placeName: string, placeSubtitle: string) {

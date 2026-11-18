@@ -53,6 +53,11 @@ export function ResourcesScreen({
   const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const scrollOffset = useRef(initialScrollOffset);
   const normalizedSearch = search.trim().toLowerCase();
+  const featured = ([
+    { label: 'Mental Health Support', description: 'Connect with Health & Wellness for counselling and care.', hint: 'Opens Health and Wellness support information', tone: 'mentalHealthIcon', icon: 'MH', onPress: onMentalHealthPress },
+    { label: 'Accessibility Services', description: 'Learn about accommodations, assistive technology, and exams.', hint: 'Opens accessibility service information', tone: 'accessibilityIcon', icon: 'AS', onPress: onAccessibilityPress },
+    { label: 'Courses & Academic Support', description: 'Choose your college or campus to find its registrar.', hint: 'Choose your college or campus to find its registrar', tone: 'academicsIcon', icon: 'AC', onPress: () => onStudentLifePress('registrar') },
+  ] as const).filter(resource => (resource.label + " " + resource.description).toLowerCase().includes(normalizedSearch));
   const matchingResources = STUDENT_LIFE_RESOURCES.filter((resource) =>
     !normalizedSearch
     || `${resource.label} ${resource.description}`.toLowerCase().includes(normalizedSearch),
@@ -121,54 +126,17 @@ export function ResourcesScreen({
         />
 
         <View style={styles.list}>
-          <Text style={styles.sectionTitle}>Wellbeing & Academics</Text>
-          <TouchableOpacity
-            style={styles.card}
-            onPress={onMentalHealthPress}
-            activeOpacity={0.75}
-            accessibilityRole="button"
-            accessibilityLabel="Mental Health Support"
-            accessibilityHint="Opens Health and Wellness support information"
-          >
-            <View style={[styles.icon, styles.mentalHealthIcon]}><Text style={styles.iconText}>MH</Text></View>
-            <View style={styles.cardCopy}>
-              <Text style={styles.cardTitle}>Mental Health Support</Text>
-              <Text style={styles.cardDescription}>Connect with Health & Wellness for counselling and care.</Text>
-            </View>
-            <View style={styles.chevronBadge}><Text style={styles.chevron}>›</Text></View>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.card}
-            onPress={onAccessibilityPress}
-            activeOpacity={0.75}
-            accessibilityRole="button"
-            accessibilityLabel="Accessibility Services"
-            accessibilityHint="Opens accessibility service information"
-          >
-            <View style={[styles.icon, styles.accessibilityIcon]}><Text style={styles.iconText}>AS</Text></View>
-            <View style={styles.cardCopy}>
-              <Text style={styles.cardTitle}>Accessibility Services</Text>
-              <Text style={styles.cardDescription}>Learn about accommodations, assistive technology, and exams.</Text>
-            </View>
-            <View style={styles.chevronBadge}><Text style={styles.chevron}>›</Text></View>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.card}
-            onPress={() => onStudentLifePress('registrar')}
-            activeOpacity={0.75}
-            accessibilityRole="button"
-            accessibilityLabel="Courses & Academic Support"
-            accessibilityHint="Choose your college or campus to find its registrar"
-          >
-            <View style={[styles.icon, styles.academicsIcon]}><Text style={styles.iconText}>AC</Text></View>
-            <View style={styles.cardCopy}>
-              <Text style={styles.cardTitle}>Courses & Academic Support</Text>
-              <Text style={styles.cardDescription}>Choose your college or campus to find its registrar.</Text>
-            </View>
-            <View style={styles.chevronBadge}><Text style={styles.chevron}>›</Text></View>
-          </TouchableOpacity>
+          {featured.length > 0 && <Text style={styles.sectionTitle}>{normalizedSearch ? 'Matching Services' : 'Wellbeing & Academics'}</Text>}
+          {featured.map(resource => (
+            <TouchableOpacity key={resource.label} style={styles.card} onPress={resource.onPress} accessibilityRole="button" accessibilityLabel={resource.label} accessibilityHint={resource.hint}>
+              <View style={[styles.icon, styles[resource.tone]]}><Text style={styles.iconText}>{resource.icon}</Text></View>
+              <View style={styles.cardCopy}>
+                <Text style={styles.cardTitle}>{resource.label}</Text>
+                <Text style={styles.cardDescription}>{resource.description}</Text>
+              </View>
+              <View style={styles.chevronBadge}><Text style={styles.chevron}>›</Text></View>
+            </TouchableOpacity>
+          ))}
 
           {!normalizedSearch && (
             <>
@@ -196,7 +164,7 @@ export function ResourcesScreen({
             </>
           )}
 
-          <Text style={styles.sectionTitle}>{normalizedSearch ? 'Matching Services' : 'Browse More Student Services'}</Text>
+          {(!normalizedSearch || featured.length === 0 && browseResources.length > 0) && <Text style={styles.sectionTitle}>{normalizedSearch ? 'Matching Services' : 'Browse More Student Services'}</Text>}
           {browseResources.map((resource) => (
             <TouchableOpacity
               key={resource.id}
@@ -217,7 +185,7 @@ export function ResourcesScreen({
               <View style={styles.chevronBadge}><Text style={styles.chevron}>›</Text></View>
             </TouchableOpacity>
           ))}
-          {browseResources.length === 0 && (
+          {featured.length === 0 && browseResources.length === 0 && (
             <View style={styles.emptyState} accessibilityRole="text">
               <Text style={styles.emptyTitle}>No Matching Services Yet</Text>
               <Text style={styles.emptyText}>Try a broader term, or use Ask for help with a specific situation.</Text>

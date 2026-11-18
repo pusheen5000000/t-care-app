@@ -118,7 +118,7 @@ function LocationBlock({
 }) {
   const [travelMode, setTravelMode] = useState<TravelMode>('walk');
   const [isChangingMode, setIsChangingMode] = useState(false);
-  const [routeError, setRouteError] = useState<string | null>(null);
+  const [failedMode, setFailedMode] = useState<TravelMode | null>(null);
   const [isWalkingPathExpanded, setIsWalkingPathExpanded] = useState(false);
   const mapRef = useRef<MapView>(null);
   const [isMapReady, setIsMapReady] = useState(false);
@@ -129,9 +129,9 @@ function LocationBlock({
     const changed = await onTravelModeChange(mode);
     if (changed) {
       setTravelMode(mode);
-      setRouteError(null);
+      setFailedMode(null);
     } else {
-      setRouteError('We could not update this route. Your current route is still available—please try again.');
+      setFailedMode(mode);
     }
     setIsChangingMode(false);
   };
@@ -185,22 +185,6 @@ function LocationBlock({
         </View>
       </View>
 
-      {hasRoute && Boolean(routeError) && (
-        <View style={styles.routePrompt}>
-          <Text style={styles.routePromptTitle}>Need directions?</Text>
-          <Text style={styles.routePromptBody}>Use your location only to show a walking route and time.</Text>
-          <View style={styles.routeActions}>
-            <TouchableOpacity style={styles.showRouteButton} onPress={() => void selectTravelMode('walk')} disabled={isChangingMode} accessibilityRole="button" accessibilityLabel="Show walking route">
-              <Text style={styles.showRouteButtonText}>{isChangingMode ? 'Getting route…' : 'Show walking route'}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.openMapsButton} onPress={() => void openGoogleMapsDirections(result.placeName, result.placeSubtitle)} accessibilityRole="button" accessibilityLabel="Open destination in Maps">
-              <Text style={styles.openMapsButtonText}>Open in Maps</Text>
-            </TouchableOpacity>
-          </View>
-          {routeError && <Text style={styles.routeError} accessibilityLiveRegion="polite">{routeError}</Text>}
-        </View>
-      )}
-
       {hasRoute && <View style={styles.travelTimeCard}>
         <Text style={styles.travelTimeLabel}>Time to destination</Text>
         <Text style={styles.travelTimeValue}>
@@ -230,9 +214,9 @@ function LocationBlock({
         {isChangingMode && (
           <Text style={styles.travelTimeNote}>Updating route…</Text>
         )}
-        {routeError && <>
-          <Text style={styles.routeError} accessibilityLiveRegion="polite">{routeError}</Text>
-          <TouchableOpacity style={styles.retryRouteButton} onPress={() => void selectTravelMode(travelMode, true)} accessibilityRole="button" accessibilityLabel="Retry route update"><Text style={styles.retryRouteText}>Retry</Text></TouchableOpacity>
+        {failedMode && <>
+          <Text style={styles.routeError} accessibilityLiveRegion="polite">We could not update this route. Your current route is still available.</Text>
+          <TouchableOpacity style={styles.retryRouteButton} onPress={() => void selectTravelMode(failedMode, true)} accessibilityRole="button" accessibilityLabel="Retry route update"><Text style={styles.retryRouteText}>Retry</Text></TouchableOpacity>
         </>}
       </View>}
 
@@ -241,7 +225,7 @@ function LocationBlock({
         <StatBox label="hours" value={result.hours} />
       </View>
 
-      {hasRoute && result.steps && result.steps.length > 0 && (
+      {hasRoute && travelMode === 'walk' && result.steps && result.steps.length > 0 && (
         <View style={styles.pathCard}>
           <TouchableOpacity
             accessibilityRole="button"
@@ -350,6 +334,11 @@ function ResultNextStep({
       >
         <Text style={styles.nextStepButtonText}>{actionLabel}</Text>
       </TouchableOpacity>
+      {isLocation && !useDirections && (
+        <TouchableOpacity style={styles.openMapsButton} accessibilityRole="button" onPress={() => void openGoogleMapsDirections(result.placeName, result.placeSubtitle)}>
+          <Text style={styles.openMapsButtonText}>Open destination in Maps</Text>
+        </TouchableOpacity>
+      )}
       {routeError && <Text style={styles.routeError} accessibilityLiveRegion="polite">{routeError}</Text>}
     </View>
   );

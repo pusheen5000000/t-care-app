@@ -13,7 +13,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { colors, fontSize } from './theme';
 import type { LocationResult, QueryResult, RecoveryKind, RouteCoordinate, SupportResources, TravelMode } from './types';
 import type { DisambiguationOption } from './utils/disambiguation';
-import { post } from './utils/api';
+import { post, postWithTimeout } from './utils/api';
 import { getDeviceLocation } from './utils/deviceLocation';
 
 const TCARD_QUERY = 'I lost my TCard, what do I do?';
@@ -452,13 +452,13 @@ type DeviceLocation = { lat: number; lng: number };
 
 async function getMapData<T>(endpoint: string, body: object, label: string): Promise<T> {
   if (!API_BASE_URL) throw new Error('Missing EXPO_PUBLIC_API_URL');
-  const response = await post(`${API_BASE_URL}${endpoint}`, body);
+  const { response, payload } = await postWithTimeout<T>(`${API_BASE_URL}${endpoint}`, body);
   if (!response.ok) throw new Error(`${label} request failed (${response.status})`);
-  return response.json();
+  return payload;
 }
 
 function getRoute(mode: TravelMode, origin: DeviceLocation, destination: RouteCoordinate) {
-  return getMapData<Pick<LocationResult, 'travelMinutes' | 'polyline'>>('/api/route', {
+  return getMapData<Pick<LocationResult, 'travelMinutes' | 'polyline' | 'distanceText' | 'steps'>>('/api/route', {
     mode,
     origin,
     destination: { lat: destination.latitude, lng: destination.longitude },
@@ -622,7 +622,7 @@ function AppContent() {
         {Platform.OS !== 'web' && <StatusBar barStyle="dark-content" />}
         <KeyboardAvoidingView style={styles.page} behavior="padding" automaticOffset enabled={tab !== 'tai'}>
           <View style={tab === 'tai' ? styles.page : styles.hiddenPage}>
-            <TAIScreen campus={campus?.id} footerHeight={footerHeight} />
+            <TAIScreen active={tab === 'tai'} campus={campus?.id} footerHeight={footerHeight} />
           </View>
           <View style={tab === 'contact' ? styles.page : styles.hiddenPage}><ContactScreen /></View>
           {(['ask', 'resources'] as const).map(page => (
@@ -879,9 +879,9 @@ function QueryPage({ page, active, campus, onCampusChange, onEmergencySupportPre
     try {
       const route = await getRoute(mode, { lat: result.origin.latitude, lng: result.origin.longitude }, result.destination);
       if (currentRequestId === requestId.current) {
-        setResult(current => current?.type === 'location' ? { ...current, travelMinutes: route.travelMinutes, polyline: route.polyline } : current);
+        setResult(current => current?.type === 'location' ? { ...current, ...route, steps: route.steps ?? [] } : current);
       }
-      return true;
+      return currentRequestId === requestId.current;
     } catch (error) {
       console.warn('Could not update route:', error);
       return false;
@@ -900,8 +900,8 @@ function QueryPage({ page, active, campus, onCampusChange, onEmergencySupportPre
       setResult(current => current?.type === 'location' ? {
             ...current,
             origin: { latitude: location.lat, longitude: location.lng },
-            travelMinutes: route.travelMinutes,
-            polyline: route.polyline,
+            ...route,
+            steps: route.steps ?? [],
           } : current);
       setShowLocationPaths(true);
       return true;

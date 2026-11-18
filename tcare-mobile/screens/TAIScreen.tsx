@@ -6,6 +6,7 @@ import { useSharedValue } from 'react-native-reanimated';
 import * as Location from 'expo-location';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import {
+  AccessibilityInfo,
   Animated,
   ActivityIndicator,
   Image,
@@ -20,7 +21,7 @@ import {
 } from 'react-native';
 import { colors, fontSize, radius, spacing } from '../theme';
 import type { LocationResult, RouteCoordinate, SupportResources } from '../types';
-import { post } from '../utils/api';
+import { postWithTimeout } from '../utils/api';
 import { COLLEGES } from '../utils/colleges';
 import { getDeviceLocation } from '../utils/deviceLocation';
 import { openExternalLink, openGoogleMapsDirections } from '../utils/googleMaps';
@@ -315,7 +316,7 @@ function SupportResourceLinks({
   );
 }
 
-export function TAIScreen({ campus, footerHeight }: { campus?: 'utsg' | 'utsc' | 'utm'; footerHeight: number }) {
+export function TAIScreen({ active, campus, footerHeight }: { active: boolean; campus?: 'utsg' | 'utsc' | 'utm'; footerHeight: number }) {
   const { fontScale } = useWindowDimensions();
   const singleLineInputHeight = Math.max(48, Math.ceil(20 * fontScale) + 16);
   const composerHeight = useSharedValue(0);
@@ -340,6 +341,21 @@ export function TAIScreen({ campus, footerHeight }: { campus?: 'utsg' | 'utsc' |
   useEffect(() => {
     if (!showJump) setLastSeenId(latestMessage?.id);
   }, [showJump, latestMessage?.id]);
+  const latestReply = messages.findLast(message => message.role === 'assistant');
+  const [screenReader, setScreenReader] = useState(false);
+  const announced = useRef(latestReply?.id);
+  useEffect(() => {
+    let mounted = true;
+    void AccessibilityInfo.isScreenReaderEnabled().then(enabled => { if (mounted) setScreenReader(enabled); });
+    const subscription = AccessibilityInfo.addEventListener('screenReaderChanged', setScreenReader);
+    return () => { mounted = false; subscription.remove(); };
+  }, []);
+  useEffect(() => {
+    if (active && screenReader && latestReply && announced.current !== latestReply.id) {
+      announced.current = latestReply.id;
+      AccessibilityInfo.announceForAccessibility('New reply from T-AI');
+    }
+  }, [active, screenReader, latestReply]);
   const jumpLabel = latestMessage?.role === 'assistant' && latestMessage.id !== lastSeenId
     ? 'New reply'
     : 'Latest message';
@@ -388,17 +404,15 @@ export function TAIScreen({ campus, footerHeight }: { campus?: 'utsg' | 'utsc' |
     try {
       // Only request location for a direction-style question. If permission is
       // declined, T-AI still answers and can show the destination on the map.
-      const asksForDirections = /\b(directions?|guide(?: me)?|route|map|navigation|navigate|wayfind(?:ing)?|find (?:my|the) way|how (do|can) i get|how to get|get to|get me|take me|bring me|lead me|walk me|show me (?:the )?(?:way|route)|go to|head to|travel to|walk to|reach|arriv(?:e|al|ing)|destination|where is)\b/i.test(query);
-      const asksForOnCampusSupport = /\b(mental health|counselling|counseling|anxious|anxiety|overwhelmed|stressed|talk to someone|accessibility|accommodation|disability|adaptive technology|assistive technology|note taker|exam accommodation)\b/i.test(query);
-      const location = asksForDirections || asksForOnCampusSupport
+      const asksForDirections = /\b(directions?|route to|navigate to|walking route|walk to|take me to|guide me to|how (?:do|can) i get to|how to get to|show (?:me )?(?:the )?way to)\b/i.test(query);
+      const location = asksForDirections
         ? await getDeviceLocation((error) => {
             console.warn('Could not get current location:', error);
             return Location.getLastKnownPositionAsync({ maxAge: 60_000, requiredAccuracy: 500 });
           })
         : undefined;
 
-      const response = await post(`${API_BASE_URL}/api/query`, { query, location, campus });
-      const payload: QueryResponse = await response.json();
+      const { response, payload } = await postWithTimeout<QueryResponse>(`${API_BASE_URL}/api/query`, { query, location, campus });
 
       if (!response.ok) {
         throw new Error(payload.error || 'The assistant could not answer right now.');
@@ -406,6 +420,7 @@ export function TAIScreen({ campus, footerHeight }: { campus?: 'utsg' | 'utsc' |
 
       const text = [payload.title, payload.summary].filter(Boolean).join('\n\n');
       if (!text) throw new Error('The assistant returned an empty response.');
+      if (retryQuery) setInput(current => current === query ? '' : current);
 
       setMessages((prev) => [
         ...prev,
@@ -420,6 +435,7 @@ export function TAIScreen({ campus, footerHeight }: { campus?: 'utsg' | 'utsc' |
         },
       ]);
     } catch (error) {
+      if (!retryQuery) setInput(query);
       const message = error instanceof Error ? error.message.toLowerCase() : '';
       const recoveryText = message.includes('location') || message.includes('permission')
         ? "I couldn't use your location. Check location access in your phone settings, then try your question again."
@@ -447,8 +463,7 @@ export function TAIScreen({ campus, footerHeight }: { campus?: 'utsg' | 'utsc' |
       // Offer to use the student's location so we can draw a walking path. If
       // they decline (or it is unavailable), we still pin the destination.
       const location = await getDeviceLocation();
-      const response = await post(`${API_BASE_URL}/api/campus-location`, { serviceId, campusLocationName, location });
-      const payload: QueryResponse = await response.json();
+      const { response, payload } = await postWithTimeout<QueryResponse>(`${API_BASE_URL}/api/campus-location`, { serviceId, campusLocationName, location });
       const route = routeFromResponse(payload);
       if (!response.ok || !route?.destination) {
         throw new Error(payload.error || 'Could not load this campus location.');
@@ -481,8 +496,7 @@ export function TAIScreen({ campus, footerHeight }: { campus?: 'utsg' | 'utsc' |
     setIsSending(true);
     try {
       const location = await getDeviceLocation();
-      const response = await post(`${API_BASE_URL}/api/college-service/${collegeId}`, { location, serviceId: selectedFacility.serviceId });
-      const payload: QueryResponse = await response.json();
+      const { response, payload } = await postWithTimeout<QueryResponse>(`${API_BASE_URL}/api/college-service/${collegeId}`, { location, serviceId: selectedFacility.serviceId });
       const route = routeFromResponse(payload);
       if (!response.ok || !route) throw new Error(payload.error || 'Could not load this college service.');
       setMessages((previous) => [...previous, {
@@ -675,6 +689,11 @@ export function TAIScreen({ campus, footerHeight }: { campus?: 'utsg' | 'utsc' |
           <Text style={styles.jumpText}>↓ {jumpLabel}</Text>
         </TouchableOpacity>
         </View>
+      )}
+      {screenReader && latestReply && messages.length > 1 && (
+        <TouchableOpacity style={styles.jumpButton} accessibilityRole="button" onPress={() => AccessibilityInfo.announceForAccessibility(latestReply.text)}>
+          <Text style={styles.jumpText}>Read latest reply</Text>
+        </TouchableOpacity>
       )}
       <View style={styles.inputRow} onLayout={(event) => { composerHeight.value = event.nativeEvent.layout.height; }}>
         <TextInput

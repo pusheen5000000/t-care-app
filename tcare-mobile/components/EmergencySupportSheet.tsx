@@ -16,13 +16,22 @@ const PHONE_SUPPORT = [
 
 export function EmergencySupportSheet({ visible, onClose }: Props) {
   const copyNumber = async (support: (typeof PHONE_SUPPORT)[number]) => {
-    await Clipboard.setStringAsync(support.phoneLabel);
+    try {
+      if (!await Clipboard.setStringAsync(support.phoneLabel)) throw new Error();
+    } catch {
+      Alert.alert('Could not copy number', 'Press and hold the number in the support list to select it.');
+      return;
+    }
     Alert.alert('Number copied', `Open the Phone app and paste ${support.phoneLabel} when you are ready.`);
   };
 
   const handleSupportAction = async (support: (typeof PHONE_SUPPORT)[number]) => {
     if (Platform.OS === 'android') {
-      await IntentLauncher.startActivityAsync('android.intent.action.DIAL');
+      try {
+        await IntentLauncher.startActivityAsync('android.intent.action.DIAL');
+      } catch {
+        Alert.alert('Could not open the dialer', 'You can copy the number from the support list.');
+      }
       return;
     }
 
@@ -45,7 +54,7 @@ export function EmergencySupportSheet({ visible, onClose }: Props) {
             {PHONE_SUPPORT.map((support) => (
               <View key={support.number} style={styles.supportRow}>
                 <Text style={styles.supportName}>{support.name}</Text>
-                <Text style={styles.phoneNumber}>{support.phoneLabel}</Text>
+                <Text selectable style={styles.phoneNumber}>{support.phoneLabel}</Text>
                 <Text style={styles.supportDetail}>{support.detail}</Text>
                 <TouchableOpacity
                   style={[styles.openPhoneButton, support.number === '911' && styles.emergencyButton]}

@@ -260,6 +260,7 @@ app.post('/api/route', async (req, res) => {
     const route = await getRoute(origin, destination, geoapifyMode);
     return res.json({
       mode,
+      steps: route.steps,
       travelMinutes: route.minutes,
       distanceText: route.distanceText,
       polyline: route.polyline,
@@ -322,10 +323,11 @@ app.post('/api/contact', async (req, res) => {
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`T-Care backend running on http://localhost:${PORT}`);
-});
+module.exports = app;
+if (require.main === module) {
+  const port = process.env.PORT || 3000;
+  app.listen(port, () => console.log(`T-Care backend running on http://localhost:${port}`));
+}
 
 // Direct shortcut for the home-screen "I lost my TCard" action. It avoids
 // relying on AI classification and always returns a map-ready office result.
