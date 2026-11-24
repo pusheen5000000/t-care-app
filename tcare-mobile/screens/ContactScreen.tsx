@@ -94,7 +94,7 @@ export function ContactScreen() {
         inquiry: trimmedInquiry,
       });
       if (!response.ok) {
-        setStatus({ type: 'error', message: payload?.error || 'We could not send your inquiry. Your draft is saved here.' });
+        setStatus({ type: 'error', message: payload?.error || 'We could not send your inquiry. Your text is still in this form. You can try sending it again.' });
         return;
       }
       if (payload?.ok !== true) throw new Error('Unconfirmed delivery');
@@ -106,7 +106,7 @@ export function ContactScreen() {
       setInquiry('');
       setStatus({ type: 'success', message: 'Your inquiry has been sent. We’ll reply to the email address you provided.' });
     } catch {
-      setStatus({ type: 'error', message: 'Delivery could not be confirmed. Your inquiry may have been sent. Your draft is still here.' });
+      setStatus({ type: 'error', message: 'Delivery could not be confirmed. Your inquiry may have been sent. Your text is still in this form.' });
     } finally {
       setIsSending(false);
     }

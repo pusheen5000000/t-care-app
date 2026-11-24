@@ -81,23 +81,29 @@ module.exports = platform => {
       const app = await start(t);
       await app.press('Resources');
       const search = 'Search campus resources';
+      const accessibility = 'Accessibility Services. Learn about accommodations, assistive technology, and exams.';
+      const mentalHealth = 'Mental Health Support. Connect with Health & Wellness for counselling and care.';
       await app.type(search, '  AcCeSSiBiLiTy  ');
-      assert.ok(app.control('Accessibility Services'));
-      assert.ok(!app.control('Mental Health Support'));
+      assert.ok(app.control(accessibility));
+      assert.ok(!app.control(mentalHealth));
       assert.equal(app.text('No Matching Services Yet').length, 0);
       respond = () => json(library);
-      await app.press('Accessibility Services');
+      await app.press(accessibility);
       assert.equal(requests.at(-1).path, '/api/accessibility-services');
       await app.press('Back to resources');
       assert.equal(app.control(search).props.value.trim(), 'AcCeSSiBiLiTy');
       await app.type(search, 'OSAP');
-      assert.ok(app.control('Financial Aid & Awards'));
-      assert.ok(!app.control('Accessibility Services'));
+      assert.ok(app.control('Financial Aid & Awards. Explore awards, UTAPS, OSAP, grants, and funding support.'));
+      assert.ok(!app.control(accessibility));
       await app.type(search, 'nothing-matches-this');
       assert.equal(app.text('No Matching Services Yet').length, 1);
-      await app.type(search, '');
-      assert.ok(app.control('Mental Health Support'));
-      assert.ok(app.control('Housing & Residence'));
+      await app.press('Ask about this');
+      assert.equal(app.control('Ask T-Care a question').props.value, 'nothing-matches-this');
+      await app.press('Resources');
+      await app.press('Clear search');
+      assert.equal(app.control(search).props.value, '');
+      assert.ok(app.control(mentalHealth));
+      assert.ok(app.control('Housing & Residence. Apply for residence or get help finding a place to live.'));
     });
 
     it('preserves failed Ask questions and retries the original request', async t => {

@@ -240,10 +240,11 @@ function SupportResourceLinks({
   serviceId?: string;
   onCampusLocationPress: (campusLocationName: string) => Promise<boolean>;
   facilityPicker?: 'campus' | 'college';
-  onChooseFacility: () => void;
+  onChooseFacility: (opener: React.ComponentRef<typeof TouchableOpacity> | null) => void;
 }) {
   const [loadingCampusLocation, setLoadingCampusLocation] = useState<string | null>(null);
   const [mapError, setMapError] = useState(false);
+  const opener = useRef<React.ComponentRef<typeof TouchableOpacity>>(null);
   const facilityLabel = facilityPicker === 'college' ? 'Choose your college or campus' : 'Choose your campus';
 
   return (
@@ -251,7 +252,7 @@ function SupportResourceLinks({
       <Text style={styles.mentalHealthTitle}>{resources.title ?? 'Mental Health Support'}</Text>
       {resources.intro && <Text style={styles.mentalHealthIntro}>{resources.intro}</Text>}
       {facilityPicker && (
-        <TouchableOpacity style={styles.chooseFacilityButton} onPress={onChooseFacility} accessibilityRole="button" accessibilityLabel={facilityLabel}>
+        <TouchableOpacity style={styles.chooseFacilityButton} ref={opener} onPress={() => onChooseFacility(opener.current)} accessibilityRole="button" accessibilityLabel={facilityLabel}>
           <Text style={styles.chooseFacilityButtonText}>{facilityLabel}</Text>
         </TouchableOpacity>
       )}
@@ -325,6 +326,19 @@ export function TAIScreen({ active, campus, footerHeight }: { active: boolean; c
   const [isSending, setIsSending] = useState(false);
   const [mapLoadingLocation, setMapLoadingLocation] = useState<string | null>(null);
   const [collegePickerVisible, setCollegePickerVisible] = useState(false);
+  const pickerOpener = useRef<React.ComponentRef<typeof TouchableOpacity> | null>(null);
+  const restorePickerFocus = () => {
+    const opener = pickerOpener.current;
+    pickerOpener.current = null;
+    if (!opener) return;
+    opener.focus();
+    if (Platform.OS !== 'web') AccessibilityInfo.sendAccessibilityEvent(opener, 'focus');
+  };
+  useEffect(() => {
+    if (collegePickerVisible || !pickerOpener.current || Platform.OS === 'ios') return;
+    const frame = requestAnimationFrame(restorePickerFocus);
+    return () => cancelAnimationFrame(frame);
+  }, [collegePickerVisible]);
   const [facilitySelection, setFacilitySelection] = useState<{
     messageId: string;
     serviceId: string;
@@ -650,8 +664,9 @@ export function TAIScreen({ active, campus, footerHeight }: { active: boolean; c
                   resources={message.supportResources}
                   serviceId={message.serviceId}
                   facilityPicker={message.facilityPicker}
-                  onChooseFacility={() => {
+                  onChooseFacility={(opener) => {
                     if (!message.serviceId || !message.facilityPicker) return;
+                    pickerOpener.current = opener;
                     setFacilitySelection({
                       messageId: message.id,
                       serviceId: message.serviceId,
@@ -722,11 +737,14 @@ export function TAIScreen({ active, campus, footerHeight }: { active: boolean; c
       </KeyboardStickyView>
       </View>
 
-      <SystemAwareModal visible={collegePickerVisible} transparent animationType="fade" onRequestClose={() => setCollegePickerVisible(false)}>
+      <SystemAwareModal visible={collegePickerVisible} transparent animationType="none" onDismiss={restorePickerFocus} onRequestClose={() => setCollegePickerVisible(false)}>
         <View style={styles.modalBackdrop}>
-          <Pressable style={styles.modalDismissArea} onPress={() => setCollegePickerVisible(false)} accessibilityRole="button" accessibilityLabel="Close campus selector" />
+          <Pressable style={styles.modalDismissArea} onPress={() => setCollegePickerVisible(false)} accessible={false} importantForAccessibility="no" />
           <View style={styles.modalCard} accessibilityViewIsModal>
-            <Text style={styles.modalTitle}>{facilitySelection?.type === 'college' ? 'Choose your college' : 'Choose your campus'}</Text>
+            <Text style={styles.modalTitle} accessibilityRole="header">{facilitySelection?.type === 'college' ? 'Choose your college' : 'Choose your campus'}</Text>
+            <TouchableOpacity style={styles.modalBackButton} accessibilityRole="button" onPress={() => setCollegePickerVisible(false)}>
+              <Text style={styles.modalBackButtonText}>Close</Text>
+            </TouchableOpacity>
             <Text style={styles.modalBody}>{facilitySelection?.type === 'college' ? 'Choose your UTSG college to find the right local office.' : "We'll show the right in-person office and map."}</Text>
             {facilitySelection?.type === 'college' && (
               <TouchableOpacity

@@ -1,4 +1,4 @@
-import { useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, Platform, useWindowDimensions } from 'react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   NativeScrollEvent,
@@ -13,6 +13,8 @@ import {
 import { colors, fontSize, radius, spacing } from '../theme';
 
 type Props = {
+  active: boolean;
+  onAskSearch: (query: string) => void;
   search: string;
   setSearch: (value: string) => void;
   onMentalHealthPress: () => void;
@@ -43,7 +45,7 @@ export function ResourcesScreen({
   onMentalHealthPress,
   onAccessibilityPress,
   onStudentLifePress,
-  search, setSearch,
+  active, onAskSearch, search, setSearch,
   initialScrollOffset = 0,
   onScrollOffsetChange,
 }: Props) {
@@ -52,6 +54,8 @@ export function ResourcesScreen({
   const [isLayoutReady, setIsLayoutReady] = useState(false);
   const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const scrollOffset = useRef(initialScrollOffset);
+  const searchInput = useRef<React.ComponentRef<typeof TextInput>>(null);
+  const [summary, setSummary] = useState('');
   const normalizedSearch = search.trim().toLowerCase();
   const featured = ([
     { label: 'Mental Health Support', description: 'Connect with Health & Wellness for counselling and care.', hint: 'Opens Health and Wellness support information', tone: 'mentalHealthIcon', icon: 'MH', onPress: onMentalHealthPress },
@@ -68,6 +72,20 @@ export function ResourcesScreen({
   const browseResources = normalizedSearch
     ? matchingResources
     : STUDENT_LIFE_RESOURCES.filter((resource) => !popularResources.includes(resource));
+
+  const matchCount = featured.length + matchingResources.length;
+  useEffect(() => {
+    if (!active || !normalizedSearch) {
+      setSummary('');
+      return;
+    }
+    const timer = setTimeout(() => {
+      const message = `${matchCount} matching service${matchCount === 1 ? '' : 's'} for ${normalizedSearch}.`;
+      setSummary(message);
+      if (Platform.OS === 'ios') AccessibilityInfo.announceForAccessibility(message);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [active, normalizedSearch, matchCount]);
 
   useEffect(() => {
     // On web, the viewport can settle one frame after this screen mounts. Keep
@@ -111,11 +129,12 @@ export function ResourcesScreen({
         scrollEventThrottle={16}
       >
         <View style={styles.intro}>
-          <Text style={styles.title}>Resources</Text>
+          <Text style={styles.title} accessibilityRole="header">Resources</Text>
           <Text style={styles.subtitle}>Find trusted U of T support for your wellbeing, studies, and student life.</Text>
         </View>
 
         <TextInput
+          ref={searchInput}
           style={[styles.searchInput, { height: singleLineInputHeight, paddingTop: 0, paddingBottom: 4 }]}
           value={search}
           onChangeText={setSearch}
@@ -126,9 +145,10 @@ export function ResourcesScreen({
         />
 
         <View style={styles.list}>
-          {featured.length > 0 && <Text style={styles.sectionTitle}>{normalizedSearch ? 'Matching Services' : 'Wellbeing & Academics'}</Text>}
+          <Text accessibilityLiveRegion="polite" style={summary ? styles.emptyText : styles.silentStatus}>{summary}</Text>
+          {featured.length > 0 && <Text style={styles.sectionTitle} accessibilityRole="header">{normalizedSearch ? 'Matching Services' : 'Wellbeing & Academics'}</Text>}
           {featured.map(resource => (
-            <TouchableOpacity key={resource.label} style={styles.card} onPress={resource.onPress} accessibilityRole="button" accessibilityLabel={resource.label} accessibilityHint={resource.hint}>
+            <TouchableOpacity key={resource.label} style={styles.card} onPress={resource.onPress} accessibilityRole="button" accessibilityLabel={`${resource.label}. ${resource.description}`} accessibilityHint={resource.hint}>
               <View style={[styles.icon, styles[resource.tone]]}><Text style={styles.iconText}>{resource.icon}</Text></View>
               <View style={styles.cardCopy}>
                 <Text style={styles.cardTitle}>{resource.label}</Text>
@@ -140,7 +160,7 @@ export function ResourcesScreen({
 
           {!normalizedSearch && (
             <>
-              <Text style={styles.sectionTitle}>Popular Right Now</Text>
+              <Text style={styles.sectionTitle} accessibilityRole="header">Popular Right Now</Text>
               {popularResources.map((resource) => (
                 <TouchableOpacity
                   key={`popular-${resource.id}`}
@@ -148,7 +168,7 @@ export function ResourcesScreen({
                   onPress={() => onStudentLifePress(resource.id)}
                   activeOpacity={0.75}
                   accessibilityRole="button"
-                  accessibilityLabel={resource.label}
+                  accessibilityLabel={`${resource.label}. ${resource.description}`}
                   accessibilityHint="Opens trusted support links"
                 >
                   <View style={[styles.icon, styles[resource.tone]]}>
@@ -164,7 +184,7 @@ export function ResourcesScreen({
             </>
           )}
 
-          {(!normalizedSearch || featured.length === 0 && browseResources.length > 0) && <Text style={styles.sectionTitle}>{normalizedSearch ? 'Matching Services' : 'Browse More Student Services'}</Text>}
+          {(!normalizedSearch || featured.length === 0 && browseResources.length > 0) && <Text style={styles.sectionTitle} accessibilityRole="header">{normalizedSearch ? 'Matching Services' : 'Browse More Student Services'}</Text>}
           {browseResources.map((resource) => (
             <TouchableOpacity
               key={resource.id}
@@ -172,7 +192,7 @@ export function ResourcesScreen({
               onPress={() => onStudentLifePress(resource.id)}
               activeOpacity={0.75}
               accessibilityRole="button"
-              accessibilityLabel={resource.label}
+              accessibilityLabel={`${resource.label}. ${resource.description}`}
               accessibilityHint="Opens trusted support links"
             >
               <View style={[styles.icon, styles[resource.tone]]}>
@@ -186,9 +206,14 @@ export function ResourcesScreen({
             </TouchableOpacity>
           ))}
           {featured.length === 0 && browseResources.length === 0 && (
-            <View style={styles.emptyState} accessibilityRole="text">
+            <View style={styles.emptyState}>
               <Text style={styles.emptyTitle}>No Matching Services Yet</Text>
-              <Text style={styles.emptyText}>Try a broader term, or use Ask for help with a specific situation.</Text>
+              <TouchableOpacity style={styles.emptyAction} accessibilityRole="button" onPress={() => { setSearch(''); searchInput.current?.focus(); }}>
+                <Text style={styles.actionText}>Clear search</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.emptyAction} accessibilityRole="button" onPress={() => onAskSearch(search.trim())}>
+                <Text style={styles.actionText}>Ask about this</Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -232,6 +257,9 @@ const styles = StyleSheet.create({
   cardDescription: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 18 },
   chevronBadge: { alignItems: 'center', backgroundColor: colors.accent, borderRadius: radius.full, height: 28, justifyContent: 'center', width: 28 },
   chevron: { includeFontPadding: false, textAlignVertical: 'center', color: colors.yellow, fontSize: 25, fontWeight: '500', lineHeight: 27 },
+  silentStatus: { position: 'absolute', width: 1, height: 1, overflow: 'hidden' },
+  emptyAction: { minHeight: 48, justifyContent: 'center' },
+  actionText: { color: colors.accent, fontWeight: '600', fontSize: fontSize.base },
   emptyState: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.lg, borderWidth: 1, gap: spacing.xs, padding: spacing.lg },
   emptyTitle: { color: colors.textPrimary, fontSize: fontSize.md, fontWeight: '700' },
   emptyText: { color: colors.textSecondary, fontSize: fontSize.base, lineHeight: 20 },

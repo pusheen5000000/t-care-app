@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { AccessibilityInfo, Platform } from 'react-native';
 import { SystemAwareModal } from '../components/SystemAwareModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import React, { useEffect, useState } from 'react';
@@ -20,7 +20,10 @@ import type { DisambiguationOption, DisambiguationPrompt } from '../utils/disamb
 
 type Campus = { id: 'utsg' | 'utsc' | 'utm'; label: string };
 
+const QUESTION_LIMIT = 500;
+
 type Props = {
+  initialQuestion?: string;
   onSubmit: (query: string) => void | Promise<void>;
   onTCardPress: () => void | Promise<void>;
   onTalkSupportPress: () => void | Promise<void>;
@@ -50,14 +53,21 @@ const MOODS: { emoji: string; label: string; mood: 'good' | 'okay' | 'struggling
   { emoji: '😔', label: 'Struggling', mood: 'struggling' },
 ];
 
-export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccessibilityPress, onResolveDisambiguation, onEmergencySupportPress, campus, onCampusChange }: Props) {
+export function AskScreen({ initialQuestion = '', onSubmit, onTCardPress, onTalkSupportPress, onAccessibilityPress, onResolveDisambiguation, onEmergencySupportPress, campus, onCampusChange }: Props) {
   const insets = useSafeAreaInsets();
-  const [text, setText] = useState('');
+  const [text, setText] = useState(initialQuestion);
+  const changeQuestion = (value: string) => {
+    if (value.length === QUESTION_LIMIT && text.length !== QUESTION_LIMIT) {
+      AccessibilityInfo.announceForAccessibility('500 character limit reached.');
+    }
+    setText(value);
+  };
   const [activeMood, setActiveMood] = useState<'good' | 'okay' | 'struggling' | null>(null);
   const [campusPickerVisible, setCampusPickerVisible] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
   const [isLayoutReady, setIsLayoutReady] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const canSubmit = Boolean(text.trim()) && text.length <= QUESTION_LIMIT && !isSubmitting;
   // The query being disambiguated, held so "ask as typed" can still send it.
   const [pendingQuery, setPendingQuery] = useState<string | null>(null);
   const [disambiguation, setDisambiguation] = useState<DisambiguationPrompt | null>(null);
@@ -85,7 +95,7 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
 
   const handleSend = () => {
     const query = text.trim();
-    if (!query) return;
+    if (!canSubmit) return;
 
     // For short, everyday needs the exact next step can be ambiguous
     // ("i'm hungry" -> food bank or campus dining?). Offer a quick follow-up
@@ -164,25 +174,30 @@ export function AskScreen({ onSubmit, onTCardPress, onTalkSupportPress, onAccess
               onFocus={() => setInputFocused(true)}
               onBlur={() => setInputFocused(false)}
               value={text}
-              onChangeText={setText}
+              onChangeText={changeQuestion}
               placeholder="Ask about a service, place, or campus need"
               placeholderTextColor={colors.textMuted}
               multiline
-              maxLength={500}
+              maxLength={Math.max(QUESTION_LIMIT, text.length)}
               editable={!isSubmitting}
               accessibilityLabel="Ask T-Care a question"
               accessibilityHint="Type a question about a U of T service or campus need"
             />
+            {text.length >= QUESTION_LIMIT - 50 && (
+              <Text style={styles.subtitle}>
+                {text.length}/{QUESTION_LIMIT} characters{text.length > QUESTION_LIMIT ? ' — shorten your question to send.' : ''}
+              </Text>
+            )}
             <TouchableOpacity
-              style={[styles.askButton, (!text.trim() || isSubmitting) && styles.askButtonDisabled]}
+              style={[styles.askButton, !canSubmit && styles.askButtonDisabled]}
               onPress={handleSend}
               activeOpacity={0.8}
-              disabled={!text.trim() || isSubmitting}
+              disabled={!canSubmit}
               accessibilityRole="button"
               accessibilityLabel="Ask T-Care"
-              accessibilityState={{ disabled: !text.trim() || isSubmitting, busy: isSubmitting }}
+              accessibilityState={{ disabled: !canSubmit, busy: isSubmitting }}
             >
-              <Text style={[styles.askButtonText, (!text.trim() || isSubmitting) && styles.askButtonTextDisabled]}>{isSubmitting ? 'Finding support…' : 'Ask T-Care'}</Text>
+              <Text style={[styles.askButtonText, !canSubmit && styles.askButtonTextDisabled]}>{isSubmitting ? 'Finding support…' : 'Ask T-Care'}</Text>
             </TouchableOpacity>
           </View>
 

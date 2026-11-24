@@ -580,6 +580,11 @@ type Campus = { id: 'utsg' | 'utsc' | 'utm'; label: string };
 
 function AppContent() {
   const [tab, setTab] = useState<TabKey>('ask');
+  const [askDraft, setAskDraft] = useState({ revision: 0, text: '' });
+  const openSearchInAsk = (text: string) => {
+    setAskDraft(previous => ({ revision: previous.revision + 1, text }));
+    setTab('ask');
+  };
   const [footerHeight, setFooterHeight] = useState(0);
   const [emergencyVisible, setEmergencyVisible] = useState(false);
   const [campus, setCampus] = useState<Campus | null>(null);
@@ -627,7 +632,8 @@ function AppContent() {
           <View style={tab === 'contact' ? styles.page : styles.hiddenPage}><ContactScreen /></View>
           {(['ask', 'resources'] as const).map(page => (
             <View key={page} style={tab === page ? styles.page : styles.hiddenPage}>
-              <QueryPage page={page} active={tab === page} campus={campus} onCampusChange={handleCampusChange}
+              <QueryPage key={page === 'ask' ? askDraft.revision : page} initialQuestion={askDraft.text}
+                  onAskSearch={openSearchInAsk} page={page} active={tab === page} campus={campus} onCampusChange={handleCampusChange}
                 onEmergencySupportPress={() => setEmergencyVisible(true)} onReturnToAsk={() => setTab('ask')} />
             </View>
           ))}
@@ -654,6 +660,8 @@ function AppContent() {
 }
 
 type QueryPageProps = {
+  initialQuestion: string;
+  onAskSearch: (query: string) => void;
   page: 'ask' | 'resources';
   active: boolean;
   campus: Campus | null;
@@ -662,7 +670,7 @@ type QueryPageProps = {
   onReturnToAsk: () => void;
 };
 
-function QueryPage({ page, active, campus, onCampusChange, onEmergencySupportPress, onReturnToAsk }: QueryPageProps) {
+function QueryPage({ initialQuestion, onAskSearch, page, active, campus, onCampusChange, onEmergencySupportPress, onReturnToAsk }: QueryPageProps) {
   const [result, setResult] = useState<QueryResult | null>(null);
   const [showResourceMap, setShowResourceMap] = useState(false);
   const [showLocationPaths, setShowLocationPaths] = useState(false);
@@ -915,10 +923,10 @@ function QueryPage({ page, active, campus, onCampusChange, onEmergencySupportPre
     <>
       <View style={loading || result ? styles.hiddenPage : styles.page}>
         {page === 'resources' ? (
-          <ResourcesScreen onMentalHealthPress={handleTalkSupport} onAccessibilityPress={handleAccessibilityServices}
+          <ResourcesScreen active={active && !loading && !result} onAskSearch={onAskSearch} onMentalHealthPress={handleTalkSupport} onAccessibilityPress={handleAccessibilityServices}
             onStudentLifePress={handleStudentLifeResource} search={resourceSearch} setSearch={setResourceSearch} />
         ) : (
-          <AskScreen onSubmit={handleSubmit} onTCardPress={handleLostTCard} onTalkSupportPress={handleTalkSupport}
+          <AskScreen initialQuestion={initialQuestion} onSubmit={handleSubmit} onTCardPress={handleLostTCard} onTalkSupportPress={handleTalkSupport}
             onAccessibilityPress={handleAccessibilityServices} onResolveDisambiguation={handleResolveDisambiguation}
             onEmergencySupportPress={onEmergencySupportPress} campus={campus} onCampusChange={onCampusChange} />
         )}
