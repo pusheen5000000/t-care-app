@@ -114,7 +114,11 @@ module.exports = platform => {
         ['degree requirements', 'Courses & Academic Support'],
       ]) {
         await app.type(search, keyword);
-        assert.ok(app.control(label), `${keyword} should find ${label}`);
+        const matches = app.hosts(node =>
+          node.props.accessibilityRole === 'button' &&
+          node.props.accessibilityLabel?.startsWith(`${label}. `),
+        );
+        assert.ok(matches.length > 0, `${keyword} should find ${label}`);
         assert.equal(app.text('No Matching Services Yet').length, 0);
       }
       await app.type(search, 'nothing-matches-this');
