@@ -17,3 +17,13 @@ test('every example shown for an invalid prompt resolves locally', async (t) => 
   }
   assert.equal(fetch.mock.callCount(), 0);
 });
+
+test('a one-letter typo in a service keyword still resolves locally', async (t) => {
+  const fetch = t.mock.method(globalThis, 'fetch', () => {
+    throw new Error('Typo matches should not need an AI request');
+  });
+
+  assert.equal((await classifyQuery('Where can I eat at a restaursnt?', services)).serviceId, 'campus-dining');
+  assert.equal((await classifyQuery('I need an accomodation', services)).serviceId, 'accessibility-services');
+  assert.equal(fetch.mock.callCount(), 0);
+});

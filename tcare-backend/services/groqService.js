@@ -33,6 +33,62 @@ function invalidPromptResult() {
   };
 }
 
+function normalizeWord(word) {
+  return word
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function editDistance(left, right) {
+  const matrix = Array.from({ length: left.length + 1 }, () => (
+    Array.from({ length: right.length + 1 }, (_, index) => index)
+  ));
+
+  for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
+    matrix[leftIndex][0] = leftIndex;
+    for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
+      const substitutionCost = left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1;
+      matrix[leftIndex][rightIndex] = Math.min(
+        matrix[leftIndex - 1][rightIndex] + 1,
+        matrix[leftIndex][rightIndex - 1] + 1,
+        matrix[leftIndex - 1][rightIndex - 1] + substitutionCost,
+      );
+
+      // Treat an adjacent transposition as one typo ("fodo" -> "food").
+      if (
+        leftIndex > 1
+        && rightIndex > 1
+        && left[leftIndex - 1] === right[rightIndex - 2]
+        && left[leftIndex - 2] === right[rightIndex - 1]
+      ) {
+        matrix[leftIndex][rightIndex] = Math.min(
+          matrix[leftIndex][rightIndex],
+          matrix[leftIndex - 2][rightIndex - 2] + 1,
+        );
+      }
+    }
+  }
+
+  return matrix[left.length][right.length];
+}
+
+function fuzzyKeywordScore(query, keyword) {
+  const keywordWords = keyword.split(/\s+/).map(normalizeWord).filter(Boolean);
+  if (keywordWords.length !== 1 || keywordWords[0].length < 3) return 0;
+
+  const queryWords = query.split(/\s+/).map(normalizeWord).filter(Boolean);
+  const keywordWord = keywordWords[0];
+  const match = queryWords.find((queryWord) => (
+    queryWord.length >= 3
+    && Math.abs(queryWord.length - keywordWord.length) <= 1
+    && editDistance(queryWord, keywordWord) === 1
+  ));
+
+  return match ? Math.max(1, keywordWord.length - 1) * 0.5 : 0;
+}
+
 async function classifyQuery(query, services) {
   const normalizedQuery = query.trim();
   if (/^(?:hi|hello|hey|good (?:morning|afternoon|evening)|i need (?:some )?help|can you help(?: me)?|help me)[!,.?\s]*$/i.test(normalizedQuery)) {
@@ -63,7 +119,10 @@ async function classifyQuery(query, services) {
     .map((service) => ({
       service,
       score: service.keywords.reduce(
-        (score, keyword) => score + (keywordAppearsInQuery(keyword) ? keyword.length : 0),
+        (score, keyword) => score
+          + (keywordAppearsInQuery(keyword)
+            ? keyword.length
+            : fuzzyKeywordScore(queryForMatching, keyword)),
         0,
       ),
     }))
